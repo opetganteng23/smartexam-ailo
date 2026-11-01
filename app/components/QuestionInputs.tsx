@@ -37,12 +37,21 @@ export function ShortInput({ value, onChange }: { value: string | undefined; onC
   );
 }
 
+// Tab menyisipkan dua spasi (untuk menulis kode/algoritma); Shift+Tab tetap memindahkan fokus.
+const tabIndent = (onChange: (v: string) => void) => (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+  if (e.key !== "Tab" || e.shiftKey) return;
+  e.preventDefault();
+  const el = e.currentTarget, { selectionStart: a, selectionEnd: z, value } = el;
+  onChange(value.slice(0, a) + "  " + value.slice(z));
+  requestAnimationFrame(() => el.setSelectionRange(a + 2, a + 2));
+};
+
 export function EssayInput({ value, onChange, maxWords }: { value: string | undefined; onChange: (v: string) => void; maxWords?: number | null }) {
   const t = useT();
   const n = wordCount(value ?? ""), over = maxWords != null && n > maxWords;
   return (
     <div className="mt-5">
-      <textarea className="field min-h-[220px] resize-y leading-relaxed" value={value ?? ""} maxLength={20000} onChange={(e) => onChange(e.target.value)} placeholder={t("Write your answer here")} aria-label={t("Your essay answer")} />
+      <textarea className="field min-h-[220px] resize-y font-mono text-sm leading-relaxed" value={value ?? ""} maxLength={20000} onChange={(e) => onChange(e.target.value)} onKeyDown={tabIndent(onChange)} placeholder={t("Write your answer here")} aria-label={t("Your essay answer")} />
       <p className={`mt-1.5 text-xs ${over ? "font-semibold text-red-700" : "text-ink-soft"}`}>{n} {n === 1 ? t("word") : t("words")}{maxWords != null ? ` · ${t("limit")} ${maxWords}` : ""}{over ? ` · ${t("over the limit")}` : ""}</p>
     </div>
   );

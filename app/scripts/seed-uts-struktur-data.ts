@@ -40,7 +40,7 @@ const SEC = ["sll", "dll", "stack", "queue"];
 const QS: Q[] = SEC.map((k) => {
   const ps = PARTS.filter((p) => p.section === k);
   const letter = (i: number) => "abcd"[i];
-  const stem = "Kerjakan semua bagian (a sampai d). Tuliskan jawaban dalam satu kotak dan awali tiap jawaban dengan hurufnya (a., b., c., d.).\nNaskah soal lengkap ada pada gambar halaman di atas.\n\n" + NASKAH[k].parts.map((p) => p.split("\n")[0]).join("\n");
+  const stem = "Kerjakan semua bagian (a sampai d). Tuliskan jawaban dalam satu kotak dan awali tiap jawaban dengan hurufnya (a., b., c., d.).\nNaskah soal lengkap ada pada gambar halaman di atas. Semua jawaban diketik di kotak ini (tidak ditulis di kertas); tabel atau gambar ditulis sebagai teks, mis. B (top=3): Susu, Apel, Roti.\n\n" + NASKAH[k].parts.map((p) => p.split("\n")[0]).join("\n");
   const rubric: R = ps.map((p, i) => [`(${letter(i)}) ${p.stem.split("\n")[0].replace(/^\d[a-d]\.\s*/, "").replace(/!$/, "")}. Rincian: ${p.rubric.map(([c, n]) => `${c} (${n})`).join("; ")}`, p.points]);
   return q(k, stem, rubric, ps.map((p, i) => `(${letter(i)}) ${p.guide}`).join("\n"));
 });
