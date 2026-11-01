@@ -403,7 +403,7 @@ export default function Ruang({ params }: { params: { id: string } }) {
           )}
           <section className="card">
             <p className="text-sm text-ink-soft">{t("Question {n} of {total}", { n: cur + 1, total: st.questions.length })}</p>
-            <h2 className="mt-2 text-lg font-medium leading-relaxed">{q.stem}</h2>
+            <h2 className="mt-2 whitespace-pre-line text-lg font-medium leading-relaxed">{q.stem}</h2>
             {q.assetIds?.map((a) => (
               // eslint-disable-next-line @next/next/no-img-element
               <img key={a} src={`/api/assets/${a}`} alt={t("Question image")} className="mt-3 max-h-72 rounded-lg border border-line" />
