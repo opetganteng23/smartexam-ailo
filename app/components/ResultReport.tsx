@@ -163,7 +163,7 @@ export function ResultReport({ attemptId, staffBase }: { attemptId: string; staf
           </div>
           <div className="mt-1.5 flex justify-between text-xs text-[#BFE3EC]"><span>{rng.min}</span><span>{rng.max}</span></div>
           <p className="mt-3 text-xs leading-relaxed text-[#D9F0F5]">{r.scale === "percent" ? "Your score is the percentage of points you earned." : "An estimate from a simulation test, not an official score. Official scores only come from official exams run by an official organizer."}</p>
-          {r.scoring && <p className={`mt-2 inline-block rounded-md px-2 py-1 text-[11px] font-semibold ${r.scoring.basis === "verified" ? "bg-white/15 text-[#D9F0F5]" : "bg-accent text-navy"}`}>{r.scoring.basis === "verified" ? `Scored with a verified conversion${r.scoring.name ? `: ${r.scoring.name}` : ""}` : "Provisional conversion: treat this score as a rough estimate"}</p>}
+          {r.scoring && r.scale !== "percent" && <p className={`mt-2 inline-block rounded-md px-2 py-1 text-[11px] font-semibold ${r.scoring.basis === "verified" ? "bg-white/15 text-[#D9F0F5]" : "bg-accent text-navy"}`}>{r.scoring.basis === "verified" ? `Scored with a verified conversion${r.scoring.name ? `: ${r.scoring.name}` : ""}` : "Provisional conversion: treat this score as a rough estimate"}</p>}
         </div>
       </section>
       )}
@@ -191,14 +191,14 @@ export function ResultReport({ attemptId, staffBase }: { attemptId: string; staf
                       <tr key={x.section} className={x.section === "total" ? "font-bold text-navy" : ""}>
                         <td>{x.section === "total" ? "Total" : SECTION_SHORT[x.section] ?? x.section}</td><td>{x.total}</td><td>{x.answered}</td>
                         <td className={x.unanswered > 0 ? "font-semibold text-red-700" : ""}>{x.unanswered}</td><td>{x.correct}</td><td>{x.wrong}</td><td>{x.pctCorrect}%</td>
-                        <td className="font-semibold text-navy">{x.scaled ?? "-"}{x.section === "total" ? "" : <span className="ml-1 text-xs font-normal text-ink-soft">/ 68</span>}</td>
+                        <td className="font-semibold text-navy">{x.scaled ?? "-"}{x.section === "total" ? "" : <span className="ml-1 text-xs font-normal text-ink-soft">/ {r.scale === "percent" ? 100 : 68}</span>}</td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
               </div>
             </div>
-            {sm.level.next && (
+            {sm.level.next && r.scale !== "percent" && (
               <div className="card">
                 <h2 className="font-display text-lg font-extrabold text-navy">Gap to {sm.level.next.name} ({sm.level.next.scoreMin})</h2>
                 <p className="text-sm text-ink-soft">{sm.level.next.scoreMin} needs a section average of {sm.level.next.avgNeeded} (scale 31-68).</p>
@@ -251,6 +251,7 @@ export function ResultReport({ attemptId, staffBase }: { attemptId: string; staf
         </section>
       )}
 
+      {!staff && <ProctorSummaryCard attemptId={attemptId} />}
       {levelBanners}
 
       <section className="grid gap-3 sm:grid-cols-3" aria-label="Score per section">
@@ -261,8 +262,8 @@ export function ResultReport({ attemptId, staffBase }: { attemptId: string; staf
           return (
             <div key={s.section} className="card !p-4">
               <p className="text-sm font-semibold text-navy">{SECTION_SHORT[s.section]}</p>
-              <p className="mt-1 flex items-baseline gap-2"><span className="font-display text-3xl font-extrabold text-navy">{s.scaled}</span><span className="text-xs text-ink-soft">scale 31-68</span>{d != null && <span className={`ml-auto text-xs font-semibold ${d >= 0 ? "text-success" : "text-red-700"}`}>{fmtDelta(d)}</span>}</p>
-              <div className="mt-2 h-2 rounded-full bg-canvas" aria-hidden><div className="h-2 rounded-full bg-brand" style={{ width: `${Math.max(0, Math.min(100, ((s.scaled - 31) / (68 - 31)) * 100))}%` }} /></div>
+              <p className="mt-1 flex items-baseline gap-2"><span className="font-display text-3xl font-extrabold text-navy">{s.scaled}</span><span className="text-xs text-ink-soft">{r.scale === "percent" ? "%" : "scale 31-68"}</span>{d != null && <span className={`ml-auto text-xs font-semibold ${d >= 0 ? "text-success" : "text-red-700"}`}>{fmtDelta(d)}</span>}</p>
+              <div className="mt-2 h-2 rounded-full bg-canvas" aria-hidden><div className="h-2 rounded-full bg-brand" style={{ width: `${Math.max(0, Math.min(100, r.scale === "percent" ? s.scaled : ((s.scaled - 31) / (68 - 31)) * 100))}%` }} /></div>
               <p className="mt-1.5 text-xs text-ink-soft">{s.raw} of {s.total} correct</p>
             </div>
           );
@@ -277,12 +278,12 @@ export function ResultReport({ attemptId, staffBase }: { attemptId: string; staf
           <section className="card">
             <h2 className="font-display text-lg font-extrabold text-navy">Score profile</h2>
             <div className="mt-2 grid items-center gap-4 sm:grid-cols-[340px_1fr]">
-              <RadarChart axes={order.map((k) => SECTION_SHORT[k])} now={val(r.sectionScores)} previous={r.previous ? val(r.previous.sectionScores) : null} target={tgt} />
+              <RadarChart min={r.scale === "percent" ? 0 : 31} max={r.scale === "percent" ? 100 : 68} axes={order.map((k) => SECTION_SHORT[k])} now={val(r.sectionScores)} previous={r.previous ? val(r.previous.sectionScores) : null} target={tgt} />
               <ul className="flex flex-col gap-2 text-sm text-ink-soft">
                 <li><i className="mr-2 inline-block h-2.5 w-6 rounded bg-brand align-middle" />This test</li>
                 {r.previous && <li><i className="mr-2 inline-block h-0.5 w-6 bg-[#9DB4BC] align-middle" />{r.previous.name}</li>}
                 {tgt != null && <li><i className="mr-2 inline-block h-0.5 w-6 align-middle" style={{ borderTop: "2px dashed #F07020" }} />Needed for {r.summary?.level.next?.name} (section average {tgt})</li>}
-                <li className="text-xs">Scale 31-68 per section. A shape closer to the outer edge is better; an even shape means balanced skills.</li>
+                <li className="text-xs">{r.scale === "percent" ? "Percent per section." : "Scale 31-68 per section."} A shape closer to the outer edge is better; an even shape means balanced skills.</li>
               </ul>
             </div>
           </section>

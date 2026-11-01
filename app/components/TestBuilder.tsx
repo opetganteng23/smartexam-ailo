@@ -22,7 +22,7 @@ export async function api(url: string, init?: RequestInit) {
 /** Tes jenis ini milik program belajar (dipasang di unit atau course), bukan tes terjadwal. */
 export const LEARNING_KINDS = ["quiz", "section"];
 
-export const NEW_DRAFT = (kind = "placement"): Draft => ({ name: "", kind, levelId: "", active: false, testMode: true, attempts: 0, sections: [{ name: "listening", durationSec: 35 * 60, questionIds: [] }, { name: "structure", durationSec: 25 * 60, questionIds: [] }, { name: "reading", durationSec: 55 * 60, questionIds: [] }] });
+export const NEW_DRAFT = (kind = "placement"): Draft => ({ name: "", kind, levelId: "", active: false, testMode: true, attempts: 0, sections: [] });
 
 export async function loadDraft(id: string): Promise<Draft> {
   const t = await api(`/api/admin/tests/${id}`);
@@ -80,7 +80,9 @@ export function Builder({ draft, onClose, onSaved, inline, kinds }: { draft: Dra
         {v.kind === "section" && <p className="mt-2 text-xs text-ink-soft">Section tests (one per exam part) do not appear in My Tests; attach one to a course and learners take it at the end of that course.</p>}
 
         <div className="mt-5 flex flex-col gap-5">
-          {v.sections.map((s, i) => <SectionBox key={s.name} s={s} locked={locked} onChange={(n) => setSec(i, n)} />)}
+          {v.sections.map((s, i) => <SectionBox key={s.name} s={s} locked={locked} onChange={(n) => setSec(i, n)} onRemove={locked ? undefined : () => setV((x) => ({ ...x, sections: x.sections.filter((_, j) => j !== i) }))} />)}
+          {!v.sections.length && <p className="rounded-xl bg-canvas p-4 text-sm text-ink-soft">No sections yet. Add at least one section below. A section is a part of the exam (for example Math or Logic); its name is the question category its questions come from.</p>}
+          {!locked && <AddSection existing={v.sections.map((x) => x.name)} onAdd={(list) => setV((x) => ({ ...x, sections: [...x.sections, ...list.map((o) => ({ name: o.name, durationSec: o.min * 60, questionIds: [] }))] }))} />}
         </div>
         {err && <p role="alert" className="mt-4 text-sm text-red-700">{err}</p>}
         <div className={`mt-5 flex justify-end gap-3 ${inline ? "sticky bottom-0 -mx-1 border-t border-line bg-white px-1 py-3" : ""}`}>
@@ -100,7 +102,7 @@ export function Builder({ draft, onClose, onSaved, inline, kinds }: { draft: Dra
   );
 }
 
-function SectionBox({ s, locked, onChange }: { s: Sec; locked: boolean; onChange: (s: Sec) => void }) {
+function SectionBox({ s, locked, onChange, onRemove }: { s: Sec; locked: boolean; onChange: (s: Sec) => void; onRemove?: () => void }) {
   const [chosen, setChosen] = useState<QRow[]>([]);
   const [q, setQ] = useState("");
   const [pool, setPool] = useState<QRow[]>([]);
@@ -135,6 +137,7 @@ function SectionBox({ s, locked, onChange }: { s: Sec; locked: boolean; onChange
   return (
     <fieldset className="rounded-xl border border-line p-4">
       <legend className="px-2 font-display font-extrabold text-navy">{SECTION[s.name]} · {ids.length} questions</legend>
+      {onRemove && <button type="button" onClick={onRemove} className="float-right text-sm font-semibold text-red-700">Remove section</button>}
       <label className="flex items-center gap-2 text-sm font-semibold text-navy">Duration (minutes)
         <input type="number" min={1} max={180} disabled={locked} className="field w-24" value={Math.round(s.durationSec / 60)} onChange={(e) => onChange({ ...s, durationSec: Math.max(1, Number(e.target.value) || DEFAULT_MIN[s.name]) * 60 })} />
       </label>
@@ -182,5 +185,36 @@ function SectionBox({ s, locked, onChange }: { s: Sec; locked: boolean; onChange
         </div>
       )}
     </fieldset>
+  );
+}
+
+/** Tambah bagian ujian: nama bebas (sama dengan kategori soal) dan durasi. Templat TOEFL ITP hanya pilihan, bukan bawaan. */
+function AddSection({ existing, onAdd }: { existing: string[]; onAdd: (list: { name: string; min: number }[]) => void }) {
+  const [name, setName] = useState("");
+  const [min, setMin] = useState(30);
+  const [cats, setCats] = useState<string[]>([]);
+  const [err, setErr] = useState("");
+  useEffect(() => { api("/api/admin/question-types").then((d) => setCats(Array.from(new Set((d.types as { section: string }[]).map((t) => t.section))))).catch(() => {}); }, []);
+  const key = name.trim().toLowerCase().replace(/[^a-z0-9_]/g, "_");
+  function add() {
+    if (!/^[a-z][a-z0-9_]{1,31}$/.test(key)) return setErr("Use 2 to 32 letters, numbers, or underscores, starting with a letter (for example math).");
+    if (existing.includes(key)) return setErr("This section is already in the test.");
+    setErr(""); onAdd([{ name: key, min: Math.max(1, Math.min(180, Number(min) || 30)) }]); setName("");
+  }
+  return (
+    <div className="rounded-xl border border-dashed border-line-strong p-4">
+      <p className="text-sm font-semibold text-navy">Add a section</p>
+      <div className="mt-2 flex flex-wrap items-end gap-3">
+        <label className="flex flex-col gap-1 text-xs font-semibold text-navy">Section name (question category)
+          <input className="field w-56 font-normal" list="tb-cats" placeholder="e.g. math" value={name} maxLength={32} onChange={(e) => setName(e.target.value)} /><datalist id="tb-cats">{cats.map((c) => <option key={c} value={c} />)}</datalist>
+        </label>
+        <label className="flex flex-col gap-1 text-xs font-semibold text-navy">Minutes
+          <input type="number" min={1} max={180} className="field w-24 font-normal" value={min} onChange={(e) => setMin(Number(e.target.value))} />
+        </label>
+        <button type="button" className="btn-solid" onClick={add}>+ Add section</button>
+        <button type="button" className="text-sm font-semibold text-brand" onClick={() => onAdd(["listening", "structure", "reading"].filter((n) => !existing.includes(n)).map((n) => ({ name: n, min: DEFAULT_MIN[n] })))}>Use TOEFL ITP sections</button>
+      </div>
+      {err && <p role="alert" className="mt-2 text-xs text-red-700">{err}</p>}
+    </div>
   );
 }

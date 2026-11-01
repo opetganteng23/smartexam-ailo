@@ -22,7 +22,7 @@ type Form = {
 };
 
 const SECTION = SECTION_SHORT;
-const empty = (section = "structure"): Form => ({ section, type: "", groupId: "", stem: "", options: ["", "", "", ""], answerKey: 0, explanation: "", tags: [], difficulty: "medium", status: "draft", assetIds: [], source: "", kind: "mcq", points: 1 });
+const empty = (section = ""): Form => ({ section, type: "", groupId: "", stem: "", options: ["", "", "", ""], answerKey: 0, explanation: "", tags: [], difficulty: "medium", status: "draft", assetIds: [], source: "", kind: "mcq", points: 1 });
 const json = (body: unknown) => ({ headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
 
 async function api(url: string, init?: RequestInit) {
@@ -95,12 +95,12 @@ export default function BankSoal() {
           <button onClick={() => setAiDlg(true)} className="rounded-xl border border-line-strong px-4 py-2.5 text-sm font-semibold text-navy">Draft with AI</button>
           <button onClick={() => setImportDlg(true)} className="rounded-xl border border-line-strong px-4 py-2.5 text-sm font-semibold text-navy">Import Excel/CSV/Word</button>
           <button onClick={() => setGroupDlg(true)} className="rounded-xl border border-line-strong px-4 py-2.5 text-sm font-semibold text-navy">+ Audio/passage group</button>
-          <button onClick={() => setForm(empty(f.section || "structure"))} className="rounded-xl bg-brand px-4 py-2.5 text-sm font-semibold text-white">+ New question</button>
+          <button onClick={() => setForm(empty(f.section || ""))} className="rounded-xl bg-brand px-4 py-2.5 text-sm font-semibold text-white">+ New question</button>
         </div>
       </div>
 
       <div className="flex flex-wrap gap-1 rounded-xl bg-white p-1 text-sm" role="tablist" aria-label="Category">
-        {[["", "All"], ...Object.entries(SECTION)].map(([k, n]) => (
+        {[["", "All"], ...Object.keys(secCounts).sort().map((k) => [k, SECTION[k]] as [string, string])].map(([k, n]) => (
           <button key={k || "all"} role="tab" aria-selected={f.section === k} onClick={() => { setPage(1); setF({ ...f, section: k, type: "" }); }}
             className={`flex items-center gap-2 rounded-lg px-4 py-2 font-semibold transition ${f.section === k ? "bg-navy text-white" : "text-ink-soft hover:bg-canvas"}`}>
             {n}<span className={`rounded-full px-2 py-0.5 text-xs ${f.section === k ? "bg-white/20" : "bg-canvas"}`}>{k ? secCounts[k] ?? 0 : Object.values(secCounts).reduce((x, y) => x + y, 0)}</span>

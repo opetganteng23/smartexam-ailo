@@ -345,7 +345,7 @@ export default function Ruang({ params }: { params: { id: string } }) {
             className={`h-10 rounded-lg text-sm font-semibold ${i === cur ? "ring-2 ring-brand " : ""}${!secure && flagged[x.id] ? "bg-accent-tint text-accent-dark" : isAns(x.id) ? "bg-brand text-white" : "bg-canvas text-ink-soft"}`}>{i + 1}</button>
         ))}
       </div>
-      <p className="mt-3 text-xs text-ink-soft">{t("{a} of {total} answered", { a: answered, total: st.questions.length })} · blue = answered{secure ? " · secure mode: one way, use Next to move on" : ", orange = flagged"}</p>
+      <p className="mt-3 text-xs text-ink-soft">{t("{a} of {total} answered", { a: answered, total: st.questions.length })} · {t("blue = answered")}{secure ? ` · ${t("secure mode: one way, use Next to move on")}` : `, ${t("orange = flagged")}`}</p>
     </>
   );
 

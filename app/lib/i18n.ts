@@ -225,6 +225,7 @@ const ID: Record<string, string> = {
   "Take your first test": "Kerjakan tes pertama Anda",
   "Score progress": "Perkembangan skor",
   "Result pending": "Hasil belum keluar",
+  "blue = answered": "biru = terjawab", "orange = flagged": "oranye = ditandai", "secure mode: one way, use Next to move on": "mode aman: satu arah, gunakan Berikutnya untuk lanjut",
   // Ringkasan pengawasan setelah submit
   "Proctoring summary": "Ringkasan pengawasan",
   "Activity detected during your session. Your institution can review this record.": "Aktivitas yang terdeteksi selama sesi Anda. Institusi Anda dapat meninjau catatan ini.",

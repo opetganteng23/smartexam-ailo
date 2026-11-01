@@ -200,7 +200,7 @@ function Editor({ id, onClose, onSaved }: { id: string | "new"; onClose: () => v
           </section>
         )}
 
-        <section className="rounded-xl bg-canvas p-4" aria-label="Score calculator">
+        {v.scale !== "percent" && <section className="rounded-xl bg-canvas p-4" aria-label="Score calculator">
           <h3 className="font-semibold text-navy">Try it</h3>
           <div className="mt-2 grid gap-3 sm:grid-cols-3">
             {SEC.map(([k, n, tot]) => (
@@ -211,7 +211,7 @@ function Editor({ id, onClose, onSaved }: { id: string | "new"; onClose: () => v
             ))}
           </div>
           <p className="mt-2 text-sm">Estimated total: <b className="font-display text-xl text-navy">{check?.total ?? "-"}</b> <span className="text-xs text-ink-soft">(average of the three sections × 10, limited to 310-677)</span></p>
-        </section>
+        </section>}
 
         {check?.errors.length ? <ul role="alert" className="rounded-lg bg-red-50 p-3 text-sm text-red-700">{check.errors.map((e) => <li key={e}>{e}</li>)}</ul> : null}
         {check?.warnings.length ? <ul className="rounded-lg bg-accent-tint p-3 text-sm text-accent-dark">{check.warnings.map((e) => <li key={e}>{e}</li>)}</ul> : null}
