@@ -14,7 +14,21 @@ type Board = { test: { id: string; name: string; scheduled: boolean; reminderMod
 type Chip = { id: string; name: string | null; email: string; institution: string | null; seat?: Seat };
 
 const wib = (d: string) => new Date(d).toLocaleString("en-GB", { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", timeZone: "Asia/Jakarta" });
-const toInput = (d: string | Date) => { const x = new Date(d); x.setMinutes(x.getMinutes() - x.getTimezoneOffset()); return x.toISOString().slice(0, 16); };
+// Jadwal selalu dalam WIB (UTC+7) dan jam 24 jam, tidak bergantung zona/bahasa peramban admin.
+const toInput = (d: string | Date) => new Date(+new Date(d) + 7 * 3600_000).toISOString().slice(0, 16);
+const fromInput = (v: string) => new Date(v + ":00+07:00").toISOString();
+function WibField({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
+  const date = value.slice(0, 10), time = value.slice(11, 16);
+  return (
+    <label>{label} <span className="text-xs text-ink-soft">(WIB, 24-hour)</span>
+      <span className="mt-1 flex gap-2">
+        <input type="date" className="field w-full" value={date} onChange={(e) => onChange(`${e.target.value}T${time || "00:00"}`)} />
+        <input key={value} className="field w-28 text-center tabular-nums" inputMode="numeric" placeholder="HH:mm" maxLength={5} aria-label={`${label} time, 24-hour HH:mm`} defaultValue={time}
+          onChange={(e) => { const t = e.target.value; if (/^([01]\d|2[0-3]):[0-5]\d$/.test(t)) onChange(`${date || toInput(new Date()).slice(0, 10)}T${t}`); }} />
+      </span>
+    </label>
+  );
+}
 const POOL_LIMIT = 300;
 
 /**
@@ -233,15 +247,15 @@ export function ScheduleBoard({ testId, readOnly = false, apiUrl, back, embedded
             <h2 className="font-display text-xl font-extrabold text-navy">{form.id ? "Edit session" : "New session"}</h2>
             <div className="mt-3 flex flex-col gap-3 text-sm">
               <label>Name<input className="field w-full" value={form.label} onChange={(e) => setForm({ ...form, label: e.target.value })} /></label>
-              <label>Opens<input type="datetime-local" className="field w-full" value={form.opensAt} onChange={(e) => setForm({ ...form, opensAt: e.target.value })} /></label>
-              <label>Closes<input type="datetime-local" className="field w-full" value={form.closesAt} onChange={(e) => setForm({ ...form, closesAt: e.target.value })} /></label>
+              <WibField label="Opens" value={form.opensAt} onChange={(v) => setForm({ ...form, opensAt: v })} />
+              <WibField label="Closes" value={form.closesAt} onChange={(v) => setForm({ ...form, closesAt: v })} />
               <label>Capacity<input inputMode="numeric" className="field w-full" value={form.capacity} onChange={(e) => setForm({ ...form, capacity: Number(e.target.value.replace(/\D/g, "")) })} /></label>
               <p className="text-xs text-ink-soft">People can start any time between opening and closing. A test that has started may finish after closing, within its own timer.</p>
             </div>
             <div className="mt-4 flex justify-end gap-2">
               <button className="btn-outline" onClick={() => setForm(null)}>Cancel</button>
               <button className="btn-solid" disabled={busy || !form.opensAt || !form.closesAt} onClick={() => run(async () => {
-                const body = { label: form.label, opensAt: new Date(form.opensAt).toISOString(), closesAt: new Date(form.closesAt).toISOString(), capacity: form.capacity };
+                const body = { label: form.label, opensAt: fromInput(form.opensAt), closesAt: fromInput(form.closesAt), capacity: form.capacity };
                 await api(form.id ? `${base}/sessions/${form.id}` : `${base}/sessions`, { method: form.id ? "PATCH" : "POST", json: body }); setForm(null);
               })}>Save</button>
             </div>
@@ -255,14 +269,14 @@ export function ScheduleBoard({ testId, readOnly = false, apiUrl, back, embedded
             <h2 className="font-display text-xl font-extrabold text-navy">Reschedule {ext.name}</h2>
             <p className="text-sm text-ink-soft">Only this person gets a new window. They receive an email with the new times.</p>
             <div className="mt-3 flex flex-col gap-3 text-sm">
-              <label>Opens<input type="datetime-local" className="field w-full" value={ext.opensAt} onChange={(e) => setExt({ ...ext, opensAt: e.target.value })} /></label>
-              <label>Closes<input type="datetime-local" className="field w-full" value={ext.closesAt} onChange={(e) => setExt({ ...ext, closesAt: e.target.value })} /></label>
+              <WibField label="Opens" value={ext.opensAt} onChange={(v) => setExt({ ...ext, opensAt: v })} />
+              <WibField label="Closes" value={ext.closesAt} onChange={(v) => setExt({ ...ext, closesAt: v })} />
               <label>Reason (optional; kept in the audit log, shown in the email)<input className="field w-full" value={ext.reason} onChange={(e) => setExt({ ...ext, reason: e.target.value })} /></label>
             </div>
             <div className="mt-4 flex justify-end gap-2">
               <button className="btn-outline" onClick={() => setExt(null)}>Cancel</button>
               <button className="btn-solid" disabled={busy || !ext.opensAt || !ext.closesAt} onClick={() => run(async () => {
-                await api(`${base}/extend`, { json: { userId: ext.userId, opensAt: new Date(ext.opensAt).toISOString(), closesAt: new Date(ext.closesAt).toISOString(), reason: ext.reason.trim() || undefined } }); setExt(null);
+                await api(`${base}/extend`, { json: { userId: ext.userId, opensAt: fromInput(ext.opensAt), closesAt: fromInput(ext.closesAt), reason: ext.reason.trim() || undefined } }); setExt(null);
               })}>Save and notify</button>
             </div>
           </div>
