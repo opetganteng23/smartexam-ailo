@@ -13,7 +13,7 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
   try {
     const { user, inst, full } = await instContext(req);
     if (!isValidObjectId(params.id) || !(await analyticsTests(String(inst._id))).some((t) => t.id === params.id)) throw new HttpError(404, "Test not found");
-    const q = new URL(req.url).searchParams, session = q.get("session"), t = Number(q.get("target"));
+    const q = new URL(req.url).searchParams, session = q.get("session");
     if (session && !isValidObjectId(session)) throw new HttpError(404, "Session not found");
     const out = await buildExecSummary(params.id, { sessionId: session ?? undefined, only: q.get("report") === "schedule" ? "schedule" : undefined, scope: { institutionId: String(inst._id), releasedOnly: !full, ...scopeFromQuery(q) } });
     if (!out) throw new HttpError(404, "Test not found");

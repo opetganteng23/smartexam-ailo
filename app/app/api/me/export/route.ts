@@ -1,7 +1,6 @@
 import { connectDB } from "@/lib/db";
 import { releasedFilter } from "@/lib/attempt-release";
 import { requireRole, handleError } from "@/lib/rbac";
-import { decryptField } from "@/lib/crypto";
 import { User } from "@/models/User";
 import { Attempt } from "@/models/Test";
 import { CounselorThread } from "@/models/Counselor";

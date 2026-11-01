@@ -1,14 +1,10 @@
 import type { Types } from "mongoose";
-import { connectDB } from "./db";
-import { getLevels, levelForScore, getParam } from "./config";
+import { getLevels, getParam } from "./config";
 import { audit } from "./audit";
-import { notify } from "./notify";
 import { cycleState } from "./cycles";
 import { pickClass } from "./class-pick";
 import { HttpError } from "./rbac";
 import { User } from "@/models/User";
-import { CoachingQuota } from "@/models/Config";
-import { Setting, getSetting } from "@/models/Settings";
 import { ClassGroup, ClassMember } from "@/models/Cluster";
 import { LearningEvent } from "@/models/Course";
 

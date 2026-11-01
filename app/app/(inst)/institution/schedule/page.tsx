@@ -3,13 +3,10 @@
 import { useState } from "react";
 import { useApi } from "@/lib/useApi";
 import { useInstQuery, useInstScope } from "@/lib/inst-client";
-import { tgl } from "@/lib/client";
 import { Loading, ErrorNote, Empty } from "@/components/Charts";
 import { ScheduleBoard } from "@/components/ScheduleBoard";
 
 type G = { id: string; name: string; kind: string };
-type S = { id: string; title: string; date: string; place: string; participants: { name: string; status: string; docStatus: string; total: number | null }[] };
-const ST: Record<string, string> = { submitted: "Awaiting verification", confirmed: "Confirmed", done: "Done" };
 
 /** Jadwal tes rombongan: papan jadwal yang sama dengan admin (hanya lihat). */
 export default function InstJadwal() {

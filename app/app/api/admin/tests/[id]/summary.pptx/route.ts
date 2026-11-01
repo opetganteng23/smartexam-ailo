@@ -11,7 +11,7 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
   try {
     const admin = await requireRole(ACADEMIC_ROLES);
     if (!isValidObjectId(params.id)) throw new HttpError(404, "Test not found");
-    const q = new URL(req.url).searchParams, session = q.get("session"), t = Number(q.get("target"));
+    const q = new URL(req.url).searchParams, session = q.get("session");
     if (session && !isValidObjectId(session)) throw new HttpError(404, "Session not found");
     const out = await buildExecSummary(params.id, { sessionId: session ?? undefined, only: q.get("report") === "schedule" ? "schedule" : undefined, scope: { institutionId: q.get("institution") || undefined, ...scopeFromQuery(q) } });
     if (!out) throw new HttpError(404, session ? "Session not found" : "Test not found");

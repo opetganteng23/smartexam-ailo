@@ -3,7 +3,6 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useApi } from "@/lib/useApi";
-import { tgl } from "@/lib/client";
 import { HBars, Stat, Loading, ErrorNote } from "@/components/Charts";
 import { MaintenanceToggle } from "@/components/MaintenanceToggle";
 
