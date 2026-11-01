@@ -27,7 +27,7 @@ Tanpa konfigurasi tambahan, mode dev memakai:
 | Email | Kode OTP dan email dicetak ke konsol server |
 | Claude API | Analisis dan Konselor berjalan di "mode dasar" berbasis aturan; draf nilai essay dan generator soal AI tidak tersedia |
 
-Isi data awal: `POST /api/dev/seed` (dev, DB in-memory) atau, untuk DB nyata, `npm run seed` (tambah `seed:demo` untuk institusi/jadwal/materi contoh). Seed memuat **soal contoh, bukan soal resmi**, termasuk ujian umum "Contoh Ujian Umum (sample)" (Matematika dan Logika, empat jenis soal, skor persen). Ganti lewat menu Bank Soal.
+Isi data awal: `POST /api/dev/seed` (dev, DB in-memory) atau, untuk DB nyata, `npm run seed` (opsi: `-- --sample` ujian umum contoh, `-- --demo` institusi dan akun contoh, `-- --itp` soal contoh TOEFL ITP). Seed memuat **soal contoh, bukan soal resmi**, termasuk ujian umum "Contoh Ujian Umum (sample)" (Matematika dan Logika, empat jenis soal, skor persen). Ganti lewat menu Bank Soal.
 
 Admin pertama: isi `ADMIN_EMAILS` dengan emailmu, lalu masuk lewat `/sign-in`. Akun lain **harus dibuat/diundang** (Admin → Institusi → Tambah peserta, atau Admin → People). Di dev, email undangan beserta tautannya dicetak ke konsol server. Akun demo setelah seed: `coach@demo.local`, `instadmin@demo.local`, `peserta1..3@demo.local` (institusi DEMO2026).
 

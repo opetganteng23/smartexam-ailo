@@ -38,7 +38,9 @@ describe.skipIf(!safe)("ujian umum (Matematika dan Logika)", () => {
       return { qid: q._id, response: "Keberagaman justru mempersatukan kita, contohnya gotong royong." };
     });
     const now = new Date();
-    const attempt = await Attempt.create({ userId: new Types.ObjectId(), testId: test._id, kind: "practice", startedAt: now, sectionStartedAt: now, answers });
+    const { User } = await import("@/models/User");
+    const u = await User.create({ email: "peserta@demo.local", name: "BUDI SANTOSO", role: "participant", status: "active", branch: "TUJ 25-01" });
+    const attempt = await Attempt.create({ userId: u._id, testId: test._id, kind: "practice", startedAt: now, sectionStartedAt: now, answers });
     await finalize(attempt as never, test as never);
 
     let a = (await Attempt.findById(attempt._id))!;
@@ -58,6 +60,24 @@ describe.skipIf(!safe)("ujian umum (Matematika dan Logika)", () => {
     expect(a.scoreEst).toBe(85); // 23/27
     expect(a.passed).toBe(true);
     expect(a.gradingStatus).toBe("done");
+
+    // PDF hasil peserta: skala persentase tidak memakai skala 31-68, level, atau CEFR
+    const { attemptResult } = await import("@/lib/attempt-result");
+    const { resultPdf } = await import("@/lib/result-pdf");
+    const r = await attemptResult((await Attempt.findById(attempt._id))! as never, test as never);
+    expect(r).toMatchObject({ scale: "percent", passMark: 60, totalPassed: true, equivalents: null });
+    const pdf = await resultPdf({ name: "Budi", testName: r.testName, kindLabel: "PRACTICE", finishedAt: r.finishedAt ?? null, durationSec: r.durationSec, scoreEst: r.scoreEst ?? null, scoring: r.scoring, level: null, equivalents: null, previous: null, target: null, scale: r.scale, passMark: r.passMark, totalPassed: r.totalPassed, sections: r.sectionScores.map((x) => ({ section: x.section ?? "", scaled: x.scaled ?? 0, raw: x.raw ?? 0, total: x.total ?? 0 })), topics: [], analysis: r.analysis as never, recommendations: [], summary: r.summary } as never);
+    expect(Buffer.from(pdf).subarray(0, 4).toString()).toBe("%PDF");
+
+    // Ringkasan eksekutif: ujian skala persentase memakai deck umum, bukan deck ITP
+    const { buildExecSummary } = await import("@/lib/exec-summary");
+    const out = await buildExecSummary(String(test._id));
+    expect(out).not.toBeNull();
+    const zip = out!.buffer.toString("latin1");
+    expect(out!.buffer.subarray(0, 2).toString()).toBe("PK");
+    expect(out!.name).toMatch(/ringkasan/);
+    expect(zip).toContain("ppt/slides/slide2.xml");
+    expect(zip).not.toMatch(/CEFR|Listening/); // tidak ada sisa ITP di struktur deck
     delete process.env.MONGODB_URI;
   });
 });

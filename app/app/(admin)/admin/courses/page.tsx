@@ -36,7 +36,7 @@ export default function Kursus() {
   const run = async (fn: () => Promise<unknown>) => { setErr(""); try { await fn(); reload(); } catch (e) { setErr((e as Error).message); } };
 
   const scaffold = async (levelId: string, name: string) => {
-    if (!(await askConfirm(`Create the standard course structure for ${name}? This adds one course per exam part (Listening A, B, C, Structure, Written Expression, Reading) with fixed modules. New courses are Preview only. Parts that already exist are skipped.`, { confirmLabel: "Create" }))) return;
+    if (!(await askConfirm(`Create the TOEFL ITP course template for ${name}? This adds one course per exam part (Listening A, B, C, Structure, Written Expression, Reading) with fixed modules. New courses are Preview only. Parts that already exist are skipped.`, { confirmLabel: "Create" }))) return;
     await run(async () => { const r = await api<{ created: number; skipped: number }>("/api/admin/courses/scaffold", { json: { levelId }, silent: true }); toast(`${r.created} course(s) created, ${r.skipped} already existed.`); });
   };
   const sectionTests = data?.quizzes.filter((q) => q.kind === "section") ?? [];
@@ -56,7 +56,7 @@ export default function Kursus() {
         return (
           <section key={l.id} className="flex flex-col gap-3">
             <div className="flex flex-wrap items-center justify-between gap-2"><h2 className="font-display text-xl font-extrabold text-navy">{l.name}</h2>
-              <button className="btn-outline !min-h-[40px] text-sm" onClick={() => scaffold(l.id, l.name)}>Create standard structure</button></div>
+              <button className="btn-outline !min-h-[40px] text-sm" onClick={() => scaffold(l.id, l.name)}>Add TOEFL ITP course template</button></div>
             {cs.length === 0 && <p className="text-sm text-ink-soft">No courses for this level yet.</p>}
             {cs.map((c) => (
               <div key={c.id} className="card">

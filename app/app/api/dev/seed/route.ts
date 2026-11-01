@@ -11,11 +11,12 @@ import { Question, QuestionGroup } from "@/models/Question";
 export async function POST(req: Request) {
   if (process.env.NODE_ENV === "production") return new NextResponse("Not found", { status: 404 });
   await getLevels(); // pastikan level bawaan ada
-  const result = { ...(await seedTests()), ...(await seedDemo()), ...(await seedGeneralExam()) };
+  const itp = new URL(req.url).searchParams.get("itp") === "1"; // soal contoh TOEFL ITP hanya bila diminta
+  const result = { ...(itp ? await seedTests() : {}), ...(await seedDemo({ itp })), ...(await seedGeneralExam()) };
 
   // ?audio=<audioId>: tempelkan audio ke 3 soal Listening pertama (untuk menguji sekali putar).
   const audioId = new URL(req.url).searchParams.get("audio");
-  if (audioId) {
+  if (audioId && itp) {
     await connectDB();
     const test = await Test.findOne({ kind: "placement" }).lean();
     const ids = test!.sections.find((s) => s.name === "listening")!.questionIds.slice(0, 3);

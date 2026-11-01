@@ -1,3 +1,6 @@
+import { profileForTest, toConversion } from "./scoring-profiles";
+import { scaleOf } from "./scoring";
+import { buildGeneralSummary } from "./exec-summary-general";
 import { readFileSync } from "fs";
 import path from "path";
 import PptxGenJS from "pptxgenjs";
@@ -71,6 +74,14 @@ export async function buildExecSummary(testId: string, opts: { sessionId?: strin
   const now = opts.now ?? new Date(), target = opts.target ?? 550;
   const got = await collectTestRows(testId, now, opts.sessionId, opts.scope ?? {});
   if (!got) return null;
+  // Ujian skala persentase memakai deck umum (tanpa level, CEFR, dan target ITP).
+  const conv = toConversion(await profileForTest(got.test as { scoringProfileId?: import("mongoose").Types.ObjectId | null }));
+  if (scaleOf(conv) === "percent" && opts.only !== "schedule") {
+    const sc0 = opts.scope ?? {};
+    const sess0 = opts.sessionId ? got.sessions[0] : null;
+    const label = [sess0 ? sess0.label : "Keseluruhan", sc0.branch, sc0.province].filter(Boolean).join(" · ");
+    return buildGeneralSummary(got, { scopeLabel: label, passMark: conv.passMark ?? null });
+  }
   const { test, sessions, levels } = got;
   const perDay = !!opts.sessionId;
   const sess = perDay ? sessions[0] : null;

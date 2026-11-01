@@ -1,3 +1,4 @@
+import { SECTION_SHORT } from "./exam-format";
 import PDFDocument from "pdfkit";
 import path from "node:path";
 import { buildBreakdown, partLabel, typeLabel } from "./breakdown";
@@ -22,6 +23,7 @@ export type ResultPdfData = {
   summary?: import("./summary").Summary;
   courseProgress?: import("./course-progress").CourseProgressRow[];
   partial?: { percent: number; passScore: number; passed: boolean };
+  scale?: "itp" | "percent"; passMark?: number | null; totalPassed?: boolean | null; // skala persentase: tanpa level, CEFR, dan skala 31-68
 };
 
 /**
@@ -33,7 +35,7 @@ export function scopeForKind<T extends { previous: unknown; courseProgress?: unk
 }
 
 const PART_NAMES: Record<string, string> = { listening_a: "Listening Part A", listening_b: "Listening Part B", listening_c: "Listening Part C", structure: "Structure", written_expression: "Written Expression", reading: "Reading" };
-const SEC_LABEL: Record<string, string> = { listening: "Listening", structure: "Structure & WE", reading: "Reading" };
+const SEC_LABEL = SECTION_SHORT;
 
 /** Hasil tes dan diagnostic satu percobaan (PDF): ringkasan skor, topik, dan analisis. Tanpa pembahasan per soal. */
 export function resultPdf(d: ResultPdfData) {
@@ -78,10 +80,11 @@ function build(doc: PDFKit.PDFDocument, d: ResultPdfData) {
 
   // Kotak skor
   doc.roundedRect(X, y, W, 92, 12).fill(NAVY);
-  doc.fillColor("#BFE3EC").font("Regular").fontSize(9).text(d.partial ? "Percent correct" : "Estimated score", X + 18, y + 14);
-  doc.fillColor("#FFFFFF").font("Bold").fontSize(40).text(d.partial ? `${d.partial.percent}%` : String(d.scoreEst ?? "-"), X + 18, y + 28);
+  doc.fillColor("#BFE3EC").font("Regular").fontSize(9).text(d.partial ? "Percent correct" : d.scale === "percent" ? "Score" : "Estimated score", X + 18, y + 14);
+  doc.fillColor("#FFFFFF").font("Bold").fontSize(40).text(d.partial ? `${d.partial.percent}%` : d.scale === "percent" && d.scoreEst != null ? `${d.scoreEst}%` : String(d.scoreEst ?? "-"), X + 18, y + 28);
   const side: string[] = [];
   if (d.partial) { side.push(`${d.partial.passed ? "Passed" : "Not passed yet"} (pass mark ${d.partial.passScore}%)`); side.push("Covers part of the material: it does not change your score estimate or level."); }
+  if (d.scale === "percent" && d.passMark != null) side.push(`${d.totalPassed ? "Passed" : "Not passed yet"} (pass mark ${d.passMark}%)`);
   if (d.level) side.push(`Level: ${d.level.name} (${d.level.scoreMin}-${d.level.scoreMax})`);
   if (d.equivalents) side.push(`CEFR: ${d.equivalents.cefr} (${d.equivalents.cefrLabel.replace(/^\S+ /, "")})`);
   if (d.previous && d.scoreEst != null) { const dl = d.scoreEst - d.previous.scoreEst; side.push(`${dl > 0 ? "+" : dl < 0 ? "" : "±"}${dl} from ${d.previous.name} (${d.previous.scoreEst})`); }
@@ -109,7 +112,7 @@ function build(doc: PDFKit.PDFDocument, d: ResultPdfData) {
       y += 15;
     }
     y += 4;
-    if (sm.level.next) {
+    if (sm.level.next && d.scale !== "percent") {
       para(`Gap to ${sm.level.next.name} (${sm.level.next.scoreMin}): needs a section average of ${sm.level.next.avgNeeded}.`, { bold: true, keep: 40 });
       for (const g of sm.gap) para(`- ${SEC_LABEL[g.section] ?? g.section}: ${g.scaled}${g.gap > 0 ? ` (+${g.gap} needed)` : " (on target)"}`, { indent: 8, color: GRAY });
     }
@@ -128,14 +131,14 @@ function build(doc: PDFKit.PDFDocument, d: ResultPdfData) {
     const x = X + i * 169.5;
     doc.roundedRect(x, y, 160, 62, 10).fillAndStroke("#F6FAFB", LINE);
     doc.fillColor(GRAY).font("Regular").fontSize(9).text(SEC_LABEL[s.section] ?? s.section, x + 12, y + 10, { width: 136 });
-    doc.fillColor(NAVY).font("Bold").fontSize(22).text(d.partial ? `${s.total ? Math.round((s.raw / s.total) * 100) : 0}%` : String(s.scaled), x + 12, y + 24);
-    doc.fillColor(GRAY).font("Regular").fontSize(8.5).text(d.partial ? `${s.raw} of ${s.total} correct` : `${s.raw} of ${s.total} correct · scale 31-68`, x + 12, y + 49, { width: 140 });
+    doc.fillColor(NAVY).font("Bold").fontSize(22).text(d.partial ? `${s.total ? Math.round((s.raw / s.total) * 100) : 0}%` : d.scale === "percent" ? `${s.scaled}%` : String(s.scaled), x + 12, y + 24);
+    doc.fillColor(GRAY).font("Regular").fontSize(8.5).text(d.partial ? `${s.raw} of ${s.total} correct` : d.scale === "percent" ? `${s.raw} of ${s.total} points` : `${s.raw} of ${s.total} correct · scale 31-68`, x + 12, y + 49, { width: 140 });
   });
   y += 62 + 10;
 
   // Radar profil skor (skala section 31-68): skor ini dan, bila ada, target level berikutnya.
   const keys = ["listening", "structure", "reading"], vals = keys.map((k) => d.sections.find((x) => x.section === k)?.scaled);
-  if (vals.every((v) => v != null)) {
+  if (d.scale !== "percent" && vals.every((v) => v != null)) {
     const tgt = d.summary?.level.next?.avgNeeded ?? null;
     ensure(200);
     const cx = X + 110, cy = y + 100, R = 70;

@@ -8,7 +8,7 @@ import { PRESETS } from "./material-presets";
 import { sanitizeRich } from "./sanitize";
 
 /** Data contoh untuk pengembangan/demo. Idempoten. JANGAN dijalankan di produksi tanpa sadar. */
-export async function seedDemo() {
+export async function seedDemo(opts: { itp?: boolean } = {}) {
   await connectDB();
 
   await Institution.updateOne(
@@ -27,6 +27,7 @@ export async function seedDemo() {
   ];
   for (const d of demo) if (inst && !(await User.exists({ email: d.email }))) await createMember(inst._id, d);
 
+  if (!opts.itp) return { institution: "DEMO2026" }; // sesi ujian resmi dan materi contoh hanya untuk format TOEFL ITP
   const now = Date.now();
   const day = 86_400_000;
   for (const [i, s] of [{ title: "Exam Saturday (sample)", days: 35, quota: 30 }, { title: "Exam next Saturday (sample)", days: 63, quota: 40 }].entries()) {
