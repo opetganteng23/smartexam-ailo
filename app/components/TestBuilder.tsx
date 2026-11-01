@@ -83,8 +83,8 @@ export function Builder({ draft, onClose, onSaved, inline, kinds }: { draft: Dra
           {!v.sections.length && <p className="rounded-xl bg-canvas p-4 text-sm text-ink-soft">No sections yet. Add at least one section below. A section is a part of the exam (for example Math or Logic); its name is the question category its questions come from.</p>}
           {!locked && <AddSection existing={v.sections.map((x) => x.name)} onAdd={(list) => setV((x) => ({ ...x, sections: [...x.sections, ...list.map((o) => ({ name: o.name, durationSec: o.min * 60, questionIds: [] }))] }))} />}
         </div>
-        {err && <p role="alert" className="mt-4 text-sm text-red-700">{err}</p>}
-        <div className={`mt-5 flex justify-end gap-3 ${inline ? "sticky bottom-0 -mx-1 border-t border-line bg-white px-1 py-3" : ""}`}>
+        <div className={`mt-5 flex items-center justify-end gap-3 ${inline ? "sticky bottom-0 -mx-1 border-t border-line bg-white px-1 py-3" : ""}`}>
+          {err && <p role="alert" className="mr-auto text-sm text-red-700">{err}</p>}
           {onClose && <button onClick={onClose} className="rounded-lg border border-line-strong px-4 py-2 text-sm font-semibold">Cancel</button>}
           <button disabled={busy} onClick={save} className="rounded-lg bg-brand px-5 py-2 text-sm font-semibold text-white disabled:opacity-60">{busy ? "Saving…" : v.id ? "Save changes" : "Create test"}</button>
         </div>

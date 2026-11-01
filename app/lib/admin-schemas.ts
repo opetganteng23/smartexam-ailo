@@ -61,7 +61,7 @@ export const testSchema = z.object({
       })
     )
     .min(1)
-    .max(3)
+    .max(20)
     .refine((s) => new Set(s.map((x) => x.name)).size === s.length, { message: "Sections must not be duplicated" }),
 });
 
