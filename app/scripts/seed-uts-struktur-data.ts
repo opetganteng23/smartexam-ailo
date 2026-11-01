@@ -1,21 +1,19 @@
-// Sekali pakai: ujian UTS CAK2EAB4 Struktur Data (16 soal essay, 120 poin), sesi 2 Nov 2026, peserta institusi TUJ2025.
+// Sekali pakai: ujian UTS CAK2EAB4 Struktur Data (4 soal essay a-d, 120 poin), sesi 2 Nov 2026, peserta institusi TUJ2025.
 // Jalankan: tsx scripts/seed-uts-struktur-data.ts [--apply]   (tanpa --apply hanya simulasi)
+import { readFileSync } from "fs";
+import { join } from "path";
+import { createHash } from "crypto";
 import { Types } from "mongoose";
 
 type R = [string, number][];
 type Q = { section: string; stem: string; points: number; rubric: R; guide: string };
-const DICT = "Catatan: Fungsi/prosedur yang tersedia pada Dictionary sudah terdefinisi dan dapat digunakan (jika diperlukan).";
 const q = (section: string, stem: string, rubric: R, guide: string): Q => ({ section, stem, points: rubric.reduce((n, r) => n + r[1], 0), rubric, guide });
 
-const SLL = "Sebuah perpustakaan program studi menyimpan koleksi bukunya dalam sebuah SLL dengan kepala pointer FIRST. Setiap elemen menyimpan kode buku, judul buku, dan jumlah stok. Node terakhir menunjuk ke NIL.";
-const GROUPS: Record<string, { title: string; html: string }> = {
-  sll: { title: "Soal 1: Singly Linked List (30 poin)", html: `<p>${SLL} Ilustrasi:</p><p><b>FIRST → [B101, Algoritma, Stok: 5] → [B102, Basis Data, Stok: 0] → [B103, Jaringan, Stok: 7] → [B104, Sistem Operasi, Stok: 0] → [B105, Pemrograman, Stok: 4] → NIL</b></p><p>${DICT}</p>` },
-  dll: { title: "Soal 2: Doubly Linked List (30 poin)", html: `<p>Sebuah aplikasi pemutar musik menyimpan daftar putar (playlist) menggunakan DLL. Setiap elemen menyimpan judul lagu, nama artis, dan durasi lagu dalam detik. Selain pointer first dan last, list ini memiliki pointer now_playing yang menunjuk lagu yang sedang diputar. Ilustrasi playlist yang sedang memutar lagu "Pagi":</p><p><b>FIRST → [Senja, Artis A, 210 detik] ↔ [Pagi, Artis B, 185 detik] ↔ [Hujan, Artis A, 240 detik] ↔ [Malam, Artis C, 200 detik] ← LAST</b><br>now_playing menunjuk "Pagi".</p><p>${DICT}</p>` },
-  stack: { title: "Soal 3: Stack (30 poin)", html: `<p>Pada sebuah game simulasi merapikan supermarket, pemain memungut barang yang berserakan di lantai lalu membawanya ke rak. Tangan pemain hanya bisa membawa paling banyak 10 barang, dan barang yang diangkat terakhir berada di tumpukan paling atas. Barang di tangan pemain dicatat pada stack B, sedangkan barang yang bertumpuk di lantai dicatat pada stack L. Keduanya bertipe Stack berikut (representasi array, indeks dimulai dari 1):</p><p>constant MAXSIZE : integer = 10<br>type Infotype : string {nama barang}<br>type Index : integer<br>type Stack &lt; info : array [1..MAXSIZE] of Infotype, top : Index &gt;<br>{Stack kosong jika top = 0, dan penuh jika top = MAXSIZE}<br>B, L : Stack</p><p><b>Aturan memungut.</b> Setiap kali pemain menekan tombol pungut, proses berikut dijalankan satu kali:</p><ul><li>Barang diambil dari top L, lalu langsung diletakkan di top B. Barang dipindahkan satu per satu.</li><li>Proses berhenti begitu B penuh (10 barang) atau L kosong, mana pun yang terjadi lebih dulu.</li><li>Barang yang sudah ada di B sebelum proses dimulai tidak berubah posisinya.</li></ul><p><b>Tampilan di layar.</b> Setelah proses berhenti, ditampilkan dua baris:</p><ul><li>Baris pertama: "Barang terangkat: &lt;n&gt;", dengan n banyak barang yang dipindahkan pada proses ini saja, bukan jumlah seluruh barang di B.</li><li>Baris kedua: "Lantai bersih" jika L kosong. Jika L belum kosong, ditampilkan "Tangan penuh, sisa barang di lantai: &lt;banyak barang di L&gt;". Jika L kosong dan B penuh bersamaan, baris kedua adalah "Lantai bersih".</li></ul><p>Isi B dan L sebelum pemain menekan tombol pungut (dari dasar ke top):</p><table><thead><tr><th>Stack</th><th>Isi (indeks 1 sampai top)</th><th>top</th></tr></thead><tbody><tr><td>B (tangan pemain)</td><td>1 Susu, 2 Apel, 3 Roti, 4 Sabun, 5 Kecap, 6 Teh, 7 Mie</td><td>7</td></tr><tr><td>L (tumpukan di lantai)</td><td>1 Telur, 2 Keju, 3 Jus, 4 Sereal, 5 Saus</td><td>5</td></tr></tbody></table><p>Untuk bagian d, contoh scroll satu kali pada B berisi (dasar ke top) Susu, Apel, Roti, Sabun: hasilnya Sabun, Susu, Apel, Roti (Roti menjadi top).</p><p><b>PENTING:</b> Pada bagian c dan d, GUNAKAN SUBPROGRAM PADA ADT STACK YANG TERSEDIA DI DICTIONARY, TIDAK DIPERKENANKAN MENGAKSES INDEKS/ELEMEN ARRAY DARI STACK SECARA LANGSUNG. Pada bagian b, info dan top boleh diakses langsung.</p><p>${DICT} Pada bagian d, boleh memakai stack bantu bertipe Stack.</p>` },
-  queue: { title: "Soal 4: Queue (30 poin)", html: `<p>Sebuah kantor memiliki loket customer service (CS) yang melayani pelanggan dengan sistem giliran. Pelanggan yang datang dimasukkan ke dalam antrean sesuai urutan kedatangan (First In First Out). Setiap pelanggan memiliki nama dan sisa waktu layanan dalam menit. Dengan representasi doubly linked list, didefinisikan struktur data Queue:</p><p>type Pelanggan &lt; nama : string, sisa : integer &gt;<br>type Infotype : Pelanggan<br>type Address : pointer to ElmQueue<br>type ElmQueue &lt; info : Infotype, next : Address, prev : Address &gt;<br>type Queue &lt; head : Address, tail : Address &gt;</p><p>Ilustrasi antrean:</p><p><b>HEAD → [Ayu, 25 menit] ↔ [Bima, 10 menit] ↔ [Citra, 40 menit] ↔ [Dito, 15 menit] ← TAIL</b></p><p>${DICT} Pada bagian c dan d, pointer head, tail, next, dan prev boleh diakses langsung.</p>` },
-};
+// Soal tampil sebagai gambar halaman asli naskah (docx > PDF > PNG), supaya persis sama. Pertanyaan a-d juga ditulis di soal (dari scripts/uts-naskah.json).
+const NASKAH: Record<string, { title: string; parts: string[] }> = JSON.parse(readFileSync(join(process.cwd(), "scripts", "uts-naskah.json"), "utf8"));
+const HALAMAN: Record<string, number[]> = { sll: [2, 3, 4], dll: [5, 6, 7], stack: [8, 9, 10, 11], queue: [12, 13, 14] };
 
-const QS: Q[] = [
+const PARTS: Q[] = [
   q("sll", "1a. Buatlah definisi struktur datanya!\nLengkapi: type Buku <...>, type Infotype, type Address, type ElmList <...>, type List <...>", [["Definisi tipe Buku (kode, judul, stok)", 2], ["Infotype dan Address (pointer ke ElmList)", 2], ["ElmList (info, next) dan List (first)", 2]], "Buku <kode: string, judul: string, stok: integer>; Infotype: Buku; Address: pointer to ElmList; ElmList <info: Infotype, next: Address>; List: <first: Address>."),
   q("sll", "1b. Buatlah prosedur untuk menampilkan judul semua buku yang stoknya 0!\n\nprocedure tampilStokHabis (in L : List)\n{I.S. Terdefinisi sebuah list buku yang mungkin kosong.\n F.S. Judul semua buku yang stoknya 0 ditampilkan berurutan mulai dari elemen pertama.\n    Berdasarkan ilustrasi, ditampilkan: Basis Data, Sistem Operasi.}", [["Traversal dari first sampai NIL (aman untuk list kosong)", 2], ["Kondisi stok = 0 dengan akses info yang benar", 3], ["Menampilkan judul berurutan", 1]], "Traversal P ← first; while P ≠ NIL: if info(P).stok = 0 then output(info(P).judul); P ← next(P)."),
   q("sll", "1c. Buatlah prosedur untuk menghapus buku berdasarkan kode buku!\n\nprocedure hapusBuku (in/out L : List, in kode : string)\n{I.S. Terdefinisi sebuah list buku yang mungkin kosong dan kode buku yang akan dihapus.\n F.S. Jika ada, elemen buku berkode tersebut dilepas dari list dan memorinya dibebaskan.\n    Jika list kosong atau kode tidak ditemukan, list tidak berubah. Jika kode = \"B101\" maka list berawal dari B102; jika kode = \"B104\" maka B103 menunjuk ke B105.}\nDictionary: procedure deallocate (in/out P : Address) {Mengembalikan memori elemen yang ditunjuk P ke sistem.}", [["Kasus list kosong dan kode tidak ditemukan (list tidak berubah)", 2], ["Hapus elemen pertama (first dimajukan)", 3], ["Hapus elemen tengah/akhir dengan pointer penelusur sebelumnya", 3], ["Memanggil deallocate dan pointer next terhubung benar", 2]], "Cari dengan dua pointer (P dan Prev). Jika P = first maka first ← next(first). Selain itu next(Prev) ← next(P). Lalu deallocate(P)."),
@@ -38,13 +36,23 @@ const QS: Q[] = [
 ];
 
 const SEC = ["sll", "dll", "stack", "queue"];
+// Satu soal = bagian a-d: satu kotak jawaban, rubrik satu kriteria per bagian (rinciannya di teks kriteria), kunci per bagian di panduan.
+const QS: Q[] = SEC.map((k) => {
+  const ps = PARTS.filter((p) => p.section === k);
+  const letter = (i: number) => "abcd"[i];
+  const stem = "Kerjakan semua bagian (a sampai d). Tuliskan jawaban dalam satu kotak dan awali tiap jawaban dengan hurufnya (a., b., c., d.).\nNaskah soal lengkap ada pada gambar halaman di atas.\n\n" + NASKAH[k].parts.map((p) => p.split("\n")[0]).join("\n");
+  const rubric: R = ps.map((p, i) => [`(${letter(i)}) ${p.stem.split("\n")[0].replace(/^\d[a-d]\.\s*/, "").replace(/!$/, "")}. Rincian: ${p.rubric.map(([c, n]) => `${c} (${n})`).join("; ")}`, p.points]);
+  return q(k, stem, rubric, ps.map((p, i) => `(${letter(i)}) ${p.guide}`).join("\n"));
+});
+
 const NAME = "UTS Struktur Data (CAK2EAB4) - S1 Informatika Ganjil 2026/2027";
 
 async function main() {
   const apply = process.argv.includes("--apply");
   const total = QS.reduce((n, x) => n + x.points, 0);
   console.log(`${QS.length} soal, total ${total} poin`);
-  if (total !== 120 || QS.length !== 16) throw new Error("Total harus 16 soal / 120 poin");
+  for (const x of QS) console.log(x.section, "stem", x.stem.length, "poin", x.points);
+  if (total !== 120 || QS.length !== 4 || QS.some((x) => x.stem.length > 4000)) throw new Error("Harus 4 soal / 120 poin / stem <= 4000");
   if (!apply) { console.log("SIMULASI selesai. Tidak ada yang ditulis."); return; }
 
   const { connectDB } = await import("../lib/db");
@@ -55,12 +63,22 @@ async function main() {
   const { Institution } = await import("../models/Institution");
   const { User } = await import("../models/User");
   const { questionSchema } = await import("../lib/admin-schemas");
-  const { sanitizeRich } = await import("../lib/sanitize");
+  const { sanitizePassage } = await import("../lib/sanitize");
   await connectDB();
   if (await Test.exists({ name: NAME })) throw new Error("Ujian sudah ada, batal");
 
   const gid: Record<string, Types.ObjectId> = {};
-  for (const k of SEC) gid[k] = (await QuestionGroup.create({ section: k, passageTitle: GROUPS[k].title, passageHtml: sanitizeRich(GROUPS[k].html), instruction: "Jawab langsung pada kolom jawaban. Tuliskan algoritma dalam notasi algoritmik sesuai kepala prosedur." }))._id;
+  const { Asset } = await import("../models/Asset");
+  for (const k of SEC) {
+    const imgs: string[] = [];
+    for (const n of HALAMAN[k]) {
+      const buf = readFileSync(join(process.cwd(), "scripts", "uts-halaman", `p${String(n).padStart(2, "0")}.png`));
+      const sha = createHash("sha256").update(buf).digest("hex");
+      const a = (await Asset.findOne({ sha256: sha }).select("_id").lean()) ?? (await Asset.create({ mime: "image/png", size: buf.length, dataBase64: buf.toString("base64"), sha256: sha, name: `UTS Struktur Data hal ${n}` }));
+      imgs.push(`<p><img src="/api/assets/${a._id}" alt="Naskah UTS halaman ${n}"></p>`);
+    }
+    gid[k] = (await QuestionGroup.create({ section: k, passageTitle: NASKAH[k].title.replace(/\s+/g, " "), passageHtml: sanitizePassage(imgs.join("")), instruction: "Naskah soal sama persis dengan lembar ujian. Jawab pada kotak jawaban di bawah." }))._id;
+  }
   const ids: Record<string, Types.ObjectId[]> = { sll: [], dll: [], stack: [], queue: [] };
   for (const x of QS) {
     const d = questionSchema.parse({ difficulty: "medium", status: "published", section: x.section, type: x.section.toUpperCase(), kind: "essay", points: x.points, stem: x.stem, groupId: String(gid[x.section]),
