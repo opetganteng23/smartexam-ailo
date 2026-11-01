@@ -41,7 +41,7 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
       testName: test.name,
       section: { index: attempt.sectionIdx, total: test.sections.length, name: section.name },
       kind: attempt.kind,
-      secure: !!test.secureMode, reached: attempt.secureReached ?? 0, screenWatch: !!test.screenWatch,
+      secure: !!test.secureMode, secureBack: !!test.secureBack, reached: attempt.secureReached ?? 0, screenWatch: !!test.screenWatch,
       idleTimeoutSec: await getParam("idle_timeout_sec"),
       remainingSec: Math.max(0, Math.round((sectionDeadline(attempt, test) - Date.now()) / 1000)),
       groups: groups.map((g) => ({
@@ -103,7 +103,7 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
     let lockedBefore = -1;
     let reach: number | null = null;
     const shownIdx = new Map<string, number>();
-    if (test.secureMode) {
+    if (test.secureMode && !test.secureBack) {
       const section = test.sections[attempt.sectionIdx];
       const qs = await Question.find({ _id: { $in: section.questionIds } }).select("groupId tags").lean();
       const order = new Map(section.questionIds.map((id, i) => [String(id), i]));

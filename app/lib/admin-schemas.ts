@@ -48,6 +48,7 @@ export const testSchema = z.object({
   shuffleQuestions: z.boolean().default(false),
   shuffleWithinParts: z.boolean().default(false),
   secureMode: z.boolean().default(false),
+  secureBack: z.boolean().default(false),
   screenWatch: z.boolean().default(false),
   shuffleOptions: z.boolean().default(false),
   requirePlacement: z.boolean().default(true),

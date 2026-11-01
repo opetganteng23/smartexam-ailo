@@ -30,6 +30,7 @@ const testSchema = new Schema(
     shuffleWithinParts: { type: Boolean, default: false }, // acak soal di dalam tiap bagian (Part A/B/C, Structure, Written Expression), urutan antarbagian tetap
     screenWatch: { type: Boolean, default: false }, // live screen view: peserta membagikan layar; gambar hanya di memori server, tidak disimpan
     secureMode: { type: Boolean, default: false }, // tidak bisa kembali ke soal sebelumnya, salin/tempel diblokir
+    secureBack: { type: Boolean, default: false }, // Secure mode longgar: salin/tempel tetap diblokir, tetapi peserta boleh kembali ke soal sebelumnya
     shuffleOptions: { type: Boolean, default: false },
     requirePlacement: { type: Boolean, default: true }, // false: peserta boleh mengerjakan tes ini tanpa placement (ujian umum di luar program level)
     maxAttempts: { type: Number, default: 0, min: 0, max: 50 },

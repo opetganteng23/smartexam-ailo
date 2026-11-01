@@ -20,7 +20,7 @@ type G = { id: string; instruction?: string; passageTitle?: string; passageHtml?
 type State = {
   status: "in_progress" | "submitted"; testName: string;
   section: { index: number; total: number; name: string };
-  kind?: string; secure?: boolean; screenWatch?: boolean; reached?: number; idleTimeoutSec?: number; remainingSec: number; groups: G[]; questions: Q[]; answers: { qid: string; choice: number | null; response?: unknown; flagged: boolean; timeSpentSec?: number }[];
+  kind?: string; secure?: boolean; secureBack?: boolean; screenWatch?: boolean; reached?: number; idleTimeoutSec?: number; remainingSec: number; groups: G[]; questions: Q[]; answers: { qid: string; choice: number | null; response?: unknown; flagged: boolean; timeSpentSec?: number }[];
 };
 
 const LABEL = SECTION_NAME;
@@ -108,11 +108,11 @@ export default function Ruang({ params }: { params: { id: string } }) {
       opened.current = true;
       if (d.status === "submitted") return router.replace(`/results/${params.id}`);
       if (typeof d.idleTimeoutSec === "number") idleSec.current = d.idleTimeoutSec;
-      reachedRef.current = d.secure ? d.reached ?? 0 : 0; reachedDirty.current = false;
+      reachedRef.current = d.secure && !d.secureBack ? d.reached ?? 0 : 0; reachedDirty.current = false;
       // Setelah refresh, kembali ke soal terakhir yang dibuka (disimpan per section di browser); bila tidak ada, ke soal pertama yang belum dijawab.
       const answered = new Set(d.answers.filter((x) => x.choice != null || filled(x.response)).map((x) => x.qid));
       let start = 0;
-      if (d.secure) start = reachedRef.current;
+      if (d.secure && !d.secureBack) start = reachedRef.current;
       else {
         let saved = NaN;
         try { saved = Number(sessionStorage.getItem(`ei-pos:${params.id}:${d.section.index}`)); } catch { /* penyimpanan tidak tersedia */ }
@@ -141,7 +141,7 @@ export default function Ruang({ params }: { params: { id: string } }) {
 
   // Simpan nomor soal yang sedang dibuka agar refresh tidak mengembalikan ke soal 1.
   useEffect(() => {
-    if (!st || st.secure) return;
+    if (!st || (st.secure && !st.secureBack)) return;
     try { sessionStorage.setItem(`ei-pos:${params.id}:${st.section.index}`, String(cur)); } catch { /* penyimpanan tidak tersedia */ }
   }, [st, cur, params.id]);
 
@@ -299,7 +299,7 @@ export default function Ruang({ params }: { params: { id: string } }) {
   const answered = st.questions.filter((x) => isAns(x.id)).length;
   const finishLabel = last ? t("Submit test") : t("Finish section");
   const openConfirm = () => { setAck(false); setConfirm(true); };
-  const secure = !!st.secure;
+  const secure = !!st.secure && !st.secureBack; // true = satu arah (strict); false = boleh mundur
   const noticeKey = `ei-oneway:${params.id}:${st.section.index}`;
   const showNotice = secure && !noticeSeen.has(noticeKey) && (() => { try { return !sessionStorage.getItem(noticeKey); } catch { return true; } })();
   const closeNotice = () => { try { sessionStorage.setItem(noticeKey, "1"); } catch { /* */ } setNoticeSeen((x) => new Set(x).add(noticeKey)); };
@@ -350,7 +350,7 @@ export default function Ruang({ params }: { params: { id: string } }) {
   );
 
   return (
-    <SecureZone active={secure}>
+    <SecureZone active={!!st.secure}>
       {st.screenWatch && <ScreenGate attemptId={params.id} onCredit={(sec) => setLeft((l) => l + sec)} />}
       {net === "offline" && (
         <div className="fixed inset-0 z-[70] flex items-center justify-center bg-navy p-4" role="alertdialog" aria-modal="true" aria-label={t("Connection lost")}>
