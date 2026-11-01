@@ -9,7 +9,6 @@ import { limit, clientIp } from "@/lib/ratelimit";
 import { issueCode, consumeCode } from "@/lib/otp-code";
 import { enqueueMail } from "@/lib/mailq";
 import { emailSchema } from "@/lib/participants";
-import { ExamRegistration } from "@/models/OfficialExam";
 import { User } from "@/models/User";
 
 export const dynamic = "force-dynamic";
@@ -52,8 +51,6 @@ export async function PUT(req: Request) {
     const email = newEmail.toLowerCase().trim();
     await limit("verifyIp", clientIp(req));
     await connectDB();
-    if (await ExamRegistration.exists({ userId: u._id, status: { $in: ["submitted", "confirmed"] } }))
-      throw new HttpError(409, "Your email cannot be changed while an official exam registration is active. Contact your institution.");
     await consumeCode(email, code);
     const old = u.email;
     try {

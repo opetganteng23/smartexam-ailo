@@ -3,7 +3,7 @@ import { connectDB } from "@/lib/db";
 import { maskName } from "@/lib/crypto";
 import { limit, clientIp } from "@/lib/ratelimit";
 import { handleError } from "@/lib/rbac";
-import { Certificate } from "@/models/OfficialExam";
+import { Certificate } from "@/models/Certificate";
 import { User } from "@/models/User";
 
 export const dynamic = "force-dynamic";
@@ -20,7 +20,7 @@ export async function GET(req: Request, { params }: { params: { number: string }
     const name = d.name ?? (await User.findById(c.userId).select("name").lean())?.name ?? "";
     return NextResponse.json({
       valid: true, type: c.type, number: c.number, issuedAt: c.issuedAt, holder: name ? maskName(name) : null, total: d.scores?.total ?? null,
-      official: c.type === "itp", note: c.type === "itp" ? "Official score from the test organizer." : "A practice report from a simulation test, not an official certificate.",
+      official: false, note: "A result report issued by Smartexam. It confirms that the report exists; it is not an official certificate.",
     });
   } catch (e) {
     return handleError(e);

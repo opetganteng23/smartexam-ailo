@@ -45,7 +45,7 @@ const PLAN = [
   const { TopicStat, PlanItem, Analysis } = await import("../models/Learning");
   const { CounselorThread } = await import("../models/Counselor");
   const { CoachingQuota } = await import("../models/Config");
-  const { Certificate } = await import("../models/OfficialExam");
+  const { Certificate } = await import("../models/Certificate");
   const { Notification } = await import("../models/Access");
 
   await connectDB();

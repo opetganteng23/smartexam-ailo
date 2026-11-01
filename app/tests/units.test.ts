@@ -1,6 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
 import { scaleSection, estimateTotal, gradeAttempt } from "@/lib/scoring";
-import { itpTotal, validSectionScore } from "@/lib/certificates";
 import { PARAM_DEFAULTS } from "@/lib/config";
 import { encryptField, decryptField, maskName, maskNik } from "@/lib/crypto";
 import { buildSrcdoc, SANDBOX, splitFullHtml } from "@/lib/material-doc";
@@ -15,7 +14,7 @@ import { validBlock } from "@/lib/blocks";
 import { mapQuestionRows, parseTags } from "@/lib/import-questions";
 import { mapScheduleRows } from "@/lib/import-schedule";
 import { mongoSanitize } from "@/lib/mongo-sanitize";
-import { parseItpScores, verifyScores, isPdf } from "@/lib/pdf-import";
+import { isPdf } from "@/lib/pdf-file";
 import { levelUpDecision } from "@/lib/level-up";
 import { overlaps, canRegister, canCancel, chargesQuota, bookableLeft, canMarkAttendance } from "@/lib/coaching-rules";
 import { unitComplete, percentCorrect } from "@/lib/units";
@@ -39,17 +38,11 @@ describe("skor", () => {
   it("section kosong tidak membagi nol", () => expect(scaleSection(conv, "reading", 0, 0)).toBe(31));
   it("total = rata-rata x10 dan dibatasi 310–677", () => {
     expect(estimateTotal([{ section: "listening", raw: 0, total: 1, scaled: 31 }, { section: "structure", raw: 0, total: 1, scaled: 31 }, { section: "reading", raw: 0, total: 1, scaled: 31 }])).toBe(310);
-    expect(itpTotal(50, 52, 51)).toBe(510);
-    expect(itpTotal(68, 68, 68)).toBe(677);
-    expect(itpTotal(31, 31, 31)).toBe(310);
   });
   it("menilai jawaban: benar, salah, kosong", () => {
     const r = gradeAttempt(conv, [{ name: "structure", questionIds: ["a", "b", "c"] }], new Map([["a", 1], ["b", 2], ["c", 0]]), new Map<string, number | undefined>([["a", 1], ["b", 0]]));
     expect(r.scoreRaw).toBe(1);
     expect(r.sectionScores[0]).toMatchObject({ raw: 1, total: 3 });
-  });
-  it("validasi skor section resmi", () => {
-    expect([30, 31, 68, 69, 50.5, NaN, "50"].map(validSectionScore)).toEqual([false, true, true, false, false, false, false]);
   });
 });
 
@@ -129,7 +122,7 @@ describe("keamanan materi", () => {
     const pdf = await resultPdf({
       name: "Peserta Uji", testName: "Placement Test T01", kindLabel: "PLACEMENT TEST", finishedAt: new Date("2026-10-17T05:00:00Z"), durationSec: 6600,
       scoreEst: 593, scoring: { basis: "provisional", name: null }, level: { name: "Advanced", scoreMin: 560, scoreMax: 677, quota: 4 },
-      equivalents: { itp: 593, cefr: "B2", cefrLabel: "B2 Upper intermediate" }, previous: null, target: 600,
+      previous: null, target: 600,
       sections: [{ section: "listening", scaled: 58, raw: 40, total: 50 }, { section: "structure", scaled: 57, raw: 30, total: 40 }, { section: "reading", scaled: 62, raw: 42, total: 50 }],
       topics: [{ skill: "grammar", topic: "verb-form", score: 40, correct: 4, total: 10 }],
       analysis: { status: "ready", summary: "Ringkasan analisis.", strengths: [{ topic: "detail", evidence: "100% benar" }], weaknesses: [{ title: "Verb forms", detail: "Sering salah." }], nextSteps: ["Latihan verb form"] },
@@ -453,23 +446,7 @@ describe("mesin analisis (MTS §13.5)", () => {
   });
 });
 
-describe("impor PDF (MTS §14)", () => {
-  const sample = ["TOEFL ITP Score Report", "Listening Comprehension 52", "Structure and Written Expression 55", "Reading Comprehension 50", "Total Score 523", "Test date 12/05/2026"].join(" | ");
-  it("membaca skor per section dan total dari teks laporan", () => {
-    const r = parseItpScores(sample);
-    expect(r.scores).toEqual({ listening: 52, structure: 55, reading: 50, total: 523 });
-    expect(r.template).toBe("itp-report");
-  });
-  it("PDF tanpa teks bermakna menghasilkan kosong (isi manual)", () => expect(parseItpScores("   ").scores).toEqual({}));
-  it("angka di luar rentang diabaikan", () => expect(parseItpScores("Listening 99 Reading 12").scores).toEqual({}));
-  it("verifikasi: total dihitung dari tiga section; rentang divalidasi", () => {
-    expect(verifyScores({ listening: 50, structure: 52, reading: 51 })).toEqual({ ok: true, scores: { listening: 50, structure: 52, reading: 51, total: 510 } });
-    expect(verifyScores({ structure: 55 })).toEqual({ ok: true, scores: { structure: 55 } });
-    expect(verifyScores({ listening: 99 }).ok).toBe(false);
-    expect(verifyScores({}).ok).toBe(false);
-    expect(verifyScores({ total: 700 }).ok).toBe(false);
-    expect(verifyScores({ total: 480 }).ok).toBe(true);
-  });
+describe("impor PDF", () => {
   it("magic bytes PDF", () => { expect(isPdf(Buffer.from("%PDF-1.7 ..."))).toBe(true); expect(isPdf(Buffer.from("<html>"))).toBe(false); });
 });
 

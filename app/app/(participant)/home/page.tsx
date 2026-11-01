@@ -7,7 +7,6 @@ import { useApi } from "@/lib/useApi";
 import { useFeatures } from "@/lib/useFeatures";
 import { api, tgl } from "@/lib/client";
 import { LineChart, Loading, ErrorNote } from "@/components/Charts";
-import { JourneyStrip } from "@/components/JourneyStrip";
 
 type Home = {
   name: string | null; institution: { name: string; contractEnd: string | null } | null;
@@ -51,7 +50,6 @@ export default function Beranda() {
         </section>
       )}
 
-      {f.learning && <JourneyStrip />}
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         {(h.level || f.learning) && <div className="card"><p className="text-xs font-semibold tracking-wider text-ink-soft">LEVEL</p><p className="mt-1 font-display text-2xl font-extrabold text-navy">{h.level?.name ?? "-"}</p><p className="text-xs text-ink-soft">{h.level ? `Range ${h.level.scoreMin}-${h.level.scoreMax}` : "Set by the placement test"}</p></div>}

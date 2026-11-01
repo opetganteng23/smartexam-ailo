@@ -49,7 +49,7 @@ describe.skipIf(!safe)("laporan hasil tanpa soal (database in-memory)", () => {
       sectionScores: [{ section: "structure", raw, total, scaled: 40 }], answers: ids.slice(0, 3).map((id) => ({ qid: id, choice: 0, firstChoice: 0, changes: 0, timeSpentSec: 10 })),
     });
     const pr = await attemptResult((await Attempt.findById(q._id))!, test as never);
-    expect(pr).toMatchObject({ partial: true, percent: 60, passScore: 70, passed: false, equivalents: null, previous: null, level: null });
+    expect(pr).toMatchObject({ partial: true, percent: 60, passScore: 70, passed: false, previous: null, level: null });
     expect(pr.summary.level.next).toBeNull();
     expect(pr.summary.stats.total.scaled).toBeNull();
     expect(r.partial).toBe(false);

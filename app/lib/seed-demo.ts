@@ -2,13 +2,9 @@ import { connectDB } from "./db";
 import { Institution } from "@/models/Institution";
 import { createMember } from "./participants";
 import { User } from "@/models/User";
-import { ExamSession } from "@/models/OfficialExam";
-import { Material } from "@/models/Material";
-import { PRESETS } from "./material-presets";
-import { sanitizeRich } from "./sanitize";
 
 /** Data contoh untuk pengembangan/demo. Idempoten. JANGAN dijalankan di produksi tanpa sadar. */
-export async function seedDemo(opts: { itp?: boolean } = {}) {
+export async function seedDemo() {
   await connectDB();
 
   await Institution.updateOne(
@@ -27,19 +23,5 @@ export async function seedDemo(opts: { itp?: boolean } = {}) {
   ];
   for (const d of demo) if (inst && !(await User.exists({ email: d.email }))) await createMember(inst._id, d);
 
-  if (!opts.itp) return { institution: "DEMO2026" }; // sesi ujian resmi dan materi contoh hanya untuk format TOEFL ITP
-  const now = Date.now();
-  const day = 86_400_000;
-  for (const [i, s] of [{ title: "Exam Saturday (sample)", days: 35, quota: 30 }, { title: "Exam next Saturday (sample)", days: 63, quota: 40 }].entries()) {
-    if (!(await ExamSession.exists({ title: s.title }))) await ExamSession.create({ title: s.title, date: new Date(now + s.days * day), place: i === 0 ? "Language Lab, Building A (sample)" : "Main Hall (sample)", quota: s.quota, status: "open" });
-  }
-
-  const rich = sanitizeRich(`<h2>Subject-Verb Agreement</h2><p>The verb must <b>agree</b> with the subject, not with the word next to it.</p><ul><li>The <u>results</u> of the study <b>are</b> clear.</li><li>Each of the students <b>has</b> a book.</li></ul><blockquote>Tip: cross out the "of …" phrase, then find the main subject.</blockquote>`);
-  if (!(await Material.exists({ slug: "subject-verb-agreement" })))
-    await Material.create({ title: "Subject-Verb Agreement", slug: "subject-verb-agreement", summary: "Basic rules and common traps in Structure.", kind: "rich", contentHtml: rich, tags: ["structure", "grammar"], access: "free", status: "published", version: 1, publishedAt: new Date() });
-  const quiz = PRESETS.find((p) => p.key === "quiz")!;
-  if (!(await Material.exists({ slug: "kuis-subject-verb" })))
-    await Material.create({ title: "Subject-Verb Quiz", slug: "kuis-subject-verb", summary: "An interactive 3-question exercise with a score.", kind: "html", htmlDoc: quiz.doc, tags: ["structure", "practice"], access: "paid", status: "published", version: 1, publishedAt: new Date() });
-
-  return { institution: "DEMO2026", sessions: await ExamSession.countDocuments(), materials: await Material.countDocuments() };
+  return { institution: "DEMO2026" };
 }

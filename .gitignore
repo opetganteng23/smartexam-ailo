@@ -19,12 +19,11 @@ Thumbs.db
 # berkas sementara pengembangan
 *.tmp.*
 
-# Data pribadi peserta (jangan pernah di-commit)
-Data Personel*.xlsx
-*.personel.xlsx
-
-# Laporan/berkas berisi data pribadi (jangan di-commit)
+# Data pribadi peserta dan laporan klien (jangan pernah di-commit)
+# Berkas Excel/PDF diabaikan di mana pun, KECUALI folder rute app/app/api/**/*.xlsx (ekspor Excel, kode aplikasi).
 *.xlsx
+!app/app/api/**/*.xlsx/
+!app/app/api/**/*.xlsx/**
 *.pdf
 logo english inspira*.png
 

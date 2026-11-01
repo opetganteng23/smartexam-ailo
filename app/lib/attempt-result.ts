@@ -6,10 +6,8 @@ import { User } from "@/models/User";
 import { Analysis } from "@/models/Learning";
 import { recommendCourses } from "@/lib/units";
 import { Attempt, Test, AttemptSnapshot } from "@/models/Test";
-import { Certificate } from "@/models/OfficialExam";
+import { Certificate } from "@/models/Certificate";
 import { ScoringProfile } from "@/models/Scoring";
-import { equivalents } from "@/lib/score-equivalence";
-import { getEquivalence } from "@/lib/clustering";
 import { LEVEL_INFO } from "@/lib/level-info";
 import { isLearningTopic } from "@/lib/topics";
 import { buildUnanswered } from "@/lib/unanswered";
@@ -28,7 +26,6 @@ type SnapItem = { qid: import("mongoose").Types.ObjectId; section: string; type:
 /**
  * Data hasil tes yang sudah selesai: skor, topik, analisis, level, rekomendasi. Dipakai bersama oleh halaman hasil dan ekspor PDF.
  * - TIDAK ada teks soal, opsi, kunci, penjelasan, maupun transkrip yang dikembalikan: soal tidak boleh bocor lewat laporan. `review` hanya dipakai di server untuk menghitung agregat (benar/salah/kosong per section dan jenis soal).
- * - Padanan skor hanya TOEFL ITP dan CEFR (tanpa padanan PURE/OCE).
  */
 export async function attemptResult(attempt: AttemptHydrated, test: Awaited<ReturnType<typeof loadAttempt>>["test"]) {
     await connectDB();
@@ -84,7 +81,6 @@ export async function attemptResult(attempt: AttemptHydrated, test: Awaited<Retu
       .map((t) => ({ skill: t.skill ?? "", topic: t.topic ?? "", score: Math.round(t.score ?? 0), correct: t.correct ?? 0, total: t.total ?? 0 }))
       .filter((t) => t.skill && t.topic && t.total >= 2 && t.score < 70).sort((x, y) => x.score - y.score).slice(0, 5);
     const recommendations = await recommendCourses(attempt.userId, u?.currentLevelId, weak);
-    const eq = !partial && attempt.scoreEst != null && attempt.scoreScale !== "percent" ? equivalents(attempt.scoreEst, await getEquivalence()) : null;
     return {
       recommendations,
       previous: prev ? { name: prevTest?.name ?? "Previous test", scoreEst: prev.scoreEst, sectionScores: prev.sectionScores, topicScores: (prev.topicScores ?? []).filter((t) => isLearningTopic({ skill: t.skill ?? "", topic: t.topic ?? "" })) } : null,
@@ -97,7 +93,6 @@ export async function attemptResult(attempt: AttemptHydrated, test: Awaited<Retu
       flags: proctor.total, proctoring: proctor,
       scale: attempt.scoreScale ?? "itp", passMark: attempt.passMark ?? null, totalPassed: attempt.passed ?? null, attemptId: String(attempt._id), analysis: attempt.aiAnalysis ?? { status: "pending" },
       level: level ? { name: level.name, quota: level.coachingQuota, scoreMin: level.scoreMin, scoreMax: level.scoreMax, info: LEVEL_INFO[String(level.key)] ?? null } : null,
-      equivalents: eq ? { itp: eq.itp, cefr: eq.cefr, cefrLabel: eq.cefrLabel } : null,
       unanswered: buildUnanswered(review),
       courseProgress: await courseProgressFor(attempt.userId, u?.currentLevelId),
       insights: buildInsights(review),

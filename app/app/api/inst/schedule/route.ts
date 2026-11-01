@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { handleError } from "@/lib/rbac";
 import { instContext, memberIds } from "@/lib/inst";
-import { ExamRegistration, ExamSession } from "@/models/OfficialExam";
 import { Test, Attempt } from "@/models/Test";
 import { TestSession, TestSeat } from "@/models/Schedule";
 import { User } from "@/models/User";
@@ -13,7 +12,6 @@ export const dynamic = "force-dynamic";
 /**
  * Jadwal tes rombongan institusi:
  * 1) Tes terjadwal di aplikasi (mis. Placement per tanggal): peserta per sesi dan status pengerjaan, TANPA skor.
- * 2) Ujian resmi: peserta yang terdaftar per sesi. Tanpa NIK/dokumen.
  */
 export async function GET(req: Request) {
   try {
@@ -43,15 +41,7 @@ export async function GET(req: Request) {
       }),
     }));
 
-    const regs = await ExamRegistration.find({ userId: { $in: ids }, status: { $ne: "cancelled" } }).select("fullName sessionId status docStatus score").lean();
-    const itp = await ExamSession.find({ _id: { $in: Array.from(new Set(regs.map((r) => String(r.sessionId)))) } }).sort({ date: 1 }).lean();
-    return NextResponse.json({
-      groups,
-      sessions: itp.map((s) => ({
-        id: String(s._id), title: s.title, date: s.date, place: s.place,
-        participants: regs.filter((r) => String(r.sessionId) === String(s._id)).map((r) => ({ name: r.fullName, status: r.status, docStatus: r.docStatus, total: r.score?.total ?? null })),
-      })),
-    });
+    return NextResponse.json({ groups });
   } catch (e) {
     return handleError(e);
   }

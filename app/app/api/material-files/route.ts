@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { Readable } from "node:stream";
 import { connectDB } from "@/lib/db";
 import { requireRole, handleError, HttpError } from "@/lib/rbac";
-import { isPdf, MAX_PDF_BYTES } from "@/lib/pdf-import";
+import { isPdf, MAX_PDF_BYTES } from "@/lib/pdf-file";
 import { MaterialFile } from "@/models/Material";
 import { pdfBucket } from "@/models/Pdf";
 

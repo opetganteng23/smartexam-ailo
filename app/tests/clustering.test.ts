@@ -1,6 +1,5 @@
 import { describe, it, expect } from "vitest";
 import { normName, nameSimilarity, matchPerson, findNameInText } from "@/lib/name-match";
-import { cefrForItp, toItp, fromItp, equivalents, equivalenceSchema, EQUIVALENCE_DEFAULT, type Equivalence } from "@/lib/score-equivalence";
 import { pickClass } from "@/lib/class-pick";
 
 describe("pencocokan nama", () => {
@@ -15,30 +14,6 @@ describe("pencocokan nama", () => {
   it("email sama persis selalu menang", () => expect(matchPerson("Siapa Saja", "BUDI@x.id", people)[0]).toMatchObject({ id: "1", confidence: 1 }));
   it("kandidat diurutkan dari yang paling mirip", () => expect(matchPerson("Budi Santosa", undefined, people)[0].id).toBe("1"));
   it("nama di dalam isi PDF ditemukan", () => expect(findNameInText("CERTIFICATE\nThis is to certify that SITI AMINAH has completed", people)?.id).toBe("3"));
-});
-
-describe("padanan skor", () => {
-  it("ITP ke CEFR memakai batas ETS", () => {
-    expect([336, 337, 459, 460, 542, 543, 626, 627].map(cefrForItp)).toEqual(["A1", "A2", "A2", "B1", "B1", "B2", "B2", "C1"]);
-  });
-  it("skala sama dengan ITP: skor tidak berubah", () => expect(toItp(505, "oce", EQUIVALENCE_DEFAULT)).toBe(505));
-  const custom: Equivalence = { ...EQUIVALENCE_DEFAULT, oce: { name: "OCE", sameAsItp: false, min: 0, max: 100, anchors: { A2: 20, B1: 40, B2: 60, C1: 80 } } };
-  it("skala 0-100: batas CEFR dipetakan tepat dan di antaranya linear", () => {
-    expect(toItp(40, "oce", custom)).toBe(460);
-    expect(toItp(60, "oce", custom)).toBe(543);
-    expect(toItp(50, "oce", custom)).toBe(Math.round((460 + 543) / 2));
-    expect(toItp(0, "oce", custom)).toBe(310);
-    expect(toItp(100, "oce", custom)).toBe(677);
-  });
-  it("konversi bolak-balik konsisten", () => expect(fromItp(toItp(70, "oce", custom), "oce", custom)).toBe(70));
-  it("equivalents memuat ITP, CEFR, OCE, PURE", () => {
-    const e = equivalents(543, custom);
-    expect(e).toMatchObject({ itp: 543, cefr: "B2", oce: { score: 60, estimated: true }, pure: { score: 543, estimated: false } });
-  });
-  it("validasi: batas harus naik dan di dalam rentang", () => {
-    expect(equivalenceSchema.safeParse(custom).success).toBe(true);
-    expect(equivalenceSchema.safeParse({ ...custom, oce: { ...custom.oce, anchors: { A2: 20, B1: 50, B2: 40, C1: 80 } } }).success).toBe(false);
-  });
 });
 
 describe("pilih kelas", () => {

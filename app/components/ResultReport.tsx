@@ -239,18 +239,6 @@ export function ResultReport({ attemptId, staffBase }: { attemptId: string; staf
         );
       })()}
 
-      {r.equivalents && (
-        <section className="card" aria-label="Score equivalents">
-          <h2 className="font-display text-lg font-extrabold text-navy">Score equivalents</h2>
-          {r.level?.info && <p className="mt-1 text-sm text-ink"><b>{r.level.name} ({r.level.scoreMin} to {r.level.scoreMax}).</b> {r.level.info.summary} {r.level.info.traits}</p>}
-          <dl className="mt-3 grid grid-cols-2 gap-3">
-            <div className="rounded-xl bg-canvas p-3"><dt className="text-xs font-semibold uppercase text-ink-soft">Score</dt><dd className="font-display text-2xl font-extrabold text-navy">{r.equivalents.itp}</dd><dd className="text-xs text-ink-soft">estimate, 310 to 677</dd></div>
-            <div className="rounded-xl bg-canvas p-3"><dt className="text-xs font-semibold uppercase text-ink-soft">CEFR</dt><dd className="font-display text-2xl font-extrabold text-navy">{r.equivalents.cefr}</dd><dd className="text-xs text-ink-soft">{r.equivalents.cefrLabel.replace(/^\S+ /, "")}</dd></div>
-          </dl>
-          <p className="mt-2 text-xs text-ink-soft">CEFR follows the standard mapping for the 310-677 scale. Equivalents are guides for placement, not official scores.</p>
-        </section>
-      )}
-
       {!staff && <ProctorSummaryCard attemptId={attemptId} />}
       {levelBanners}
 

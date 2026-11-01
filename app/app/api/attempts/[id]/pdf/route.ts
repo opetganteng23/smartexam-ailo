@@ -49,7 +49,7 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
       name: owner?.name ?? owner?.email ?? "-", testName: r.testName, kindLabel: KIND[r.kind ?? ""] ?? "TEST", finishedAt: r.finishedAt ?? null, durationSec: r.durationSec,
       scoreEst: r.scoreEst ?? null, scoring: r.scoring, level: r.level ? { name: r.level.name, scoreMin: r.level.scoreMin, scoreMax: r.level.scoreMax, quota: r.level.quota } : null,
       scale: r.scale, passMark: r.passMark, totalPassed: r.totalPassed,
-      equivalents: r.equivalents, previous: r.previous && r.previous.scoreEst != null ? { name: r.previous.name, scoreEst: r.previous.scoreEst } : null, target: owner?.targetScore ?? null,
+      previous: r.previous && r.previous.scoreEst != null ? { name: r.previous.name, scoreEst: r.previous.scoreEst } : null, target: owner?.targetScore ?? null,
       sections: r.sectionScores.map((s) => ({ section: s.section ?? "", scaled: s.scaled ?? 0, raw: s.raw ?? 0, total: s.total ?? 0 })),
       topics: (r.topicScores ?? []).map((t) => ({ skill: t.skill ?? "", topic: t.topic ?? "", score: t.score ?? 0, correct: t.correct ?? 0, total: t.total ?? 0 })),
       analysis: r.analysis as never,

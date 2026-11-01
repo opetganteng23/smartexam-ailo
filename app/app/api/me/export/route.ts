@@ -5,7 +5,7 @@ import { decryptField } from "@/lib/crypto";
 import { User } from "@/models/User";
 import { Attempt } from "@/models/Test";
 import { CounselorThread } from "@/models/Counselor";
-import { ExamRegistration, Certificate } from "@/models/OfficialExam";
+import { Certificate } from "@/models/Certificate";
 import { MaterialProgress } from "@/models/Material";
 
 export const dynamic = "force-dynamic";
@@ -15,18 +15,16 @@ export async function GET() {
   try {
     const me = await requireRole(["participant", "coach", "inst_admin", "admin"]);
     await connectDB();
-    const [user, attempts, threads, regs, certs, progress] = await Promise.all([
+    const [user, attempts, threads, certs, progress] = await Promise.all([
       User.findById(me._id).lean(),
       Attempt.find({ userId: me._id, ...releasedFilter() }).select("-aiAnalysis.error").lean(),
       CounselorThread.find({ userId: me._id }).lean(),
-      ExamRegistration.find({ userId: me._id }).lean(),
       Certificate.find({ userId: me._id }).lean(),
       MaterialProgress.find({ userId: me._id }).lean(),
     ]);
     const data = {
       exportedAt: new Date(), user,
       attempts, counselorThreads: threads, certificates: certs, materialProgress: progress,
-      itpRegistrations: regs.map(({ nikEnc, ...r }) => ({ ...r, nik: decryptField(nikEnc) })), // NIK milik sendiri didekripsi
     };
     return new Response(JSON.stringify(data, null, 2), { headers: { "Content-Type": "application/json", "Content-Disposition": 'attachment; filename="my-data.json"', "Cache-Control": "private, no-store" } });
   } catch (e) {

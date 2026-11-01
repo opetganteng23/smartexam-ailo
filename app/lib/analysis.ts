@@ -12,7 +12,6 @@ import { PdfImport } from "@/models/Pdf";
 import { topicStatus } from "./topic-stats";
 import { notify } from "./notify";
 import { User } from "@/models/User";
-import { ExamRegistration, ExamSession } from "@/models/OfficialExam";
 import { CounselorThread } from "@/models/Counselor";
 import { Analysis, PlanItem, TopicStat, type AnalysisDoc } from "@/models/Learning";
 import type { Types } from "mongoose";
@@ -177,21 +176,19 @@ export async function retryFallbackAnalyses() {
 /** Profil + riwayat untuk system prompt Konselor. */
 export async function buildCounselorContext(userId: Types.ObjectId | string): Promise<CounselorContext> {
   await connectDB();
-  const [user, attempts, threads, reg, plan, topics] = await Promise.all([
+  const [user, attempts, threads, plan, topics] = await Promise.all([
     User.findById(userId).select("name targetScore goal").lean(),
     // Hasil yang masih ditahan (institusi/jadwal rilis) tidak boleh sampai ke AI Counselor.
     Attempt.find({ userId, status: "submitted", ...releasedFilter() }).sort({ finishedAt: -1 }).limit(5).lean(),
     CounselorThread.find({ userId }).select("actionPlan").lean(),
-    ExamRegistration.findOne({ userId, status: { $in: ["submitted", "confirmed"] } }).sort({ createdAt: -1 }).lean(),
     PlanItem.find({ userId, status: { $in: ["active", "late"] } }).sort({ priority: 1, dueAt: 1 }).limit(8).lean(),
     TopicStat.find({ userId, status: { $in: ["weak", "priority"] }, ...LEARNING_TOPIC_FILTER }).sort({ score: 1 }).limit(6).lean(),
   ]);
-  const session = reg ? await ExamSession.findById(reg.sessionId).select("date").lean() : null;
   const held = !!(await Attempt.exists({ userId, status: "submitted", releaseAt: { $gt: new Date() } }));
   const latest = await Analysis.findOne({ userId, status: "ready" }).sort({ createdAt: -1 }).select("narrative").lean();
   const narrative = (latest?.narrative as { summary?: string } | undefined)?.summary;
   return {
-    name: user?.name ?? null, targetScore: user?.targetScore ?? null, goal: user?.goal ?? null, examDate: session?.date ? session.date.toISOString().slice(0, 10) : null,
+    name: user?.name ?? null, targetScore: user?.targetScore ?? null, goal: user?.goal ?? null, examDate: null,
     attempts: attempts.map((a) => ({ kind: a.kind ?? "", date: (a.finishedAt ?? a.startedAt).toISOString().slice(0, 10), scoreEst: a.scoreEst ?? 0, sections: a.sectionScores.map((s) => ({ section: s.section ?? "", scaled: s.scaled ?? 0 })) })),
     weaknesses: topics.map((t) => `${t.topic} (${Math.round(t.score)}%)`),
     // Rencana resmi (sistem/coach) adalah sumber tunggal; AI hanya mengusulkan, tidak mengubahnya (MTS §17).

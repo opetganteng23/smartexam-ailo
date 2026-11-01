@@ -4,7 +4,7 @@ import { exemptFromDelay } from "@/lib/attempt-release";
 import { connectDB } from "@/lib/db";
 import { requireRole, handleError } from "@/lib/rbac";
 import { Attempt, Test } from "@/models/Test";
-import { Certificate } from "@/models/OfficialExam";
+import { Certificate } from "@/models/Certificate";
 
 export const dynamic = "force-dynamic";
 

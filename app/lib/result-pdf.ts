@@ -12,7 +12,6 @@ export type ResultPdfData = {
   name: string; testName: string; kindLabel: string; finishedAt: Date | string | null; durationSec: number | null;
   scoreEst: number | null; scoring: { basis: "verified" | "provisional"; name: string | null } | null;
   level: { name: string; scoreMin: number; scoreMax: number; quota: number } | null;
-  equivalents: { itp: number; cefr: string; cefrLabel: string } | null;
   previous: { name: string; scoreEst: number } | null; target: number | null;
   sections: { section: string; scaled: number; raw: number; total: number }[];
   topics: { skill: string; topic: string; score: number; correct: number; total: number }[];
@@ -86,7 +85,6 @@ function build(doc: PDFKit.PDFDocument, d: ResultPdfData) {
   if (d.partial) { side.push(`${d.partial.passed ? "Passed" : "Not passed yet"} (pass mark ${d.partial.passScore}%)`); side.push("Covers part of the material: it does not change your score estimate or level."); }
   if (d.scale === "percent" && d.passMark != null) side.push(`${d.totalPassed ? "Passed" : "Not passed yet"} (pass mark ${d.passMark}%)`);
   if (d.level) side.push(`Level: ${d.level.name} (${d.level.scoreMin}-${d.level.scoreMax})`);
-  if (d.equivalents) side.push(`CEFR: ${d.equivalents.cefr} (${d.equivalents.cefrLabel.replace(/^\S+ /, "")})`);
   if (d.previous && d.scoreEst != null) { const dl = d.scoreEst - d.previous.scoreEst; side.push(`${dl > 0 ? "+" : dl < 0 ? "" : "±"}${dl} from ${d.previous.name} (${d.previous.scoreEst})`); }
   if (d.target != null && d.scoreEst != null) side.push(d.scoreEst >= d.target ? `Target ${d.target} reached` : `${d.target - d.scoreEst} points below the ${d.target} target`);
   doc.font("Regular").fontSize(10).fillColor("#FFFFFF");

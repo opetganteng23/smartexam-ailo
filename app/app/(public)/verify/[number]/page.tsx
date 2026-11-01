@@ -1,7 +1,7 @@
 import { PublicHeader, PublicFooter } from "@/components/PublicShell";
 import { connectDB } from "@/lib/db";
 import { maskName } from "@/lib/crypto";
-import { Certificate } from "@/models/OfficialExam";
+import { Certificate } from "@/models/Certificate";
 import { User } from "@/models/User";
 
 export const dynamic = "force-dynamic";

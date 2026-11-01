@@ -2,7 +2,7 @@ import { isValidObjectId } from "mongoose";
 import { connectDB } from "@/lib/db";
 import { requireRole, handleError, HttpError } from "@/lib/rbac";
 import { certificatePdf } from "@/lib/pdf";
-import { Certificate } from "@/models/OfficialExam";
+import { Certificate } from "@/models/Certificate";
 import { User } from "@/models/User";
 
 export const dynamic = "force-dynamic";

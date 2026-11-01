@@ -3,7 +3,6 @@ import { Types } from "mongoose";
 import ExcelJS from "exceljs";
 import { connectDB } from "./db";
 import { getLevels, levelForScore } from "./config";
-import { cefrForItp } from "./score-equivalence";
 import { effectiveWindow, windowState } from "./schedule";
 import { Test, Attempt } from "@/models/Test";
 import { TestSession, TestSeat } from "@/models/Schedule";
@@ -34,7 +33,7 @@ const DAY = (d: Date) => new Date(d).toLocaleDateString("en-GB", { weekday: "sho
 
 /**
  * Hasil satu tes untuk admin: semua peserta yang dijadwalkan (dan yang mengerjakan tanpa jadwal), satu baris per orang.
- * Skor, bagian, CEFR, level, waktu, catatan proctoring, plus rekap per tanggal dan per level.
+ * Skor, bagian, level, waktu, catatan proctoring, plus rekap per tanggal dan per level.
  */
 /** Cakupan laporan: satu institusi, satu cabang, satu kelompok umur; releasedOnly menyembunyikan skor yang belum dirilis (admin institusi). */
 export type ReportScope = { institutionId?: string; branch?: string; province?: string; age?: string; releasedOnly?: boolean; from?: string; to?: string };
@@ -97,8 +96,7 @@ export async function collectTestRows(testId: string, now = new Date(), sessionI
     const done = a?.status === "submitted" && typeof a.scoreEst === "number";
     const sec = (n: string) => a?.sectionScores?.find((s) => s.section === n)?.scaled ?? null;
     const flags = (k: string) => (a ? (a as unknown as Record<string, number>)[`flag_${k}`] ?? 0 : 0);
-    const itpScale = done && (a as unknown as { scoreScale?: string }).scoreScale !== "percent";
-    const lvl = itpScale ? levelForScore(levels, a!.scoreEst!)?.name ?? "" : "";
+    const lvl = done ? levelForScore(levels, a!.scoreEst!)?.name ?? "" : "";
     return {
       name: u.name ?? "", email: u.email, institution: u.institutionId ? insts.get(String(u.institutionId)) ?? "" : "",
       qa: u.qaTester ? "QA" : "",
@@ -109,7 +107,7 @@ export async function collectTestRows(testId: string, now = new Date(), sessionI
       account: u.status === "active" ? "Active" : u.status === "invited" ? "Awaiting activation" : u.status === "disabled" ? "Inactive" : String(u.status ?? ""),
       invitedAt: seat?.invitedAt ? WIB(seat.invitedAt) : seat ? "Not sent" : "",
       lastLogin: u.lastLoginAt ? WIB(u.lastLoginAt) : "Never",
-      score: done ? a!.scoreEst! : null, cefr: itpScale ? cefrForItp(a!.scoreEst!) : "", level: lvl,
+      score: done ? a!.scoreEst! : null, level: lvl,
       listening: done ? sec("listening") : null, structure: done ? sec("structure") : null, reading: done ? sec("reading") : null,
       secs: done ? Object.fromEntries((a!.sectionScores ?? []).map((s) => [s.section ?? "", s.scaled ?? null])) as Record<string, number | null> : {} as Record<string, number | null>, // semua bagian tes, kunci = nama bagian
       answered: a ? a.answered : null,
@@ -128,7 +126,7 @@ export async function collectTestRows(testId: string, now = new Date(), sessionI
   }).sort((x, y) => x._sort - y._sort || x.name.localeCompare(y.name))
     .filter((r) => (!scope.institutionId || r.instId === scope.institutionId) && (!scope.branch || r.branch === scope.branch) && (!scope.province || r.province === scope.province) && (!scope.age || ageGroupOf(ageOf(r.birthDate))?.key === scope.age))
     .filter((r) => { if (!scope.from && !scope.to) return true; const d = testDay(r.startedAt, r._sort); return !!d && (!scope.from || d >= scope.from) && (!scope.to || d <= scope.to); })
-    .map((r) => (scope.releasedOnly && r.status === "Finished" && r.released.startsWith("At") ? { ...r, score: null, cefr: "", level: "", listening: null, structure: null, reading: null, secs: {} as Record<string, number | null>, topics: [], released: "Held" } : r));
+    .map((r) => (scope.releasedOnly && r.status === "Finished" && r.released.startsWith("At") ? { ...r, score: null, level: "", listening: null, structure: null, reading: null, secs: {} as Record<string, number | null>, topics: [], released: "Held" } : r));
 
   // Bagian tes sesuai urutan di tes; kolom laporan mengikutinya.
   const sectionKeys = Array.from(new Set((test.sections ?? []).map((s) => s.name as string)));
@@ -136,10 +134,10 @@ export async function collectTestRows(testId: string, now = new Date(), sessionI
 }
 
 /** Masukan narasi dari satu baris laporan (angka saja). */
-export function narrativeInput(r: { score: number | null; level: string; cefr: string; listening: number | null; structure: number | null; reading: number | null; secs?: Record<string, number | null>; topics: NarrativeInput["topics"] }, target = 550): NarrativeInput {
+export function narrativeInput(r: { score: number | null; level: string; listening: number | null; structure: number | null; reading: number | null; secs?: Record<string, number | null>; topics: NarrativeInput["topics"] }, target = 550): NarrativeInput {
   const pairs: [string, number | null][] = r.secs && Object.keys(r.secs).length ? Object.entries(r.secs).map(([k, v]) => [SECTION_SHORT[k], v]) : [["Listening", r.listening], ["Structure", r.structure], ["Reading", r.reading]];
   const sections = pairs.filter((x): x is [string, number] => typeof x[1] === "number").map(([section, scaled]) => ({ section, scaled }));
-  return { score: r.score ?? 0, level: r.level, cefr: r.cefr, target, sections, topics: r.topics };
+  return { score: r.score ?? 0, level: r.level, target, sections, topics: r.topics };
 }
 
 export async function buildTestExport(testId: string, now = new Date(), sessionId?: string, scope: ReportScope = {}) {
@@ -175,7 +173,7 @@ export async function buildTestExport(testId: string, now = new Date(), sessionI
   res.columns = [
     { header: "No", key: "no", width: 6 }, { header: "Name", key: "name", width: 30 }, { header: "Email", key: "email", width: 34 }, { header: "Institution", key: "institution", width: 24 }, { header: "Branch", key: "branch", width: 24 }, { header: "Age group", key: "ageGroup", width: 10 },
     { header: "Scheduled day", key: "scheduledDay", width: 18 }, { header: "Window (WIB)", key: "window", width: 36 }, { header: "Special schedule", key: "extended", width: 18 },
-    { header: "Attendance", key: "attendance", width: 13 }, { header: "Status", key: "status", width: 22 }, { header: "Total score", key: "score", width: 11 }, { header: "CEFR", key: "cefr", width: 8 }, { header: "Level", key: "level", width: 14 },
+    { header: "Attendance", key: "attendance", width: 13 }, { header: "Status", key: "status", width: 22 }, { header: "Total score", key: "score", width: 11 }, { header: "Level", key: "level", width: 14 },
     ...secCols(10),
     { header: "Answered", key: "answered", width: 10 }, { header: "Started (WIB)", key: "started", width: 20 }, { header: "Finished (WIB)", key: "finished", width: 20 }, { header: "Minutes", key: "minutes", width: 9 },
     { header: "Result release", key: "released", width: 22 }, { header: "Score basis", key: "basis", width: 12 },
@@ -202,7 +200,7 @@ export async function buildTestExport(testId: string, now = new Date(), sessionI
   const ind = wb.addWorksheet("Individual analysis");
   ind.columns = [
     { header: "No", key: "no", width: 6 }, { header: "Name", key: "name", width: 28 }, { header: "Email", key: "email", width: 30 }, { header: "Branch", key: "branch", width: 22 },
-    { header: "Total score", key: "score", width: 10 }, { header: "Level", key: "level", width: 13 }, { header: "CEFR", key: "cefr", width: 7 },
+    { header: "Total score", key: "score", width: 10 }, { header: "Level", key: "level", width: 13 },
     ...secCols(9),
     { header: "Ringkasan", key: "ringkasan", width: 60 }, { header: "Kelebihan", key: "kelebihan", width: 55 }, { header: "Kelemahan", key: "kelemahan", width: 60 },
     { header: "Rencana belajar", key: "rencana", width: 60 }, { header: "Target & perkiraan", key: "target", width: 45 }, { header: "Sumber", key: "src", width: 14 },
@@ -246,8 +244,6 @@ export async function buildTestExport(testId: string, now = new Date(), sessionI
   lv.columns = [{ header: "Level", key: "l", width: 18 }, { header: "Score range", key: "r", width: 14 }, { header: "People", key: "n", width: 10 }, { header: "% of finished", key: "p", width: 14 }];
   for (const l of levels) { const n = fin.filter((r) => r.level === l.name).length; lv.addRow({ l: l.name, r: `${l.scoreMin}-${l.scoreMax}`, n, p: fin.length ? n / fin.length : 0 }); }
   lv.addRow({});
-  lv.addRow({ l: "CEFR", r: "", n: "People" }).font = { bold: true };
-  for (const c of ["A1", "A2", "B1", "B2", "C1"]) { const n = fin.filter((r) => r.cefr === c).length; lv.addRow({ l: c, n, p: fin.length ? n / fin.length : 0 }); }
   lv.getColumn("p").numFmt = "0%";
   head(lv);
   lv.addConditionalFormatting({ ref: `D2:D${levels.length + 1}`, rules: [{ type: "dataBar", priority: 1, cfvo: [{ type: "num", value: 0 }, { type: "num", value: 1 }], color: { argb: "FF0B4FA6" } } as never] });

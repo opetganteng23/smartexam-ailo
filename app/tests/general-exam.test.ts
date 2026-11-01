@@ -65,8 +65,8 @@ describe.skipIf(!safe)("ujian umum (Matematika dan Logika)", () => {
     const { attemptResult } = await import("@/lib/attempt-result");
     const { resultPdf } = await import("@/lib/result-pdf");
     const r = await attemptResult((await Attempt.findById(attempt._id))! as never, test as never);
-    expect(r).toMatchObject({ scale: "percent", passMark: 60, totalPassed: true, equivalents: null });
-    const pdf = await resultPdf({ name: "Budi", testName: r.testName, kindLabel: "PRACTICE", finishedAt: r.finishedAt ?? null, durationSec: r.durationSec, scoreEst: r.scoreEst ?? null, scoring: r.scoring, level: null, equivalents: null, previous: null, target: null, scale: r.scale, passMark: r.passMark, totalPassed: r.totalPassed, sections: r.sectionScores.map((x) => ({ section: x.section ?? "", scaled: x.scaled ?? 0, raw: x.raw ?? 0, total: x.total ?? 0 })), topics: [], analysis: r.analysis as never, recommendations: [], summary: r.summary } as never);
+    expect(r).toMatchObject({ scale: "percent", passMark: 60, totalPassed: true });
+    const pdf = await resultPdf({ name: "Budi", testName: r.testName, kindLabel: "PRACTICE", finishedAt: r.finishedAt ?? null, durationSec: r.durationSec, scoreEst: r.scoreEst ?? null, scoring: r.scoring, level: null, previous: null, target: null, scale: r.scale, passMark: r.passMark, totalPassed: r.totalPassed, sections: r.sectionScores.map((x) => ({ section: x.section ?? "", scaled: x.scaled ?? 0, raw: x.raw ?? 0, total: x.total ?? 0 })), topics: [], analysis: r.analysis as never, recommendations: [], summary: r.summary } as never);
     expect(Buffer.from(pdf).subarray(0, 4).toString()).toBe("%PDF");
 
     // Ringkasan eksekutif: ujian skala persentase memakai deck umum, bukan deck ITP
