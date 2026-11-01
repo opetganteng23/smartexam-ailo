@@ -35,7 +35,7 @@ export default function AudioLibrary() {
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="page-title">Audio Library</h1>
-          <p className="text-sm text-ink-soft">All Listening audio in one place. See which questions and materials use each file before you replace or delete it.</p>
+          <p className="text-sm text-ink-soft">All audio in one place. See which questions and materials use each file before you replace or delete it.</p>
         </div>
         <button className="btn-solid" onClick={() => setDlg({ type: "upload" })}>+ Upload audio</button>
       </div>

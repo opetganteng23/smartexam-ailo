@@ -26,7 +26,7 @@ export function QuestionTypesDialog({ types, onClose, onChanged }: { types: QTyp
   return (
     <Modal title="Manage question types" onClose={onClose} wide>
       <div className="flex flex-col gap-5">
-        <p className="text-sm text-ink-soft">Each category has its own types, for example Listening Part A or Reading Inference. Questions pick a type from this list. Renaming a type updates its questions.</p>
+        <p className="text-sm text-ink-soft">Each category has its own types, for example Algebra or Geometry under Math. Questions pick a type from this list. Renaming a type updates its questions.</p>
         {err && <p role="alert" className="rounded-lg bg-red-50 p-3 text-sm text-red-700">{err}</p>}
         {ok && <p role="status" className="rounded-lg bg-success-tint p-3 text-sm text-success">{ok}</p>}
 

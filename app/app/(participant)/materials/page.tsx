@@ -24,7 +24,7 @@ export default function Materi() {
           {list.map((m) => (
             <Link key={m.id} href={`/materials/${m.slug}`} className={`card flex flex-col gap-2 hover:border-brand ${m.locked ? "bg-canvas" : ""}`}>
               <div className="flex flex-wrap items-center gap-2">
-                <span className="badge-muted">{m.kind === "html" ? "Interactive exercise" : "Reading"}</span>
+                <span className="badge-muted">{m.kind === "html" ? "Interactive exercise" : "Article"}</span>
                 {m.progress?.completed && <span className="badge-ok">Score {m.progress.score ?? "-"}</span>}
               </div>
               <h2 className="font-display text-lg font-extrabold text-navy">{m.title}</h2>

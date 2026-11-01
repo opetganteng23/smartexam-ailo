@@ -13,7 +13,7 @@ import { uploadImage } from "@/lib/compress-image";
 
 type Row = { _id: string; section: string; type: string; stem: string; status: string; difficulty: string; issues?: string[] };
 type Group = { id: string; section: string; instruction?: string; passageTitle?: string; audioId: string | null; questions: number };
-const SKILLS = ["listening", "structure", "reading"];
+const SKILLS = ["knowledge", "application", "reasoning", "comprehension"]; // saran saja; skill bebas
 type AudioRow = { id: string; title: string; durationSec: number; inUse: boolean };
 type Form = {
   id?: string; section: string; type: string; groupId: string; stem: string; options: string[]; answerKey: number;
@@ -251,7 +251,7 @@ function Editor({ form, types, onTypesChanged, onClose, onSaved, onNewGroup }: {
           ))}
           {v.tags.length < 10 && <button type="button" className="self-start text-sm font-semibold text-brand" onClick={() => set("tags", [...v.tags, { skill: v.section, topic: "" }])}>+ Add tag</button>}
         </fieldset>
-        {v.section === "listening" && <AudioPicker groups={groups} groupId={v.groupId} onGroup={(id, g) => { set("groupId", id); if (g) setGroups((x) => [...x, g]); }} />}
+        {<AudioPicker groups={groups} groupId={v.groupId} onGroup={(id, g) => { set("groupId", id); if (g) setGroups((x) => [...x, g]); }} />}
         <div>
           <p className="mb-1 text-sm font-semibold text-navy">Images (auto-compressed to 300 KB or less)</p>
           <div className="flex flex-wrap items-center gap-3">
@@ -314,7 +314,7 @@ function ImportDialog({ onClose }: { onClose: () => void }) {
   );
 }
 
-/** T-AUD: audio langsung di soal Listening. Memilih/mengunggah audio otomatis memakai grup yang sudah ada untuk audio itu, atau membuatnya. */
+/** T-AUD: audio langsung di soal kategori mana pun. Memilih/mengunggah audio otomatis memakai grup yang sudah ada untuk audio itu, atau membuatnya. */
 function AudioPicker({ groups, groupId, onGroup }: { groups: Group[]; groupId: string; onGroup: (id: string, created?: Group) => void }) {
   const [audios, setAudios] = useState<AudioRow[]>([]);
   const [title, setTitle] = useState("");
@@ -348,7 +348,7 @@ function AudioPicker({ groups, groupId, onGroup }: { groups: Group[]; groupId: s
 
   return (
     <div className="flex flex-col gap-3 rounded-xl border border-line p-4">
-      <p className="text-sm font-semibold text-navy">Listening audio for this question</p>
+      <p className="text-sm font-semibold text-navy">Audio for this question (optional)</p>
       <select aria-label="Saved audio" className="field font-normal" value={audioId} onChange={(e) => pickAudio(e.target.value)}>
         <option value="">Choose saved audio</option>{audios.map((a) => <option key={a.id} value={a.id}>{a.title} ({a.durationSec} sec){a.inUse ? " · in use" : ""}</option>)}
       </select>

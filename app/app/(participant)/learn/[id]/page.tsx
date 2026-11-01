@@ -47,7 +47,7 @@ export default function UnitPage({ params }: { params: { id: string } }) {
             {data.materials.map((m) => (
               <li key={m.id}>
                 <Link href={`/materials/${m.slug}`} className="flex items-center justify-between gap-3 py-3 hover:text-brand">
-                  <span className="min-w-0"><b className="text-navy">{m.title}</b><br /><span className="text-xs text-ink-soft">{m.kind === "html" ? "Interactive exercise" : "Reading"}{m.summary ? ` · ${m.summary}` : ""}</span></span>
+                  <span className="min-w-0"><b className="text-navy">{m.title}</b><br /><span className="text-xs text-ink-soft">{m.kind === "html" ? "Interactive exercise" : "Article"}{m.summary ? ` · ${m.summary}` : ""}</span></span>
                   <span className={m.done ? "badge-ok" : "badge-muted"}>{m.done ? "Done" : "Not yet"}</span>
                 </Link>
               </li>

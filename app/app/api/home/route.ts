@@ -58,8 +58,8 @@ export async function GET() {
     else if (cs.blockedReason) step = { title: "Program period closed", body: cs.blockedReason, cta: "Open learning", href: "/learn" };
     else if (needPlace && placeGate && !placeGate.visible) step = { title: "Your placement test is not scheduled yet", body: "Your placement test is taken in a scheduled session. You will receive an email with the date and time.", cta: "Open learning", href: "/learn" };
     else if (needPlace && placeGate && !placeGate.ok) step = { title: placeGate.state === "upcoming" ? "Your placement test is scheduled" : "Your placement session has closed", body: placeGate.reason ?? "", cta: "Open tests", href: "/tests" };
-    else if (needPlace) step = { title: "Start with the placement test", body: "Taken once per program period, in exam format. The result sets your level, coaching quota, and initial study plan.", cta: "Start placement", href: placementTest ? `/tests/prepare/${placementTest._id}` : "/tests" };
-    else step = { title: "Keep learning", body: "Do exercises or simulations to track your progress.", cta: "Open tests", href: "/tests" };
+    else if (needPlace && placementTest) step = { title: "Start with the placement test", body: "Taken once per program period, in exam format. The result sets your level, coaching quota, and initial study plan.", cta: "Start placement", href: placementTest ? `/tests/prepare/${placementTest._id}` : "/tests" };
+    else step = { title: "Your exams", body: "Open My Tests to take an exam, continue one in progress, or see your results.", cta: "Open tests", href: "/tests" };
 
     return NextResponse.json({
       name: u?.name ?? null, institution: inst ? { name: inst.name, contractEnd: inst.contractEnd ?? null } : null,

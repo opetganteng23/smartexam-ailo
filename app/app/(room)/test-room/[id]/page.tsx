@@ -458,7 +458,7 @@ export default function Ruang({ params }: { params: { id: string } }) {
               <li>{t("You cannot go back to a previous question.")}</li>
               <li><b>{t("Choose an answer before pressing Next.")}</b> A question you skip cannot be answered later and is scored as wrong.</li>
               <li>Press <b>{t("Finish section")}</b> only on the last question, after answering it.</li>
-              {st.section.name === "listening" && <li>Each audio plays <b>once</b>. Answer while or right after it plays.</li>}
+              {st.groups.some((g) => g.audio) && <li>Each audio plays <b>once</b>. Answer while or right after it plays.</li>}
             </ul>
             <button className="btn-solid mt-5 w-full" onClick={closeNotice}>{t("I understand, start")}</button>
           </div>

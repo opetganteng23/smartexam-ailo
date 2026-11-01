@@ -1,3 +1,4 @@
+import { SECTION_SHORT } from "@/lib/exam-format";
 import { isLearningTopic } from "./topics";
 import { typeLabel } from "./breakdown";
 
@@ -9,7 +10,7 @@ export type UnansweredReport = {
   advice: string[];
 };
 
-const LABEL: Record<string, string> = { listening: "Listening", structure: "Structure & WE", reading: "Reading" };
+const LABEL = SECTION_SHORT;
 
 /**
  * Analisis soal yang tidak dijawab. Soal kosong dihitung salah, jadi laporan ini menjelaskan DI MANA dan KENAPA kemungkinan terjadi:

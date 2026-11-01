@@ -109,13 +109,13 @@ export function StaffParticipantView({ id, backHref, backLabel, reportBase }: { 
         <p className="text-sm text-ink-soft">Open a row for the full report: score per section, correct and wrong answers, weaknesses, AI narrative and detailed analysis.</p>
         {h.attempts.length ? (
           <div className="table-wrap mt-3"><table>
-            <thead><tr><th>Test</th><th>Date</th><th>Score</th><th>Listening</th><th>Structure</th><th>Reading</th><th>Minutes</th><th /></tr></thead>
+            <thead><tr><th>Test</th><th>Date</th><th>Score</th>{Array.from(new Set(h.attempts.flatMap((a) => a.sections.map((y) => y.section)))).map((k) => <th key={k}>{SEC[k]}</th>)}<th>Minutes</th><th /></tr></thead>
             <tbody>{h.attempts.map((a) => {
               const s = (n: string) => { const x = a.sections.find((y) => y.section === n); return x ? `${x.scaled}${x.total ? ` (${x.raw}/${x.total})` : ""}` : "-"; };
               return (
                 <tr key={a.id}>
                   <td className="font-semibold text-navy">{a.name}<span className="block text-xs font-normal text-ink-soft">{KIND[a.kind] ?? a.kind}{a.flags ? ` · ${a.flags} activity notes` : ""}{!a.released && (a.held ? " · held" : " · not released yet")}</span></td>
-                  <td>{a.finishedAt ? tgl(a.finishedAt, true) : "-"}</td><td className="font-semibold text-navy">{a.score ?? "-"}</td><td>{s("listening")}</td><td>{s("structure")}</td><td>{s("reading")}</td><td>{a.minutes ?? "-"}</td>
+                  <td>{a.finishedAt ? tgl(a.finishedAt, true) : "-"}</td><td className="font-semibold text-navy">{a.score ?? "-"}</td>{Array.from(new Set(h.attempts.flatMap((y) => y.sections.map((z) => z.section)))).map((k) => <td key={k}>{s(k)}</td>)}<td>{a.minutes ?? "-"}</td>
                   <td className="whitespace-nowrap text-right"><Link href={reportHref(a.id)} className="font-semibold text-brand">Full report</Link>{h.viewer.role !== "inst_admin" && <Link href={`/admin/proctoring/${a.id}`} className="ml-3 font-semibold text-brand">Activity</Link>}</td>
                 </tr>
               );

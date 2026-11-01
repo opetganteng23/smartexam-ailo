@@ -1,3 +1,4 @@
+import { SECTION_SHORT } from "@/lib/exam-format";
 import { Types } from "mongoose";
 import { connectDB } from "./db";
 import { buildActivity } from "./activity";
@@ -26,7 +27,7 @@ export type MonitorRow = {
   screen: "shared" | "stopped" | "unsupported" | "denied" | "none" | null; screenAt: number | null; screenImg: boolean;
 };
 
-const SEC: Record<string, string> = { listening: "Listening", structure: "Structure", reading: "Reading" };
+const SEC = SECTION_SHORT;
 /** Sejak saat ini ruang tes mencatat soal yang sengaja dilewati; sebelumnya "kosong terselip" bisa berarti dilewati atau hilang. */
 export const SKIP_TRACKED_SINCE = new Date("2026-10-21T14:15:00Z");
 

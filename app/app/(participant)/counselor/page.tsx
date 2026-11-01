@@ -12,7 +12,7 @@ type Plan = { id: string; text: string; done: boolean; dueAt: string | null };
 type Thread = { id: string; title: string; messages: Msg[]; actionPlan: Plan[]; helpful: boolean | null; basis: { kind: string; scoreEst: number; sections: { section: string; scaled: number }[]; finishedAt: string; attemptId: string } | null; access: Access };
 type Item = { id: string; title: string; last: string; open: number };
 const SEC = SECTION_SHORT;
-const SUGGEST = ["What should I do to reach my target?", "Why is my Structure score low?", "When am I ready to register for the official exam?", "Make me a study plan for 30 minutes a day"];
+const SUGGEST = ["What should I do to reach my target?", "Which topics should I focus on?", "When am I ready to register for the official exam?", "Make me a study plan for 30 minutes a day"];
 
 function Chat() {
   const router = useRouter();

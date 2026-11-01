@@ -51,12 +51,12 @@ export default function Beranda() {
         </section>
       )}
 
-      <JourneyStrip />
+      {f.learning && <JourneyStrip />}
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <div className="card"><p className="text-xs font-semibold tracking-wider text-ink-soft">LEVEL</p><p className="mt-1 font-display text-2xl font-extrabold text-navy">{h.level?.name ?? "-"}</p><p className="text-xs text-ink-soft">{h.level ? `Range ${h.level.scoreMin}-${h.level.scoreMax}` : "Set by the placement test"}</p></div>
-        <div className="card"><p className="text-xs font-semibold tracking-wider text-ink-soft">ESTIMATED SCORE</p><p className="mt-1 font-display text-2xl font-extrabold text-navy">{h.scoreEst ?? "-"}</p><p className="text-xs text-ink-soft">{h.nextLevel && h.gapToNext != null ? (h.gapToNext > 0 ? `${h.gapToNext} points to ${h.nextLevel.name}` : `Already at the ${h.nextLevel.name} threshold`) : "Scale 310-677"}</p></div>
-        <div className="card"><p className="text-xs font-semibold tracking-wider text-ink-soft">COACHING QUOTA</p><p className="mt-1 font-display text-2xl font-extrabold text-navy">{h.quota ? `${h.quota.left}` : "-"}<span className="text-base text-ink-soft">{h.quota ? ` / ${h.quota.total}` : ""}</span></p><p className="text-xs text-ink-soft">{h.quota ? "sessions left" : "Available after placement"}</p></div>
+        {(h.level || f.learning) && <div className="card"><p className="text-xs font-semibold tracking-wider text-ink-soft">LEVEL</p><p className="mt-1 font-display text-2xl font-extrabold text-navy">{h.level?.name ?? "-"}</p><p className="text-xs text-ink-soft">{h.level ? `Range ${h.level.scoreMin}-${h.level.scoreMax}` : "Set by the placement test"}</p></div>}
+        <div className="card"><p className="text-xs font-semibold tracking-wider text-ink-soft">LATEST SCORE</p><p className="mt-1 font-display text-2xl font-extrabold text-navy">{h.scoreEst ?? "-"}</p><p className="text-xs text-ink-soft">{h.nextLevel && h.gapToNext != null ? (h.gapToNext > 0 ? `${h.gapToNext} points to ${h.nextLevel.name}` : `Already at the ${h.nextLevel.name} threshold`) : "From your latest finished test"}</p></div>
+        {(h.quota || f.coaching) && <div className="card"><p className="text-xs font-semibold tracking-wider text-ink-soft">COACHING QUOTA</p><p className="mt-1 font-display text-2xl font-extrabold text-navy">{h.quota ? `${h.quota.left}` : "-"}<span className="text-base text-ink-soft">{h.quota ? ` / ${h.quota.total}` : ""}</span></p><p className="text-xs text-ink-soft">{h.quota ? "sessions left" : "Available after placement"}</p></div>}
         {h.counselor && (<div className="card"><p className="text-xs font-semibold tracking-wider text-ink-soft">AI COUNSELOR</p><p className="mt-1 font-display text-2xl font-extrabold text-navy">{h.counselor.remaining}<span className="text-base text-ink-soft"> / {h.counselor.quota}</span></p><p className="text-xs text-ink-soft">questions this month</p></div>)}
       </div>
 
