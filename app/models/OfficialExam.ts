@@ -1,0 +1,59 @@
+import mongoose, { Schema, InferSchemaType, Model } from "mongoose";
+
+const sessionSchema = new Schema(
+  {
+    title: { type: String, required: true },
+    date: { type: Date, required: true, index: true },
+    place: { type: String, required: true },
+    organizer: String,
+    quota: { type: Number, required: true, min: 1 },
+    registered: { type: Number, default: 0 },
+    status: { type: String, enum: ["open", "closed", "done"], default: "open" },
+    programCycleId: { type: Schema.Types.ObjectId, ref: "ProgramCycle", index: true }, // bila diisi: hanya peserta institusi periode itu
+  },
+  { timestamps: true }
+);
+
+const registrationSchema = new Schema(
+  {
+    userId: { type: Schema.Types.ObjectId, ref: "User", required: true, index: true },
+    sessionId: { type: Schema.Types.ObjectId, ref: "ExamSession", required: true, index: true },
+    entitlementId: { type: Schema.Types.ObjectId, ref: "Entitlement" },
+    fullName: { type: String, required: true },
+    nikEnc: { type: String, required: true }, // AES-256-GCM
+    nikLast4: String,
+    birthDate: { type: Date, required: true },
+    gender: { type: String, enum: ["L", "P"], required: true },
+    idPhotoAssetId: { type: Schema.Types.ObjectId, ref: "Asset", required: true },
+    facePhotoAssetId: { type: Schema.Types.ObjectId, ref: "Asset", required: true },
+    status: { type: String, enum: ["submitted", "confirmed", "done", "cancelled"], default: "submitted" },
+    docStatus: { type: String, enum: ["pending", "valid", "rejected"], default: "pending" },
+    docNote: String,
+    score: { listening: Number, structure: Number, reading: Number, total: Number },
+    certificateId: { type: Schema.Types.ObjectId, ref: "Certificate" },
+  },
+  { timestamps: true }
+);
+registrationSchema.index({ sessionId: 1, status: 1 });
+
+const certificateSchema = new Schema(
+  {
+    userId: { type: Schema.Types.ObjectId, ref: "User", required: true, index: true },
+    type: { type: String, enum: ["itp", "sim_report"], required: true },
+    number: { type: String, required: true, unique: true },
+    data: Schema.Types.Mixed,
+    registrationId: { type: Schema.Types.ObjectId, ref: "ExamRegistration" },
+    attemptId: { type: Schema.Types.ObjectId, ref: "Attempt" },
+    issuedAt: { type: Date, default: Date.now },
+    // Berkas sertifikat TOEFL resmi dari pihak ketiga (PDF/JPG/PNG), disimpan di GridFS bucket `certfiles`.
+    officialFile: { type: new Schema({ fileId: Schema.Types.ObjectId, name: String, mime: String, size: Number, uploadedAt: Date, uploadedBy: Schema.Types.ObjectId }, { _id: false }), default: undefined },
+  },
+  { timestamps: true }
+);
+
+export type SessionDoc = InferSchemaType<typeof sessionSchema> & { _id: mongoose.Types.ObjectId };
+export type RegistrationDoc = InferSchemaType<typeof registrationSchema> & { _id: mongoose.Types.ObjectId };
+export type CertificateDoc = InferSchemaType<typeof certificateSchema> & { _id: mongoose.Types.ObjectId };
+export const ExamSession: Model<SessionDoc> = (mongoose.models.ExamSession as Model<SessionDoc>) || mongoose.model<SessionDoc>("ExamSession", sessionSchema);
+export const ExamRegistration: Model<RegistrationDoc> = (mongoose.models.ExamRegistration as Model<RegistrationDoc>) || mongoose.model<RegistrationDoc>("ExamRegistration", registrationSchema);
+export const Certificate: Model<CertificateDoc> = (mongoose.models.Certificate as Model<CertificateDoc>) || mongoose.model<CertificateDoc>("Certificate", certificateSchema);

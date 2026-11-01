@@ -1,0 +1,42 @@
+import { NextResponse } from "next/server";
+import { z } from "zod";
+import { connectDB } from "@/lib/db";
+import { requireRole, handleError, HttpError } from "@/lib/rbac";
+import { Material, MaterialProgress } from "@/models/Material";
+import { markMaterialDone } from "@/lib/units";
+import { visibleTo } from "@/lib/material-authz";
+import { isPreviewer, previewOnlyMaterialIds } from "@/lib/course-access";
+import { mongoSanitize } from "@/lib/mongo-sanitize";
+import { RateLimiterMemory, RateLimiterRes } from "rate-limiter-flexible";
+
+const limiter = new RateLimiterMemory({ points: 20, duration: 60 });
+const schema = z.object({ score: z.number().min(0).max(100), answers: z.unknown().optional(), final: z.boolean().default(true) });
+
+/**
+ * Menerima progres dari materi (lewat jembatan postMessage di induk). Materi tidak pernah memanggil API langsung.
+ * Parameter [slug] di sini berisi slug materi.
+ */
+export async function POST(req: Request, { params }: { params: { slug: string } }) {
+  try {
+    const user = await requireRole(["participant", "admin"]);
+    try { await limiter.consume(String(user._id)); } catch (e) { if (e instanceof RateLimiterRes) throw new HttpError(429, "Too many requests"); throw e; }
+    const b = schema.parse(await req.json());
+    if (JSON.stringify(b.answers ?? null).length > 20_000) throw new HttpError(413, "Answer data is too large");
+    await connectDB();
+    const m = await Material.findOne({ slug: params.slug, ...(user.role === "admin" ? {} : { status: "published", ...visibleTo(user) }) }).select("access").lean();
+    if (!m) throw new HttpError(404, "Material not found");
+    if (!isPreviewer(user) && (await previewOnlyMaterialIds()).some((x) => String(x) === String(m._id))) throw new HttpError(404, "Material not found");
+    if (user.role === "admin") return NextResponse.json({ ok: true, preview: true }); // admin hanya mensimulasikan: progres tidak disimpan
+    const p = await MaterialProgress.findOneAndUpdate(
+      { userId: user._id, materialId: m._id },
+      // Laporan sementara (final=false) hanya menyimpan skor terakhir; penyelesaian menandai selesai dan menambah percobaan.
+      b.final ? { $set: { score: b.score, answers: mongoSanitize(b.answers ?? null), completedAt: new Date() }, $inc: { attempts: 1 } } : { $set: { score: b.score, answers: mongoSanitize(b.answers ?? null) }, $setOnInsert: { attempts: 0 } },
+      { upsert: true, returnDocument: "after" }
+    );
+    if (b.final && user.role === "participant") await markMaterialDone(user, m._id); // memajukan unit yang mensyaratkan materi ini
+    return NextResponse.json({ ok: true, attempts: p.attempts });
+  } catch (e) {
+    if (e instanceof z.ZodError) return NextResponse.json({ error: "Invalid progress data" }, { status: 400 });
+    return handleError(e);
+  }
+}

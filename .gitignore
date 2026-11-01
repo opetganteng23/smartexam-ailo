@@ -1,0 +1,37 @@
+# Rahasia dan lokal
+.env
+.env*.local
+*.log
+
+# Dependensi dan build
+node_modules/
+.next/
+next-env.d.ts
+
+# Hasil ekstraksi desain yang besar dan bisa dibuat ulang dari file HTML bundle
+design/pages/
+design/src/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+
+# berkas sementara pengembangan
+*.tmp.*
+
+# Data pribadi peserta (jangan pernah di-commit)
+Data Personel*.xlsx
+*.personel.xlsx
+
+# Laporan/berkas berisi data pribadi (jangan di-commit)
+*.xlsx
+*.pdf
+logo english inspira*.png
+
+# Rekaman jaringan (bisa berisi cookie/token sesi)
+*.har
+data/
+
+# Data klien dan dokumen komersial (jangan di-commit)
+docs/laporan/
+docs/penawaran/

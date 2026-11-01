@@ -1,0 +1,25 @@
+import { NextResponse } from "next/server";
+import { zodMessage } from "@/lib/zod-message";
+import { z } from "zod";
+import { connectDB } from "@/lib/db";
+import { requireRole, handleError, ACADEMIC_ROLES } from "@/lib/rbac";
+import { audit } from "@/lib/audit";
+import { unitInput } from "@/lib/course-schemas";
+import { validateUnit, syncQuizOwner } from "@/lib/unit-admin";
+import { Unit } from "@/models/Course";
+
+export async function POST(req: Request) {
+  try {
+    const admin = await requireRole(ACADEMIC_ROLES);
+    const b = unitInput.parse(await req.json());
+    await connectDB();
+    await validateUnit(b);
+    const u = await Unit.create({ ...b, quizTestId: b.quizTestId ?? undefined, moduleId: b.moduleId ?? undefined });
+    await syncQuizOwner(u._id, b.quizTestId ?? null);
+    await audit(admin._id, "unit.create", String(u._id));
+    return NextResponse.json({ id: String(u._id) }, { status: 201 });
+  } catch (e) {
+    if (e instanceof z.ZodError) return NextResponse.json({ error: zodMessage(e) }, { status: 400 });
+    return handleError(e);
+  }
+}

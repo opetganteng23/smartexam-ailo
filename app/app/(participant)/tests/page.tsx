@@ -1,0 +1,73 @@
+"use client";
+
+import { useT } from "@/components/LangProvider";
+import { SECTION_SHORT } from "@/lib/exam-format";
+import { useState } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useApi } from "@/lib/useApi";
+import { tgl } from "@/lib/client";
+import { Loading, ErrorNote, Empty } from "@/components/Charts";
+
+type T = { id: string; name: string; kind: string; testMode?: boolean; totalQuestions: number; totalSec: number; unlocked: boolean; reason: string | null; inProgressAttemptId: string | null; lastScore: number | null; schedule?: { state: "upcoming" | "open" | "closed"; label: string | null; opensAt: string; closesAt: string; text: string } | null };
+type A = { id: string; name: string; kind: string; status: string; finishedAt: string | null; scoreEst: number | null; sections: Record<string, number>; reportId: string | null };
+const KIND: Record<string, string> = { placement: "Placement", sim: "Simulation", final: "Final Test", practice: "Practice" };
+
+export default function TesSaya() {
+  const tr = useT();
+  const router = useRouter();
+  const tests = useApi<{ tests: T[] }>("/api/tests");
+  const hist = useApi<{ attempts: A[] }>("/api/attempts");
+  const secKeys = Array.from(new Set((hist.data?.attempts ?? []).flatMap((a) => Object.keys(a.sections ?? {})))); // bagian apa pun yang ada di riwayat
+  const [err, setErr] = useState("");
+
+  async function start(t: T) {
+    setErr("");
+    if (t.inProgressAttemptId) return router.push(`/test-room/${t.inProgressAttemptId}`);
+    router.push(`/tests/prepare/${t.id}`); // timer baru berjalan setelah "Start" di halaman persiapan
+  }
+
+  return (
+    <div className="flex flex-col gap-8">
+      <div><h1 className="page-title">{tr("My Tests")}</h1><p className="mt-1 text-ink-soft">{tr("All tests you can take, have taken, and that are still locked.")}</p></div>
+      <ErrorNote text={err || tests.error} />
+      {tests.loading && <Loading />}
+      <div className="grid gap-4 md:grid-cols-2">
+        {tests.data?.tests.map((t) => (
+          <div key={t.id} className={`card flex flex-col justify-between gap-4 ${t.unlocked ? "" : "bg-canvas"}`}>
+            <div>
+              <div className="flex flex-wrap items-center gap-2"><span className="badge-muted">{tr(KIND[t.kind])}</span>{t.testMode && <span className="badge-warn">{tr("Test mode")}</span>}{!t.unlocked && <span className="badge-muted">🔒 Locked</span>}</div>
+              <h2 className="mt-2 font-display text-lg font-extrabold text-navy">{t.name}</h2>
+              {t.schedule && <p className={`mt-1 rounded-lg px-3 py-2 text-sm ${t.schedule.state === "open" ? "bg-success-tint text-success" : t.schedule.state === "upcoming" ? "bg-brand-tint text-navy" : "bg-canvas text-ink-soft"}`}><b>{t.schedule.state === "open" ? "Open now" : t.schedule.state === "upcoming" ? "Available on" : "Session closed"}</b>{t.schedule.label ? ` · ${t.schedule.label}` : ""}<br />{t.schedule.text}</p>}
+              <p className="text-sm text-ink-soft">{t.totalQuestions} questions · about {Math.round(t.totalSec / 60)} minutes{t.lastScore ? ` · last score ${t.lastScore}` : ""}</p>
+            </div>
+            {t.unlocked
+              ? <button onClick={() => start(t)} className="btn-solid">{t.inProgressAttemptId ? "Continue" : "Start"}</button>
+              : <p className="text-sm text-ink-soft">{t.reason ?? "Not available to you yet."}</p>}
+          </div>
+        ))}
+      </div>
+      {tests.data?.tests.length === 0 && <Empty>{tr("No tests available yet. When your institution schedules a test, it appears here and you receive an email invitation.")}</Empty>}
+
+      <section>
+        <h2 className="font-display text-xl font-extrabold text-navy">{tr("Attempt history")}</h2>
+        {hist.loading ? <Loading /> : hist.data?.attempts.length ? (
+          <div className="table-wrap mt-3">
+            <table>
+              <thead><tr><th>{tr("Tests")}</th><th>{tr("Date")}</th>{secKeys.map((k) => <th key={k}>{SECTION_SHORT[k]}</th>)}<th>{tr("Score")}</th><th /></tr></thead>
+              <tbody>
+                {hist.data.attempts.map((a) => (
+                  <tr key={a.id}>
+                    <td className="font-semibold text-navy">{a.name}</td><td>{a.finishedAt ? tgl(a.finishedAt) : <span className="badge-warn">{tr("In progress")}</span>}</td>
+                    {secKeys.map((k) => <td key={k}>{a.sections[k] ?? "-"}</td>)}<td className="font-semibold">{a.scoreEst ?? "-"}</td>
+                    <td className="whitespace-nowrap text-right">{a.status === "submitted" ? <Link href={`/results/${a.id}`} className="font-semibold text-brand">{tr("Reports")}</Link> : <Link href={`/test-room/${a.id}`} className="font-semibold text-brand">{tr("Continue")}</Link>}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : <p className="mt-2 text-sm text-ink-soft">{tr("No history yet. Tests you finish appear here.")}</p>}
+      </section>
+    </div>
+  );
+}

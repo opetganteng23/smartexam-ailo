@@ -1,0 +1,202 @@
+import { hasAnswer } from "./grading";
+import { RateLimiterMemory } from "rate-limiter-flexible";
+import { LEARNING_TOPIC_FILTER, isLearningTopic } from "@/lib/topics";
+import { connectDB } from "./db";
+import { aiEnabled, askClaudeStructured, GUARDRAILS, AI_MODEL, AI_MODEL_LIGHT, type CounselorContext } from "./ai";
+import { getLevels, getParam } from "./config";
+import { aliasFor, analysisResultSchema, checkResult, inputHash, templateResult, toLegacy, type AnalysisResult, type EngineInput } from "./analysis-engine";
+import { Attempt } from "@/models/Test";
+import { releasedFilter } from "./attempt-release";
+import { courseProgressFor } from "./course-progress";
+import { PdfImport } from "@/models/Pdf";
+import { topicStatus } from "./topic-stats";
+import { notify } from "./notify";
+import { User } from "@/models/User";
+import { ExamRegistration, ExamSession } from "@/models/OfficialExam";
+import { CounselorThread } from "@/models/Counselor";
+import { Analysis, PlanItem, TopicStat, type AnalysisDoc } from "@/models/Learning";
+import type { Types } from "mongoose";
+
+// Batas biaya: per peserta dan per institusi per jam. Terlampaui → narasi template (angka tetap tampil).
+const perUser = new RateLimiterMemory({ points: 30, duration: 3600 });
+const perInst = new RateLimiterMemory({ points: 300, duration: 3600 });
+
+/** Susun masukan Claude dari hasil hitung (`analyses.calculated`) dan statistik akumulatif. Tidak memuat PII. */
+export async function buildEngineInput(analysis: AnalysisDoc): Promise<EngineInput | null> {
+  if (analysis.sourceKind === "pdf") return buildPdfEngineInput(analysis);
+  const attempt = await Attempt.findById(analysis.attemptId).lean();
+  if (!attempt || attempt.status !== "submitted") return null;
+  const [user, levels, th, stats] = await Promise.all([User.findById(analysis.userId).select("currentLevelId currentScoreEst").lean(), getLevels(), getParam("weakness"), TopicStat.find({ userId: analysis.userId, ...LEARNING_TOPIC_FILTER }).lean()]);
+  const calc = (analysis.calculated ?? {}) as { stuck?: string[] };
+  const cur = levels.find((l) => String(l._id) === String(user?.currentLevelId));
+  const next = cur ? levels.find((l) => l.order === cur.order + 1) : undefined;
+  const score = attempt.scoreEst ?? user?.currentScoreEst ?? null;
+  const thisAttempt = new Map(attempt.topicScores.map((t) => [`${t.skill}|${t.topic}`, t.score ?? null]));
+  const answered = attempt.answers.filter((a) => hasAnswer(a));
+  const times = attempt.answers.map((a) => a.timeSpentSec).filter((x): x is number => typeof x === "number" && x > 0);
+  // Setiap percobaan punya analisisnya sendiri: angka hanya dari percobaan ini, bukan akumulasi. Akumulasi hanya cadangan bila percobaan tak punya rincian topik.
+  // Label bagian (part-a/b/c) bukan jenis soal.
+  const topicRows = attempt.topicScores?.length
+    ? attempt.topicScores
+        .filter((t) => t.skill && t.topic && isLearningTopic({ skill: t.skill, topic: t.topic }) && !/^part-[abc]$/.test(t.topic))
+        .map((t) => ({ topic: t.topic!, skill: t.skill!, score: Math.round((t.score ?? 0) * 10) / 10, items: t.total ?? 0, status: topicStatus(t.score ?? 0, t.total ?? 0, th), thisAttempt: t.score ?? null }))
+    : stats.map((t) => ({ topic: t.topic, skill: t.skill, score: Math.round(t.score * 10) / 10, items: t.items, status: t.status, thisAttempt: thisAttempt.get(`${t.skill}|${t.topic}`) ?? null }));
+  return {
+    alias: aliasFor(String(analysis.userId)), kind: attempt.kind ?? analysis.sourceKind, level: cur?.name ?? null, scoreEst: score,
+    sections: attempt.sectionScores.map((s) => ({ section: s.section ?? "", raw: s.raw ?? 0, total: s.total ?? 0, scaled: s.scaled ?? 0 })),
+    topics: topicRows,
+    gapToNextLevel: next && score != null && score < next.scoreMin ? { points: next.scoreMin - score, target: next.scoreMin, nextLevel: next.name } : null,
+    behaviour: {
+      answered: answered.length, unanswered: attempt.answers.length - answered.length, answerChanges: attempt.answers.reduce((n, a) => n + (a.changes ?? 0), 0),
+      avgSecPerAnswer: times.length ? Math.round((times.reduce((a, b) => a + b, 0) / times.length) * 10) / 10 : null,
+      stuckTopics: (calc.stuck ?? []).map((k) => k.split("|")[1] ?? k),
+    },
+    thresholds: th, validTopics: Array.from(new Set(topicRows.map((t) => t.topic))),
+    courseProgress: (await courseProgressFor(analysis.userId, user?.currentLevelId)).map((c) => ({ part: c.part, title: c.title, unitsDone: c.unitsDone, unitsTotal: c.unitsTotal, quizAvg: c.quizAvg, sectionTestBest: c.sectionTest?.best ?? null, sectionTestPassed: c.sectionTest ? c.sectionTest.passed : null })),
+  };
+}
+
+/** pdfAdapter (MTS §14): hanya nilai TERVERIFIKASI dari PDF; kedalaman terbatas pada skor per section, tanpa waktu/topik butir. */
+async function buildPdfEngineInput(analysis: AnalysisDoc): Promise<EngineInput | null> {
+  const pdf = analysis.pdfId ? await PdfImport.findById(analysis.pdfId).lean() : null;
+  if (!pdf || !pdf.verified) return null;
+  const [user, levels, th] = await Promise.all([User.findById(analysis.userId).select("currentLevelId").lean(), getLevels(), getParam("weakness")]);
+  const v = pdf.verified;
+  const cur = levels.find((l) => String(l._id) === String(user?.currentLevelId));
+  const next = cur ? levels.find((l) => l.order === cur.order + 1) : undefined;
+  const secs = (["listening", "structure", "reading"] as const).filter((k) => typeof v[k] === "number");
+  const pct = (n: number) => Math.round(((n - 31) / (68 - 31)) * 1000) / 10;
+  return {
+    alias: aliasFor(String(analysis.userId)), kind: "pdf", level: cur?.name ?? null, scoreEst: v.total ?? null,
+    sections: secs.map((k) => ({ section: k, raw: 0, total: 0, scaled: v[k] as number })),
+    topics: secs.map((k) => ({ topic: k, skill: "itp", score: pct(v[k] as number), items: 0, status: topicStatus(pct(v[k] as number), th.minItems, th), thisAttempt: pct(v[k] as number) })),
+    gapToNextLevel: next && v.total != null && v.total < next.scoreMin ? { points: next.scoreMin - v.total, target: next.scoreMin, nextLevel: next.name } : null,
+    behaviour: { answered: 0, unanswered: 0, answerChanges: 0, avgSecPerAnswer: null, stuckTopics: [] },
+    thresholds: th, validTopics: secs as string[],
+  };
+}
+
+type Narrative = { result: AnalysisResult; engine: "claude" | "template"; model?: string; tokensIn: number; tokensOut: number; fallbackReason?: string };
+
+/** Claude (sampai 3 percobaan: 1 + ulang 2×) → bila tetap tidak sah/gagal, template cadangan. Tidak pernah melempar. */
+export async function generateNarrative(input: EngineInput, userId: string, institutionId: string | undefined, opts: { allowClaude?: boolean } = {}): Promise<Narrative> {
+  const [tpl, prompt] = await Promise.all([getParam("narrative_template"), getParam("analysis_prompt")]);
+  const fallback = (reason: string, extra: Partial<Narrative> = {}): Narrative => ({ result: templateResult(input, tpl), engine: "template", tokensIn: 0, tokensOut: 0, fallbackReason: reason, ...extra });
+  if (!aiEnabled() || opts.allowClaude === false) return fallback("no_key");
+  const model = input.kind === "quiz" ? AI_MODEL_LIGHT() : AI_MODEL();
+  if (!model) return fallback("light_kind"); // kuis kecil tanpa model ringan memakai template
+  try { await perUser.consume(userId); if (institutionId) await perInst.consume(institutionId); } catch { return fallback("rate_limited"); }
+
+  const system = `${GUARDRAILS}\n${prompt.text}\nSubmit the result with the submit_analysis tool. Topics MUST be exactly from validTopics. Do not write numbers that are not in the data. Write in English.`;
+  const base = `Analysis data (JSON, no identity):\n${JSON.stringify(input)}`;
+  let tokensIn = 0, tokensOut = 0, last = "api_error", feedback = "";
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      const out = await askClaudeStructured(system, [{ role: "user", content: feedback ? `${base}\n\nThe previous answer was rejected: ${feedback}. Fix it.` : base }], { name: "submit_analysis", description: "Submit the analysis of this participant's result.", schema: analysisResultSchema }, 3000, model);
+      tokensIn += out.tokensIn; tokensOut += out.tokensOut;
+      const parsed = analysisResultSchema.safeParse(out.input);
+      if (!parsed.success) { last = "invalid_output"; feedback = out.truncated ? "the answer was too long; keep every text field short" : `the result does not match the schema (${parsed.error.issues[0]?.path.join(".")}: ${parsed.error.issues[0]?.message})`; continue; }
+      const bad = checkResult(parsed.data, input);
+      if (bad) { last = "invalid_output"; feedback = bad; continue; }
+      return { result: parsed.data, engine: "claude", model: out.model, tokensIn, tokensOut };
+    } catch (e) {
+      last = (e as Error).name === "SyntaxError" ? "invalid_output" : "api_error";
+      feedback = last === "invalid_output" ? "not valid JSON" : "";
+      console.error("[analysis] attempt", attempt + 1, "failed:", (e as Error).message);
+      if (last === "api_error") break; // gangguan API: jangan menghabiskan percobaan; job per jam yang mengulang
+    }
+  }
+  return fallback(last, { tokensIn, tokensOut });
+}
+
+async function save(a: AnalysisDoc, n: Narrative, hash: string, promptVersion: string) {
+  await Analysis.updateOne({ _id: a._id }, {
+    status: "ready", narrative: n.result, mock: n.engine === "template", engine: n.engine, model: n.model, promptVersion, tokensIn: n.tokensIn, tokensOut: n.tokensOut, inputHash: hash,
+    ...(n.fallbackReason ? { fallbackReason: n.fallbackReason } : { $unset: { fallbackReason: 1 } }),
+  });
+  if (a.attemptId) {
+    await Attempt.updateOne({ _id: a.attemptId }, { aiAnalysis: { status: "ready", ...toLegacy(n.result, n.engine), generatedAt: new Date() } });
+    await notify(a.userId, "analysis_ready", { title: "Your result analysis is ready", href: `/results/${a.attemptId}` }, String(a.attemptId));
+  }
+}
+
+/** Jalankan analisis (async setelah selesai mengerjakan): `calculated` → `ready`. Klaim atomik: satu panggilan AI per hasil. */
+export async function runAnalysis(attemptId: Types.ObjectId | string) {
+  await connectDB();
+  const a = await Analysis.findOne({ attemptId }).select("_id").lean();
+  if (a) await runAnalysisById(a._id);
+}
+
+export async function runAnalysisById(analysisId: Types.ObjectId | string) {
+  await connectDB();
+  const a = await Analysis.findOneAndUpdate({ _id: analysisId, status: "calculated", claimedAt: { $exists: false } }, { claimedAt: new Date() }, { returnDocument: "after" });
+  if (!a) return;
+  const attemptId = a.attemptId;
+  if (attemptId) await Attempt.updateOne({ _id: attemptId }, { aiAnalysis: { status: "pending", startedAt: new Date() } });
+  try {
+    const input = await buildEngineInput(a);
+    if (!input) throw new Error("Analysis data is incomplete");
+    const prompt = await getParam("analysis_prompt");
+    const hash = inputHash(input, prompt.version);
+    // Cache: masukan identik (mis. dibuka ulang) memakai narasi Claude yang sudah ada, tanpa memanggil AI lagi.
+    const hit = await Analysis.findOne({ inputHash: hash, status: "ready", engine: "claude", _id: { $ne: a._id } }).select("narrative model").lean();
+    const parsed = hit ? analysisResultSchema.safeParse(hit.narrative) : null;
+    const n: Narrative = parsed?.success ? { result: parsed.data, engine: "claude", model: hit?.model ?? undefined, tokensIn: 0, tokensOut: 0 } : await generateNarrative(input, String(a.userId), a.institutionId ? String(a.institutionId) : undefined);
+    await save(a, n, hash, prompt.version);
+  } catch (e) {
+    console.error("[analysis] failed", e);
+    await Analysis.updateOne({ _id: a._id }, { status: "failed" });
+    if (attemptId) await Attempt.updateOne({ _id: attemptId }, { aiAnalysis: { status: "failed", error: "Analysis not available yet. Try again." } });
+  }
+}
+
+export async function retryAnalysis(attemptId: Types.ObjectId | string) {
+  await connectDB();
+  await Analysis.updateOne({ attemptId, status: "failed" }, { status: "calculated", $unset: { claimedAt: 1 } });
+  await Attempt.updateOne({ _id: attemptId, "aiAnalysis.status": "failed" }, { $unset: { aiAnalysis: 1 } });
+  void runAnalysis(attemptId);
+}
+
+/** Job per jam: narasi yang jatuh ke template karena gangguan API/keluaran tidak sah dicoba lagi (maks 3×, dalam 24 jam). */
+export async function retryFallbackAnalyses() {
+  await connectDB();
+  if (!aiEnabled()) return { retried: 0, upgraded: 0 };
+  const list = await Analysis.find({ status: "ready", engine: "template", fallbackReason: { $in: ["api_error", "invalid_output", "rate_limited"] }, retries: { $lt: 3 }, createdAt: { $gte: new Date(Date.now() - 24 * 3_600_000) } }).limit(20);
+  let upgraded = 0;
+  for (const a of list) {
+    await Analysis.updateOne({ _id: a._id }, { $inc: { retries: 1 } });
+    const input = await buildEngineInput(a);
+    if (!input) continue;
+    const prompt = await getParam("analysis_prompt");
+    const n = await generateNarrative(input, String(a.userId), a.institutionId ? String(a.institutionId) : undefined);
+    if (n.engine === "claude") { await save(a, n, inputHash(input, prompt.version), prompt.version); upgraded++; }
+  }
+  return { retried: list.length, upgraded };
+}
+
+/** Profil + riwayat untuk system prompt Konselor. */
+export async function buildCounselorContext(userId: Types.ObjectId | string): Promise<CounselorContext> {
+  await connectDB();
+  const [user, attempts, threads, reg, plan, topics] = await Promise.all([
+    User.findById(userId).select("name targetScore goal").lean(),
+    // Hasil yang masih ditahan (institusi/jadwal rilis) tidak boleh sampai ke AI Counselor.
+    Attempt.find({ userId, status: "submitted", ...releasedFilter() }).sort({ finishedAt: -1 }).limit(5).lean(),
+    CounselorThread.find({ userId }).select("actionPlan").lean(),
+    ExamRegistration.findOne({ userId, status: { $in: ["submitted", "confirmed"] } }).sort({ createdAt: -1 }).lean(),
+    PlanItem.find({ userId, status: { $in: ["active", "late"] } }).sort({ priority: 1, dueAt: 1 }).limit(8).lean(),
+    TopicStat.find({ userId, status: { $in: ["weak", "priority"] }, ...LEARNING_TOPIC_FILTER }).sort({ score: 1 }).limit(6).lean(),
+  ]);
+  const session = reg ? await ExamSession.findById(reg.sessionId).select("date").lean() : null;
+  const held = !!(await Attempt.exists({ userId, status: "submitted", releaseAt: { $gt: new Date() } }));
+  const latest = await Analysis.findOne({ userId, status: "ready" }).sort({ createdAt: -1 }).select("narrative").lean();
+  const narrative = (latest?.narrative as { summary?: string } | undefined)?.summary;
+  return {
+    name: user?.name ?? null, targetScore: user?.targetScore ?? null, goal: user?.goal ?? null, examDate: session?.date ? session.date.toISOString().slice(0, 10) : null,
+    attempts: attempts.map((a) => ({ kind: a.kind ?? "", date: (a.finishedAt ?? a.startedAt).toISOString().slice(0, 10), scoreEst: a.scoreEst ?? 0, sections: a.sectionScores.map((s) => ({ section: s.section ?? "", scaled: s.scaled ?? 0 })) })),
+    weaknesses: topics.map((t) => `${t.topic} (${Math.round(t.score)}%)`),
+    // Rencana resmi (sistem/coach) adalah sumber tunggal; AI hanya mengusulkan, tidak mengubahnya (MTS §17).
+    openPlan: [...plan.map((p) => p.title), ...threads.flatMap((t) => t.actionPlan.filter((p) => !p.done).map((p) => p.text ?? ""))].slice(0, 10),
+    ...(narrative ? { latestAnalysis: narrative } : {}),
+    ...(held ? { heldResults: true } : {}),
+  };
+}

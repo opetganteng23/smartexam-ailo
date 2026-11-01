@@ -1,0 +1,44 @@
+import { upcomingEnrollment, startDate } from "@/lib/access";
+import { enqueueMail } from "@/lib/mailq";
+import { NextResponse } from "next/server";
+import { isCentralStaff } from "@/lib/role-home";
+import { z } from "zod";
+import { connectDB } from "@/lib/db";
+import { User } from "@/models/User";
+import { issueCode } from "@/lib/otp-code";
+import { hasActiveEnrollment } from "@/lib/access";
+import { limit, clientIp } from "@/lib/ratelimit";
+import { handleError } from "@/lib/rbac";
+
+const schema = z.object({ email: z.email().max(200) });
+const adminBootstrap = () => (process.env.ADMIN_EMAILS ?? "").split(",").map((s) => s.trim().toLowerCase()).filter(Boolean);
+
+/**
+ * Kode HANYA dikirim ke email yang sudah terdaftar (invited/active + enrollment berlaku; admin tanpa enrollment).
+ * Respons SELALU sama untuk email dikenal maupun tidak, supaya daftar peserta tidak bisa ditebak.
+ */
+export async function POST(req: Request) {
+  try {
+    const { email: raw } = schema.parse(await req.json());
+    const email = raw.toLowerCase().trim();
+    await limit("otpIp", clientIp(req));
+    await limit("otpEmail", email);
+    await connectDB();
+
+    const user = await User.findOne({ email }).lean();
+    const eligible = user
+      ? user.status !== "disabled" && (isCentralStaff(user.role) || (await hasActiveEnrollment(user._id)))
+      : adminBootstrap().includes(email); // admin pertama dari ADMIN_EMAILS
+
+    if (eligible) await issueCode(email, "otp");
+    else if (user && user.status !== "disabled") {
+      // Akses belum dimulai: beri tahu tanggalnya lewat email (bukan lewat respons, agar daftar peserta tetap tidak bisa ditebak).
+      const up = await upcomingEnrollment(user._id);
+      if (up?.startsAt) await enqueueMail(email, "access_not_started", { startsAt: startDate(up.startsAt), link: `${process.env.APP_URL ?? new URL(req.url).origin}/sign-in` }, { priority: 1 });
+    }
+    return NextResponse.json({ ok: true, expiresInSec: 300 });
+  } catch (e) {
+    if (e instanceof z.ZodError) return NextResponse.json({ error: "Invalid email" }, { status: 400 });
+    return handleError(e);
+  }
+}

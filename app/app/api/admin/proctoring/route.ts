@@ -1,0 +1,52 @@
+import { NextResponse } from "next/server";
+import { z } from "zod";
+import { isValidObjectId } from "mongoose";
+import { connectDB } from "@/lib/db";
+import { requireRole, handleError, HttpError } from "@/lib/rbac";
+import { audit } from "@/lib/audit";
+import { Attempt, Test } from "@/models/Test";
+import { User } from "@/models/User";
+
+export const dynamic = "force-dynamic";
+
+/** Attempt dengan catatan proctoring ringan (tab, fullscreen, paste). Default: yang belum ditinjau. */
+export async function GET(req: Request) {
+  try {
+    await requireRole(["admin"]);
+    await connectDB();
+    const filter = new URL(req.url).searchParams.get("filter") ?? "pending";
+    // Sesi dengan catatan aktivitas ATAU kemungkinan jawaban hilang (soal kosong terselip, diperiksa otomatis).
+    const q: Record<string, unknown> = { status: "submitted", $or: [{ "proctorFlags.0": { $exists: true } }, { "integrity.isolatedBlanks": { $gt: 0 } }] };
+    if (filter === "pending") q["proctorReview.status"] = { $exists: false };
+    const list = await Attempt.find(q).sort({ finishedAt: -1 }).limit(100).select("userId testId kind finishedAt proctorFlags proctorReview scoreEst integrity").lean();
+    const [users, tests] = await Promise.all([User.find({ _id: { $in: list.map((a) => a.userId) } }).select("name email").lean(), Test.find({ _id: { $in: list.map((a) => a.testId) } }).select("name").lean()]);
+    const un = new Map(users.map((u) => [String(u._id), u])), tn = new Map(tests.map((t) => [String(t._id), t.name]));
+    return NextResponse.json({
+      attempts: list.map((a) => {
+        const counts: Record<string, number> = {};
+        for (const f of a.proctorFlags) counts[f.kind ?? "?"] = (counts[f.kind ?? "?"] ?? 0) + 1;
+        return { id: String(a._id), user: un.get(String(a.userId))?.name ?? un.get(String(a.userId))?.email ?? "-", test: tn.get(String(a.testId)) ?? "-", kind: a.kind, finishedAt: a.finishedAt, scoreEst: a.scoreEst, flags: a.proctorFlags.length, counts, lost: a.integrity?.isolatedBlanks ? { n: a.integrity.isolatedBlanks, where: a.integrity.where ?? [] } : null, review: a.proctorReview?.status ? { status: a.proctorReview.status, note: a.proctorReview.note } : null };
+      }),
+    });
+  } catch (e) {
+    return handleError(e);
+  }
+}
+
+export async function PATCH(req: Request) {
+  try {
+    const admin = await requireRole(["admin"]);
+    const b = z.object({ id: z.string().optional(), ids: z.array(z.string()).max(500).optional(), status: z.enum(["clean", "suspicious", "invalid"]), note: z.string().max(500).optional() }).parse(await req.json());
+    // satu (id) atau banyak sekaligus (ids, dari centang di tabel Monitoring)
+    const ids = [...(b.ids ?? []), ...(b.id ? [b.id] : [])];
+    if (!ids.length || ids.some((x) => !isValidObjectId(x))) throw new HttpError(404, "Attempt not found");
+    await connectDB();
+    const r = await Attempt.updateMany({ _id: { $in: ids }, status: "submitted" }, { proctorReview: { status: b.status, note: b.note, at: new Date(), by: admin._id } });
+    if (!r.matchedCount) throw new HttpError(404, "Attempt not found");
+    for (const id of ids) await audit(admin._id, "proctoring.review", id, { status: b.status });
+    return NextResponse.json({ ok: true, updated: r.modifiedCount });
+  } catch (e) {
+    if (e instanceof z.ZodError) return NextResponse.json({ error: "Invalid input" }, { status: 400 });
+    return handleError(e);
+  }
+}

@@ -1,0 +1,28 @@
+import type { UserDoc } from "@/models/User";
+import type { TestDoc } from "@/models/Test";
+
+/**
+ * Siapa boleh memulai tes apa (MTS §11-12). Mengembalikan alasan bila ditolak, untuk ditampilkan di UI.
+ * - placement: sekali; ulang hanya bila diizinkan admin/coach (`placementRetakeAllowed`).
+ * - sim/practice: setelah placement, dan sesuai level tes (tes tanpa level = semua level).
+ * - quiz: hanya dari unit belajar (Fase 4).
+ */
+/** `ctx` dari Program Cycle: `blocked` = tidak ada periode aktif; `placementNeeded` = placement periode ini belum diambil. */
+export function canStartTest(user: Pick<UserDoc, "role" | "placementAttemptId" | "placementRetakeAllowed" | "currentLevelId"> & { qaTester?: boolean | null }, test: Pick<TestDoc, "kind" | "levelId"> & { requirePlacement?: boolean | null }, ctx: { blocked?: string | null; placementNeeded?: boolean; pendingRelease?: Date | null } = {}): { ok: boolean; reason?: string } {
+  if (user.role === "admin" || user.qaTester) return { ok: true }; // admin dan QA tester menguji tanpa aturan placement, level, atau periode
+  if (user.role !== "participant") return { ok: false, reason: "Only participants take tests" };
+  if (ctx.blocked) return { ok: false, reason: ctx.blocked };
+  if (test.kind === "placement" && ctx.pendingRelease) return { ok: false, reason: "Your placement test is finished. The result will be released at the scheduled time." };
+  const done = !!user.placementAttemptId && !ctx.placementNeeded;
+  if (test.kind === "placement") return done && !user.placementRetakeAllowed ? { ok: false, reason: "The placement test has already been taken. A retake is only allowed with coach or admin permission." } : { ok: true };
+  if (!done && test.requirePlacement !== false) return { ok: false, reason: "Take the placement test first" };
+  if (test.kind === "quiz") return { ok: false, reason: "Quizzes are taken from learning units" };
+  if (test.kind === "section") return { ok: false, reason: "Section tests are taken at the end of a course" };
+  if (test.levelId && String(test.levelId) !== String(user.currentLevelId)) return { ok: false, reason: "This test is for another level" };
+  return { ok: true };
+}
+
+/** Tes yang boleh dilihat dan dimulai. Peserta biasa: Active dan bukan Test mode. Admin dan QA tester: juga tes Test mode (tahap uji sebelum diaktifkan). */
+export function visibleTestFilter(user: { role: string; qaTester?: boolean | null }): Record<string, unknown> {
+  return user.role === "admin" || user.qaTester ? { $or: [{ active: true }, { testMode: true }] } : { active: true, testMode: { $ne: true } };
+}

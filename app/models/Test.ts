@@ -1,0 +1,122 @@
+import mongoose, { Schema, InferSchemaType, Model } from "mongoose";
+import { SECTION_KEY_RE } from "@/lib/exam-format";
+
+// Jenis tes (MTS §11): placement (sekali), sim (simulasi berkala), practice (latihan bebas ulang), quiz (penilaian unit, dinilai server).
+export const TEST_KINDS = ["placement", "sim", "final", "practice", "quiz", "section"] as const; // section = ujian per bagian di akhir course (quiz = per unit)
+
+const testSchema = new Schema(
+  {
+    name: { type: String, required: true },
+    kind: { type: String, enum: TEST_KINDS, required: true, index: true },
+    levelId: { type: Schema.Types.ObjectId, ref: "Level" }, // kosong = untuk semua level
+    unitId: { type: Schema.Types.ObjectId, ref: "Unit" }, // kuis milik unit
+    sections: [
+      {
+        _id: false,
+        name: { type: String, match: SECTION_KEY_RE, required: true },
+        durationSec: { type: Number, required: true },
+        questionIds: [{ type: Schema.Types.ObjectId, ref: "Question" }],
+      },
+    ],
+    active: { type: Boolean, default: true },
+    archived: { type: Boolean, default: false }, // disingkirkan dari daftar Tests (draft lama / tes selesai); tidak dihapus
+    resultDelayMin: { type: Number, default: 0, min: 0, max: 1440 }, // hasil baru keluar sekian menit setelah peserta MULAI tes (0 = langsung); admin dan QA tester dikecualikan
+    scheduled: { type: Boolean, default: false },
+    reminderMode: { type: String, enum: ["all", "closing", "none"], default: "all" }, // pengingat tes terjadwal: semua (H-1, dibuka, menjelang tutup), hanya menjelang tutup bagi yang belum mulai, atau tidak ada // tes terjadwal: hanya peserta yang punya kursi di sesi, dan hanya di dalam jam sesi, yang melihat dan memulai
+    testMode: { type: Boolean, default: false }, // sedang diuji: hanya admin dan akun QA tester yang melihat dan bisa memulai; peserta biasa tidak, walau Active
+    // Aturan tes: acak urutan soal (soal satu passage/audio tetap berurutan), acak pilihan jawaban, batas percobaan (0 = tanpa batas).
+    scoringProfileId: { type: Schema.Types.ObjectId, ref: "ScoringProfile" }, // kosong = profil bawaan
+    shuffleQuestions: { type: Boolean, default: false },
+    shuffleWithinParts: { type: Boolean, default: false }, // acak soal di dalam tiap bagian (Part A/B/C, Structure, Written Expression), urutan antarbagian tetap
+    screenWatch: { type: Boolean, default: false }, // live screen view: peserta membagikan layar; gambar hanya di memori server, tidak disimpan
+    secureMode: { type: Boolean, default: false }, // tidak bisa kembali ke soal sebelumnya, salin/tempel diblokir
+    shuffleOptions: { type: Boolean, default: false },
+    requirePlacement: { type: Boolean, default: true }, // false: peserta boleh mengerjakan tes ini tanpa placement (ujian umum di luar program level)
+    maxAttempts: { type: Number, default: 0, min: 0, max: 50 },
+  },
+  { timestamps: true }
+);
+
+const attemptSchema = new Schema(
+  {
+    userId: { type: Schema.Types.ObjectId, ref: "User", required: true },
+    institutionId: { type: Schema.Types.ObjectId, ref: "Institution", index: true },
+    testId: { type: Schema.Types.ObjectId, ref: "Test", required: true },
+    unitId: { type: Schema.Types.ObjectId, ref: "Unit" },
+    courseId: { type: Schema.Types.ObjectId, ref: "Course" }, // ujian per bagian: course pemiliknya
+    programCycleId: { type: Schema.Types.ObjectId, ref: "ProgramCycle", index: true }, // periode saat attempt dimulai
+    kind: String, // salinan Test.kind
+    startedAt: { type: Date, required: true },
+    releaseAt: Date, // hasil ditahan sampai waktu ini; kosong = langsung. Disalin dari Test.resultDelayMin saat tes dimulai
+    heldByOrg: Boolean, // ditahan karena institusi menahan hasil placement (releaseAt = HOLD_UNTIL sampai dilepas admin)
+    releasedAt: Date, // efek hasil (level, kuota, email, analisis) sudah dijalankan oleh pelepasan tertunda
+    finishedAt: Date,
+    // Timer dipegang server: section aktif dan kapan ia dimulai.
+    sectionIdx: { type: Number, default: 0 },
+    secureReached: { type: Number, default: 0 }, // mode aman: nomor terjauh yang sudah dicapai di section aktif
+    sectionStartedAt: { type: Date, required: true },
+    status: { type: String, enum: ["in_progress", "submitted"], default: "in_progress" },
+    // firstChoice = pilihan pertama, changes = berapa kali jawaban diganti (indikator ragu-ragu)
+    answers: [{
+      _id: false, qid: Schema.Types.ObjectId, firstChoice: Number, choice: Number, changes: { type: Number, default: 0 }, timeSpentSec: Number, flagged: Boolean,
+      response: Schema.Types.Mixed, // jawaban selain pilihan ganda: larik indeks (mencocokkan) atau teks (isian, essay)
+      points: Number, feedback: String, gradedBy: Schema.Types.ObjectId, gradedAt: Date, // nilai essay dari penilai
+      aiDraft: { _id: false, points: Number, rationale: String, at: Date }, // draf AI: hanya usulan, tidak dipakai sebelum penilai menyetujui
+    }],
+    gradingStatus: { type: String, enum: ["none", "pending", "done"], default: "none", index: true }, // pending = ada essay menunggu nilai; hasil ditahan
+    essayPending: Number,
+    scoreRaw: Number,
+    scoreEst: Number,
+    scoreScale: { type: String, enum: ["itp", "percent"] }, // skala scoreEst saat dinilai (profil bisa berubah kemudian)
+    passMark: Number,
+    passed: Boolean,
+    // Profil penilaian yang dipakai saat selesai (jejak audit): id, versi, dan apakah konversinya terverifikasi.
+    scoringProfileId: { type: Schema.Types.ObjectId, ref: "ScoringProfile" },
+    scoringVersion: Number,
+    scoreBasis: { type: String, enum: ["verified", "provisional"] },
+    sectionScores: [{ _id: false, section: String, raw: Number, total: Number, scaled: Number }],
+    topicScores: [{ _id: false, skill: String, topic: String, correct: Number, total: Number, score: Number }],
+    proctorFlags: [{ _id: false, kind: String, at: Date, section: Number, qid: Schema.Types.ObjectId }], // section & qid: di soal mana kejadian terjadi (sejak 20 Okt 2026)
+    audioPlays: [{ _id: false, audioId: Schema.Types.ObjectId, playedAt: Date, lastPosSec: Number, done: Boolean }],
+    analysisId: { type: Schema.Types.ObjectId, ref: "Analysis" },
+    aiAnalysis: Schema.Types.Mixed, // sementara; dipindah ke koleksi analyses pada Fase 5
+    integrity: { isolatedBlanks: Number, where: [String], lockedStart: [{ _id: false, section: String, n: Number }], checkedAt: Date },
+    // Koneksi ruang tes (heartbeat 30 detik + tiap simpanan): jeda > 90 detik dicatat sebagai terputus; loads = berapa kali halaman tes dibuka.
+    // Waktu tambahan per bagian (detik) karena koneksi terputus: jeda dikembalikan, maks CREDIT_CAP_SEC per bagian (lib/conn).
+    timeCredits: { type: [Number], default: undefined },
+    // Share layar menutup soal (belum/terhenti dibagikan): sejak kapan, dan detik yang sudah dikembalikan per section (ikut timeCredits).
+    screenGate: { since: Date, section: Number },
+    screenCredits: { type: [Number], default: undefined },
+    conn: { lastSeenAt: Date, loads: Number, gaps: [{ _id: false, from: Date, to: Date, section: Number }] }, // soal kosong terselip (kemungkinan jawaban hilang), diperiksa otomatis tiap jam
+    reportNarrative: Schema.Types.Mixed, // narasi laporan per peserta untuk institusi (bahasa Indonesia), lib/report-narrative
+    proctorReview: { status: { type: String, enum: ["clean", "suspicious", "invalid"] }, note: String, at: Date, by: Schema.Types.ObjectId },
+  },
+  { timestamps: true }
+);
+attemptSchema.index({ userId: 1, kind: 1 });
+// Laporan/Analytics per tes dan daftar tes berskor: tanpa indeks ini setiap pembukaan memindai seluruh koleksi percobaan.
+attemptSchema.index({ testId: 1, startedAt: 1 });
+attemptSchema.index({ status: 1, kind: 1, testId: 1 });
+
+export type TestDoc = InferSchemaType<typeof testSchema> & { _id: mongoose.Types.ObjectId };
+export type AttemptDoc = InferSchemaType<typeof attemptSchema> & { _id: mongoose.Types.ObjectId };
+export const Test: Model<TestDoc> =
+  (mongoose.models.Test as Model<TestDoc>) || mongoose.model<TestDoc>("Test", testSchema);
+export const Attempt: Model<AttemptDoc> =
+  (mongoose.models.Attempt as Model<AttemptDoc>) || mongoose.model<AttemptDoc>("Attempt", attemptSchema);
+
+// Snapshot soal saat tes diselesaikan: pembahasan dan hasil tetap konsisten walau soal di bank diubah atau dihapus kemudian.
+const snapshotSchema = new Schema(
+  {
+    attemptId: { type: Schema.Types.ObjectId, ref: "Attempt", required: true, unique: true },
+    items: [{
+      _id: false, qid: Schema.Types.ObjectId, section: String, type: { type: String }, groupId: Schema.Types.ObjectId,
+      stem: String, options: [String], answerKey: Number, explanation: String, kind: String, points: Number, key: Schema.Types.Mixed,
+      tags: [{ _id: false, skill: String, topic: String }],
+    }],
+  },
+  { timestamps: true }
+);
+export type AttemptSnapshotDoc = InferSchemaType<typeof snapshotSchema> & { _id: mongoose.Types.ObjectId };
+export const AttemptSnapshot: Model<AttemptSnapshotDoc> =
+  (mongoose.models.AttemptSnapshot as Model<AttemptSnapshotDoc>) || mongoose.model<AttemptSnapshotDoc>("AttemptSnapshot", snapshotSchema);

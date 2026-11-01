@@ -1,0 +1,65 @@
+import { NextResponse } from "next/server";
+import { zodMessage } from "@/lib/zod-message";
+import { z } from "zod";
+import { connectDB } from "@/lib/db";
+import { requireRole, handleError, HttpError } from "@/lib/rbac";
+import { encryptField } from "@/lib/crypto";
+import { enqueueMail } from "@/lib/mailq";
+import { audit } from "@/lib/audit";
+import { Asset } from "@/models/Asset";
+import { User } from "@/models/User";
+import { ExamSession, ExamRegistration } from "@/models/OfficialExam";
+import { sessionsVisibleTo } from "@/lib/official-exam-cycle";
+
+const oid = z.string().regex(/^[0-9a-f]{24}$/);
+const schema = z.object({
+  sessionId: oid,
+  fullName: z.string().trim().min(2).max(100),
+  nik: z.string().trim().regex(/^(\d{16}|[A-Za-z0-9]{5,20})$/, "National ID must be 16 digits, or a passport number of 5-20 characters"),
+  birthDate: z.coerce.date(),
+  gender: z.enum(["L", "P"]),
+  idPhotoAssetId: oid,
+  facePhotoAssetId: oid,
+  agree: z.literal(true, { message: "Tick the statement that your details are correct" }),
+});
+
+export async function POST(req: Request) {
+  try {
+    const me = await requireRole(["participant"]);
+    const b = schema.parse(await req.json());
+    const age = (Date.now() - +b.birthDate) / (365.25 * 86_400_000);
+    if (age < 14 || age > 90) throw new HttpError(400, "Invalid date of birth");
+    await connectDB();
+
+    // Foto harus milik peserta sendiri dan bertanda sensitif (diunggah lewat alur dokumen).
+    const assets = await Asset.find({ _id: { $in: [b.idPhotoAssetId, b.facePhotoAssetId] }, ownerId: me._id, sensitive: true }).select("_id").lean();
+    if (assets.length !== (b.idPhotoAssetId === b.facePhotoAssetId ? 1 : 2)) throw new HttpError(400, "Invalid document photo. Please upload again.");
+
+    const session = await ExamSession.findOne({ _id: b.sessionId, ...(await sessionsVisibleTo(me)) }).lean();
+    if (!session || session.status !== "open" || session.date <= new Date()) throw new HttpError(404, "Schedule not available");
+    if (await ExamRegistration.exists({ userId: me._id, sessionId: session._id, status: { $ne: "cancelled" } })) throw new HttpError(409, "You are already registered for this schedule");
+
+    if (await ExamRegistration.exists({ userId: me._id, status: { $in: ["submitted", "confirmed"] } })) throw new HttpError(409, "You still have an active official test registration. Cancel it first to choose another schedule.");
+    const seat = await ExamSession.findOneAndUpdate({ _id: session._id, status: "open", $expr: { $lt: ["$registered", "$quota"] } }, { $inc: { registered: 1 } }, { returnDocument: "after" });
+    if (!seat) throw new HttpError(409, "This schedule is full. Choose another schedule.");
+
+    let reg;
+    try {
+      reg = await ExamRegistration.create({
+        userId: me._id, sessionId: session._id, fullName: b.fullName, nikEnc: encryptField(b.nik), nikLast4: b.nik.slice(-4),
+        birthDate: b.birthDate, gender: b.gender, idPhotoAssetId: b.idPhotoAssetId, facePhotoAssetId: b.facePhotoAssetId,
+      });
+    } catch (err) { // gagal menyimpan: kembalikan kursi dan jatah
+      await ExamSession.updateOne({ _id: session._id }, { $inc: { registered: -1 } });
+      throw err;
+    }
+    // Nama sesuai identitas menjadi nama akun (terkunci setelah ini).
+    await User.updateOne({ _id: me._id }, { name: b.fullName, birthDate: b.birthDate, gender: b.gender });
+    await audit(me._id, "itp.register", String(reg._id), { sessionId: String(session._id) });
+    await enqueueMail(me.email, "itp_registered", { name: b.fullName, title: session.title, date: session.date, place: session.place });
+    return NextResponse.json({ id: String(reg._id) }, { status: 201 });
+  } catch (e) {
+    if (e instanceof z.ZodError) return NextResponse.json({ error: zodMessage(e) }, { status: 400 });
+    return handleError(e);
+  }
+}

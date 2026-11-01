@@ -1,0 +1,146 @@
+// Grafik SVG ringan: responsif lewat viewBox, aksesibel lewat <title>/aria-label. Warna dari token merek.
+
+export function LineChart({ points, target, min = 310, max = 677, label = "Score progress" }: { points: { label: string; value: number }[]; target?: number | null; min?: number; max?: number; label?: string }) {
+  const W = 600, H = 220, P = { l: 40, r: 16, t: 16, b: 34 };
+  if (!points.length) return <p className="py-8 text-center text-sm text-ink-soft">No test results yet.</p>;
+  const lo = Math.min(min, ...points.map((p) => p.value), target ?? min), hi = Math.max(max, ...points.map((p) => p.value), target ?? max);
+  const x = (i: number) => P.l + (points.length === 1 ? (W - P.l - P.r) / 2 : (i * (W - P.l - P.r)) / (points.length - 1));
+  const y = (v: number) => P.t + (1 - (v - lo) / (hi - lo)) * (H - P.t - P.b);
+  const path = points.map((p, i) => `${i ? "L" : "M"}${x(i).toFixed(1)},${y(p.value).toFixed(1)}`).join(" ");
+  const ticks = [lo, Math.round((lo + hi) / 2), hi];
+  return (
+    <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label={`${label}: ${points.map((p) => `${p.label} ${p.value}`).join(", ")}${target ? `, target ${target}` : ""}`} className="h-auto w-full">
+      {ticks.map((t) => (<g key={t}><line x1={P.l} x2={W - P.r} y1={y(t)} y2={y(t)} stroke="#DCE8EC" /><text x={P.l - 6} y={y(t) + 4} textAnchor="end" fontSize="11" fill="#4F6670">{t}</text></g>))}
+      {target ? (<g><line x1={P.l} x2={W - P.r} y1={y(target)} y2={y(target)} stroke="#F07020" strokeDasharray="5 4" strokeWidth="1.5" /><text x={W - P.r} y={y(target) - 5} textAnchor="end" fontSize="11" fontWeight="600" fill="#B8460A">Target {target}</text></g>) : null}
+      <path d={path} fill="none" stroke="#00809C" strokeWidth="2.5" strokeLinejoin="round" />
+      {points.map((p, i) => (<g key={i}><circle cx={x(i)} cy={y(p.value)} r="5" fill="#00809C" stroke="#fff" strokeWidth="2"><title>{`${p.label}: ${p.value}`}</title></circle><text x={x(i)} y={y(p.value) - 10} textAnchor="middle" fontSize="12" fontWeight="700" fill="#0A4256">{p.value}</text><text x={x(i)} y={H - 10} textAnchor="middle" fontSize="10.5" fill="#4F6670">{p.label.length > 14 ? p.label.slice(0, 13) + "…" : p.label}</text></g>))}
+    </svg>
+  );
+}
+
+/** Batang horizontal berlabel. `max` default = nilai terbesar. */
+export function HBars({ rows, max, unit = "", color = "#00809C" }: { rows: { label: string; value: number; sub?: string }[]; max?: number; unit?: string; color?: string }) {
+  const m = max ?? Math.max(1, ...rows.map((r) => r.value));
+  if (!rows.length) return <p className="py-6 text-center text-sm text-ink-soft">No data yet.</p>;
+  return (
+    <ul className="flex flex-col gap-3">
+      {rows.map((r) => (
+        <li key={r.label}>
+          <div className="mb-1 flex justify-between gap-3 text-sm"><span className="min-w-0 truncate font-medium text-navy">{r.label}</span><span className="shrink-0 font-semibold text-navy">{r.value.toLocaleString("en-GB")}{unit}{r.sub ? <span className="ml-1 font-normal text-ink-soft">{r.sub}</span> : null}</span></div>
+          <div className="h-2.5 rounded-full bg-canvas" role="presentation"><div className="h-2.5 rounded-full" style={{ width: `${Math.max(2, (r.value / m) * 100)}%`, background: color }} /></div>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+export function Stat({ label, value, sub, tone }: { label: string; value: React.ReactNode; sub?: React.ReactNode; tone?: "ok" | "warn" }) {
+  return (
+    <div className="card !p-4">
+      <p className="text-xs font-semibold tracking-wide text-ink-soft">{label}</p>
+      <p className="mt-1 font-display text-2xl font-extrabold text-navy sm:text-3xl">{value}</p>
+      {sub != null && <p className={`mt-1 text-sm ${tone === "ok" ? "text-success" : tone === "warn" ? "text-accent-dark" : "text-ink-soft"}`}>{sub}</p>}
+    </div>
+  );
+}
+
+export function Loading({ text = "Loading…" }: { text?: string }) { return <p className="py-6 text-ink-soft" role="status">{text}</p>; }
+export function ErrorNote({ text }: { text: string }) { return text ? <p role="alert" className="rounded-lg bg-red-50 p-3 text-sm text-red-700">{text}</p> : null; }
+export function Empty({ children }: { children: React.ReactNode }) { return <div className="card py-10 text-center text-ink-soft">{children}</div>; }
+
+/** Donat proporsi. Segmen bernilai 0 tidak digambar; tengah menampilkan total. */
+export function Donut({ parts, centerLabel }: { parts: { label: string; value: number; color: string }[]; centerLabel?: string }) {
+  const total = parts.reduce((a, p) => a + p.value, 0);
+  const R = 52, C = 2 * Math.PI * R;
+  let off = 0;
+  if (!total) return <p className="py-6 text-center text-sm text-ink-soft">No data yet.</p>;
+  return (
+    <svg viewBox="0 0 140 140" role="img" aria-label={parts.map((p) => `${p.label} ${p.value}`).join(", ")} className="h-40 w-40 shrink-0">
+      <g transform="rotate(-90 70 70)">
+        <circle cx="70" cy="70" r={R} fill="none" stroke="#EEF5F7" strokeWidth="18" />
+        {parts.filter((p) => p.value > 0).map((p) => { const len = (p.value / total) * C; const el = <circle key={p.label} cx="70" cy="70" r={R} fill="none" stroke={p.color} strokeWidth="18" strokeDasharray={`${len} ${C - len}`} strokeDashoffset={-off}><title>{`${p.label}: ${p.value}`}</title></circle>; off += len; return el; })}
+      </g>
+      <text x="70" y="68" textAnchor="middle" fontSize="22" fontWeight="800" fill="#0A4256">{total}</text>
+      <text x="70" y="85" textAnchor="middle" fontSize="10" fill="#4F6670">{centerLabel ?? "questions"}</text>
+    </svg>
+  );
+}
+
+/** Batang bertumpuk benar/salah/kosong per section (agregat; tidak menampilkan hasil per soal). */
+export function OutcomeBars({ rows }: { rows: { label: string; correct: number; wrong: number; blank: number }[] }) {
+  return (
+    <div className="flex flex-col gap-3">
+      {rows.map((r) => {
+        const t = Math.max(1, r.correct + r.wrong + r.blank);
+        return (
+          <div key={r.label}>
+            <p className="mb-1 flex justify-between text-xs"><span className="font-semibold text-navy">{r.label}</span><span className="text-ink-soft">{r.correct} correct · {r.wrong} wrong · {r.blank} blank</span></p>
+            <div className="flex h-3 overflow-hidden rounded-full bg-canvas" role="img" aria-label={`${r.label}: ${r.correct} correct, ${r.wrong} wrong, ${r.blank} blank`}>
+              <span style={{ width: `${(r.correct / t) * 100}%`, background: "#1E8E5A" }} /><span style={{ width: `${(r.wrong / t) * 100}%`, background: "#C0392B" }} /><span style={{ width: `${(r.blank / t) * 100}%`, background: "#9DB4BC" }} />
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+/** Kecepatan vs akurasi: sumbu X = rata-rata detik per soal, sumbu Y = akurasi. Garis bantu: median waktu dan 70%. */
+export function SpeedScatter({ points }: { points: { label: string; avgSec: number; accuracy: number; n: number; kind: string }[] }) {
+  const W = 600, H = 260, P = { l: 44, r: 16, t: 14, b: 38 };
+  if (!points.length) return null;
+  const maxX = Math.max(10, ...points.map((p) => p.avgSec)) * 1.1;
+  const x = (v: number) => P.l + (v / maxX) * (W - P.l - P.r), y = (v: number) => P.t + (1 - v / 100) * (H - P.t - P.b);
+  const color: Record<string, string> = { solid: "#1E8E5A", slow: "#F07020", rushed: "#E07B39", concept: "#C0392B" };
+  const sorted = [...points].map((p) => p.avgSec).sort((a, b) => a - b), m = sorted.length >> 1, mid = sorted.length % 2 ? sorted[m] : (sorted[m - 1] + sorted[m]) / 2;
+  return (
+    <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label={`Speed versus accuracy: ${points.map((p) => `${p.label} ${p.avgSec} seconds, ${p.accuracy} percent`).join("; ")}`} className="h-auto w-full">
+      {[0, 50, 100].map((t) => <g key={t}><line x1={P.l} x2={W - P.r} y1={y(t)} y2={y(t)} stroke="#DCE8EC" /><text x={P.l - 6} y={y(t) + 4} textAnchor="end" fontSize="11" fill="#4F6670">{t}%</text></g>)}
+      <line x1={P.l} x2={W - P.r} y1={y(70)} y2={y(70)} stroke="#9DB4BC" strokeDasharray="4 4" />
+      <line x1={x(mid)} x2={x(mid)} y1={P.t} y2={H - P.b} stroke="#9DB4BC" strokeDasharray="4 4" />
+      {points.map((p, i) => <g key={p.label}><circle cx={x(p.avgSec)} cy={y(p.accuracy)} r="10" fill={color[p.kind] ?? "#00809C"} fillOpacity=".9" stroke="#fff" strokeWidth="1.5"><title>{`${p.label}: ${p.avgSec}s average, ${p.accuracy}% correct, ${p.n} questions`}</title></circle><text x={x(p.avgSec)} y={y(p.accuracy) + 3.5} textAnchor="middle" fontSize="10" fontWeight="700" fill="#fff" pointerEvents="none">{i + 1}</text></g>)}
+      <text x={(P.l + W - P.r) / 2} y={H - 8} textAnchor="middle" fontSize="11" fill="#4F6670">Average seconds per question (slower to the right)</text>
+      <text x={P.l + 4} y={P.t + 10} fontSize="10" fill="#4F6670">fast, accurate</text>
+      <text x={W - P.r - 4} y={P.t + 10} textAnchor="end" fontSize="10" fill="#4F6670">slow, accurate</text>
+      <text x={P.l + 4} y={H - P.b - 6} fontSize="10" fill="#4F6670">fast, often wrong</text>
+      <text x={W - P.r - 4} y={H - P.b - 6} textAnchor="end" fontSize="10" fill="#4F6670">slow, often wrong</text>
+    </svg>
+  );
+}
+
+/** Tiga batang per section: akurasi di awal, tengah, akhir. */
+export function ThirdsBars({ rows }: { rows: { label: string; thirds: number[] }[] }) {
+  const names = ["Start", "Middle", "End"];
+  return (
+    <div className="grid gap-4 sm:grid-cols-3">
+      {rows.map((r) => (
+        <div key={r.label}>
+          <p className="mb-1 text-xs font-semibold text-navy">{r.label}</p>
+          <svg viewBox="0 0 150 90" role="img" aria-label={`${r.label} accuracy: ${r.thirds.map((v, i) => `${names[i]} ${v} percent`).join(", ")}`} className="h-auto w-full">
+            {r.thirds.map((v, i) => <g key={i}><rect x={10 + i * 46} y={65 - v * 0.55} width="34" height={Math.max(1, v * 0.55)} rx="3" fill="#00809C"><title>{`${names[i]}: ${v}%`}</title></rect><text x={27 + i * 46} y={60 - v * 0.55} textAnchor="middle" fontSize="10" fontWeight="700" fill="#0A4256">{v}%</text><text x={27 + i * 46} y="80" textAnchor="middle" fontSize="9" fill="#4F6670">{names[i]}</text></g>)}
+          </svg>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/** Radar 3 sumbu (skala section 31-68): skor ini, tes sebelumnya (opsional), dan target level berikutnya (opsional). */
+export function RadarChart({ axes, now, previous, target, min = 31, max = 68 }: { axes: string[]; now: number[]; previous?: number[] | null; target?: number | null; min?: number; max?: number }) {
+  const W = 320, H = 262, cx = W / 2, cy = 130, R = 112;
+  const ang = (i: number) => (-90 + (360 / axes.length) * i) * (Math.PI / 180);
+  const pt = (i: number, v: number) => { const r = (Math.max(min, Math.min(max, v)) - min) / (max - min) * R; return [cx + r * Math.cos(ang(i)), cy + r * Math.sin(ang(i))] as const; };
+  const poly = (vals: number[]) => vals.map((v, i) => pt(i, v).map((n) => n.toFixed(1)).join(",")).join(" ");
+  const rings = [40, 50, 60];
+  const tgt = target != null ? axes.map(() => target) : null;
+  return (
+    <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label={`Score profile: ${axes.map((a, i) => `${a} ${now[i]}`).join(", ")}${target != null ? `, target ${target} in each section` : ""}`} className="h-auto w-full min-w-[260px] max-w-[340px]">
+      {rings.map((v) => <g key={v}><polygon points={poly(axes.map(() => v))} fill="none" stroke="#DCE8EC" /><text x={cx + 3} y={cy - ((v - min) / (max - min)) * R - 2} fontSize="9" fill="#4F6670">{v}</text></g>)}
+      {axes.map((a, i) => { const [x, y] = pt(i, max); const [lx, ly] = pt(i, max + 9); return <g key={a}><line x1={cx} y1={cy} x2={x} y2={y} stroke="#DCE8EC" /><text x={lx} y={ly + 4} textAnchor={Math.abs(lx - cx) < 8 ? "middle" : lx > cx ? "start" : "end"} fontSize="11" fontWeight="600" fill="#0A4256">{a}</text></g>; })}
+      {tgt && <polygon points={poly(tgt)} fill="none" stroke="#F07020" strokeWidth="1.5" strokeDasharray="5 4" />}
+      {previous && <polygon points={poly(previous)} fill="none" stroke="#9DB4BC" strokeWidth="1.5" />}
+      <polygon points={poly(now)} fill="#00809C" fillOpacity=".25" stroke="#00809C" strokeWidth="2.5" strokeLinejoin="round" />
+      {now.map((v, i) => { const [x, y] = pt(i, v); return <g key={i}><circle cx={x} cy={y} r="4" fill="#00809C" stroke="#fff" strokeWidth="1.5"><title>{`${axes[i]}: ${v}`}</title></circle><text x={x} y={y - 8} textAnchor="middle" fontSize="11" fontWeight="700" fill="#0A4256">{v}</text></g>; })}
+    </svg>
+  );
+}
