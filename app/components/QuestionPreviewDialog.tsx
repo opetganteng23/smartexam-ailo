@@ -37,7 +37,7 @@ export function QuestionPreviewDialog({ q, onClose }: { q: PreviewQuestion; onCl
             </article>
           )}
           <div className="card mt-3 !p-4">
-            <h2 className="text-lg font-medium leading-relaxed">{q.stem || <span className="text-ink-soft">(question text is empty)</span>}</h2>
+            <h2 className="whitespace-pre-line text-lg font-medium leading-relaxed">{q.stem || <span className="text-ink-soft">(question text is empty)</span>}</h2>
             {q.assetIds.map((a) => (
               // eslint-disable-next-line @next/next/no-img-element
               <img key={a} src={`/api/assets/${a}`} alt="Question image" className="mt-3 max-h-60 rounded-lg border border-line" />

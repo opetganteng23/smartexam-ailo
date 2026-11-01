@@ -37,7 +37,7 @@ function EssayCard({ attemptId, it, onSaved }: { attemptId: string; it: Item; on
     <section className="card flex flex-col gap-4">
       <div>
         <p className="text-xs font-semibold tracking-wider text-brand">QUESTION · {it.max} POINTS</p>
-        <h2 className="mt-1 text-lg font-semibold text-navy">{it.stem}</h2>
+        <h2 className="mt-1 whitespace-pre-line text-lg font-semibold text-navy">{it.stem}</h2>
       </div>
       <div className="grid gap-4 lg:grid-cols-[1.4fr_1fr]">
         <div>
