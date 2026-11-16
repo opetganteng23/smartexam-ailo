@@ -1,5 +1,6 @@
 // Uji asap end-to-end MTS v2.2. Server dev harus jalan di :3100 dengan DB in-memory (MONGODB_URI kosong) dan ADMIN_EMAILS=admin@test.local.
 // CATATAN: jalankan terhadap server DEV (next dev): memakai /api/dev/* dan mode pemeliharaan tanpa cache; di mode produksi ~10 tes gagal karena itu.
+// ONLY=umum menjalankan hanya bagian ujian umum (jenis soal baru dan skor persen).
 // Pakai: ADMIN_EMAILS=admin@test.local CRON_SECRET=testsecret npx next dev -p 3100 > dev.log 2>&1 &   lalu: LOG=dev.log node scripts/smoke.mjs
 import fs from "node:fs";
 const U = "http://localhost:3100", LOG = process.env.LOG;
@@ -48,6 +49,55 @@ function inviteTokenFor(email) {
 }
 const csv = (rows) => { const f = new FormData(); f.append("file", new Blob([rows.join("\n")], { type: "text/csv" }), "peserta.csv"); return f; };
 
+
+// ---- Ujian umum: empat jenis soal, skala persen, tanpa placement (Program Smartexam Umum) ----
+async function umumSection(admin) {
+  console.log("\n== Ujian umum: jenis soal baru dan skor persen ==");
+  let r = await req(admin, "/api/admin/institutions", { method: "POST", json: { name: "Kampus Umum", code: "KUMUM", seats: 3, contractStart: new Date().toISOString() } });
+  ok(r.status === 201, "institusi untuk ujian umum"); const inst = r.data.id;
+  await req(admin, `/api/admin/institutions/${inst}`, { method: "PATCH", json: { name: "Kampus Umum", code: "KUMUM", seats: 3, status: "active", modules: { learning: true, coaching: false } } });
+  r = await req(admin, `/api/admin/institutions/${inst}/import`, { method: "POST", form: csv(["email,nama,telepon", "umum1@test.local,Peserta Umum,081234567890"]) });
+  ok(r.status === 200 && r.data.created === 1, "peserta umum diimpor", J(r.data));
+  await sleep(1500);
+  const tok = inviteTokenFor("umum1@test.local");
+  const p = await login("umum1@test.local", { invite: tok });
+  r = await req(p, "/api/me/consent", { method: "POST", json: { consent: true, givenName: "Peserta", surname: "Umum", phone: "081234567890" } });
+  ok(r.status === 200, "peserta umum menyetujui penggunaan data");
+
+  const tag = [{ skill: "struktur-data", topic: "dasar" }];
+  const mk = async (body) => { const x = await req(admin, "/api/admin/questions", { method: "POST", json: { section: "umum", type: "uji", difficulty: "medium", status: "published", tags: tag, ...body } }); ok(x.status === 201, `soal ${body.kind} dibuat`, J(x.data)); return x.data.id; };
+  const q1 = await mk({ kind: "mcq", points: 1, stem: "Stack memakai urutan ...", options: ["FIFO", "LIFO", "Acak"], answerKey: 1 });
+  const q2 = await mk({ kind: "matching", points: 2, stem: "Pasangkan.", key: { pairs: [{ left: "Stack", right: "LIFO" }, { left: "Queue", right: "FIFO" }] } });
+  const q3 = await mk({ kind: "short", points: 1, stem: "Operasi menambah ke stack disebut ...", key: { accepted: ["push"] } });
+  const q4 = await mk({ kind: "essay", points: 4, stem: "Jelaskan perbedaan array dan linked list.", key: { rubric: [{ criterion: "Konsep", points: 2 }, { criterion: "Contoh", points: 2 }] } });
+  r = await req(admin, "/api/admin/tests", { method: "POST", json: { name: "UTS Uji Umum", kind: "general", purpose: "midterm", active: true, testMode: false, sections: [{ name: "umum", durationSec: 1200, questionIds: [q1, q2, q3, q4] }] } });
+  ok(r.status === 201, "tes umum dibuat (kind general, tanpa placement)", J(r.data)); const tid = r.data.id;
+
+  r = await req(p, "/api/tests"); const t = r.data.tests?.find((x) => x.id === tid);
+  ok(t?.unlocked === true && t.kind === "general", "peserta tanpa placement bisa membuka tes umum", J(t));
+  r = await req(p, `/api/tests/${tid}/start`, { method: "POST", json: {} }); ok(r.status === 201, "mulai tes umum"); const aid = r.data.attemptId;
+  r = await req(p, `/api/attempts/${aid}`);
+  const qs = r.data.questions ?? [];
+  ok(qs.length === 4 && !JSON.stringify(r.data).match(/answerKey|accepted|rubric/), "empat soal tampil tanpa kunci jawaban", J(r.data).slice(0, 200));
+  const byStem = (part) => qs.find((q) => q.stem.includes(part));
+  const mq = byStem("Pasangkan");
+  const answers = [
+    { qid: byStem("Stack memakai").id, choice: 1, timeSpentSec: 3 },
+    { qid: mq.id, response: mq.lefts.map((l) => mq.rights.indexOf(l === "Stack" ? "LIFO" : "FIFO")), timeSpentSec: 3 },
+    { qid: byStem("menambah ke stack").id, response: "Push", timeSpentSec: 3 },
+    { qid: byStem("Jelaskan").id, response: "Array berindeks, linked list berpenunjuk.", timeSpentSec: 3 },
+  ];
+  r = await req(p, `/api/attempts/${aid}`, { method: "PATCH", json: { answers } }); ok(r.status === 200, "jawaban empat jenis soal tersimpan", J(r.data));
+  r = await req(p, `/api/attempts/${aid}/submit`, { method: "POST", json: {} }); ok(r.status === 200, "submit tes umum", J(r.data));
+  r = await req(p, `/api/attempts/${aid}/result`);
+  ok(r.status === 423 || r.data.gradingStatus === "pending" || r.data.held === true || r.data.pending > 0, "hasil ditahan sampai essay dinilai", J(r.data).slice(0, 160));
+  r = await req(admin, `/api/admin/grading/${aid}`); ok(r.status === 200 && r.data.items?.length === 1, "essay muncul di antrean penilaian", J(r.data).slice(0, 160));
+  r = await req(admin, `/api/admin/grading/${aid}`, { method: "PUT", json: { qid: q4, points: 3, feedback: "Baik" } }); ok(r.status === 200, "essay dinilai 3 dari 4", J(r.data));
+  r = await req(p, `/api/attempts/${aid}/result`);
+  ok(r.status === 200 && r.data.scale === "percent" && Math.round(r.data.scoreEst) === 88 && r.data.totalPassed === true && r.data.passMark === 60, "skor persen 88 (7 dari 8 poin), lulus dengan batas 60", J({ s: r.data.scale, e: r.data.scoreEst, p: r.data.totalPassed, m: r.data.passMark }));
+  r = await req(p, "/api/me"); ok(r.data.currentScoreEst == null, "tes umum tidak mengubah skor atau level peserta");
+}
+
 (async () => {
   console.log("== Setup & OTP hanya untuk email terdaftar ==");
   const stranger = await req(null, "/api/auth/request-otp", { method: "POST", json: { email: "asing@test.local" } });
@@ -60,6 +110,7 @@ const csv = (rows) => { const f = new FormData(); f.append("file", new Blob([row
   const admin = await login("admin@test.local");
   ok(true, "admin pertama dari ADMIN_EMAILS bisa masuk");
   ok((await req(null, "/api/dev/seed", { method: "POST" })).status === 200, "seed (level, tes, institusi demo)");
+  if (process.env.ONLY === "umum") { await umumSection(admin); console.log(`\n== HASIL: ${pass} lulus, ${fail} gagal ==`); process.exit(fail ? 1 : 0); }
 
   console.log("\n== Parameter Sistem & level ==");
   let r = await req(admin, "/api/admin/params");
@@ -623,6 +674,8 @@ const csv = (rows) => { const f = new FormData(); f.append("file", new Blob([row
     r = await req(null, "/maintenance"); ok(r.status === 307 || r.status === 308, "/maintenance dialihkan saat tidak pemeliharaan");
     r = await req(null, "/admin"); ok((r.headers.get("location") ?? "").endsWith("/admin/login"), "/admin tanpa login diarahkan ke /admin/login");
   }
+
+  await umumSection(admin);
 
   console.log(`\n== HASIL: ${pass} lulus, ${fail} gagal ==`);
   process.exit(fail ? 1 : 0);

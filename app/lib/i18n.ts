@@ -1,5 +1,6 @@
 // Dua bahasa UI: English (bawaan) dan Indonesia. Kunci = teks Inggris, jadi teks yang belum diterjemahkan
 // tetap tampil dalam bahasa Inggris dan layar bisa diterjemahkan sedikit demi sedikit lewat t("...").
+import { ID_UMUM } from "./i18n-umum";
 export type Lang = "en" | "id";
 export const LANG_COOKIE = "lang";
 export const normLang = (v?: string | null): Lang => (v === "id" ? "id" : "en");
@@ -238,7 +239,7 @@ const ID: Record<string, string> = {
 };
 
 export function translate(lang: Lang, text: string, vars?: Record<string, string | number>): string {
-  let s = lang === "id" ? ID[text] ?? text : text;
+  let s = lang === "id" ? ID[text] ?? ID_UMUM[text] ?? text : text;
   if (vars) s = s.replace(/\{(\w+)\}/g, (m, k: string) => (k in vars ? String(vars[k]) : m));
   return s;
 }

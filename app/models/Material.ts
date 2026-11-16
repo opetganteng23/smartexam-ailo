@@ -11,7 +11,7 @@ const materialSchema = new Schema(
     htmlDoc: { html: String, css: String, js: String },
     assetIds: [{ type: Schema.Types.ObjectId, ref: "Asset" }],
     tags: [String],
-    access: { type: String, enum: ["free", "paid"], default: "paid" },
+    access: { type: String, enum: ["free", "paid"], default: "free" }, // bawaan "free": bukan penanda berbayar bagi kelas biasa; "paid" hanya data (K6), tidak ada jalur bayar
     status: { type: String, enum: ["draft", "review", "published"], default: "draft", index: true }, // HTML wajib lewat review (MTS §10.3)
     version: { type: Number, default: 0 },
     institutionId: { type: Schema.Types.ObjectId, ref: "Institution", index: true }, // kosong = materi global (admin); terisi = hanya untuk institusi itu (materi coach/inst_admin)

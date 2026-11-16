@@ -88,6 +88,7 @@ export default function TestPage({ params }: { params: { id: string } }) {
               {draft.sections.map((s) => <li key={s.name} className="flex justify-between py-2 text-sm"><span className="font-semibold text-navy">{SECTION[s.name] ?? s.name}</span><span className="text-ink-soft">{s.draw ? `${s.draw.count} random questions` : `${s.questionIds.length} questions`} · {Math.round(s.durationSec / 60)} min</span></li>)}
             </ul>
             {draft.kind === "general" && draft.purpose === "posttest" && <Link href={`/admin/tests/${draft.id}/prepost`} className="btn-outline mt-4 inline-flex">Pre/post improvement report</Link>}
+            {draft.attempts > 0 && <Link href={`/admin/tests/${draft.id}/items`} className="btn-outline ml-2 mt-4 inline-flex">Item analysis</Link>}
             <h2 className="mb-2 mt-5 font-display text-lg font-extrabold text-navy">Rules</h2>
             <div className="flex flex-wrap gap-1.5 text-xs">
               {[[draft.secureMode, "Secure mode"], [draft.screenWatch, "Live screen view"], [draft.shuffleQuestions, "Shuffled questions"], [draft.shuffleWithinParts, "Shuffled within parts"], [draft.shuffleOptions, "Shuffled options"], [(draft.resultDelayMin ?? 0) > 0, `Results after ${draft.resultDelayMin} min`], [(draft.maxAttempts ?? 0) > 0, `Max ${draft.maxAttempts} attempts`]]

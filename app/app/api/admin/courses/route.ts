@@ -10,6 +10,7 @@ import { Course, CourseModule, Unit } from "@/models/Course";
 import { checkCourseRefs } from "@/lib/course-admin";
 import { Material } from "@/models/Material";
 import { Category } from "@/models/Category";
+import { getFeatures } from "@/lib/features";
 import { Institution } from "@/models/Institution";
 import { ClassGroup } from "@/models/Cluster";
 import { Test } from "@/models/Test";
@@ -33,6 +34,7 @@ export async function GET() {
       ClassGroup.find({ active: true }).sort({ name: 1 }).select("name institutionId").lean(),
     ]);
     return NextResponse.json({
+      itpPack: (await getFeatures()).itpPack,
       categories: categories.map((c) => ({ id: String(c._id), name: c.name, active: c.active })),
       institutions: institutions.map((i) => ({ id: String(i._id), name: i.name })),
       classes: classes.map((c) => ({ id: String(c._id), name: c.name, institutionId: c.institutionId ? String(c.institutionId) : null })),

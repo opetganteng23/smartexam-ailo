@@ -29,7 +29,7 @@ export default function MateriEditor({ params }: { params: { id: string } }) {
   const audios = useApi<{ audio: Audio[] }>("/api/admin/audio");
   const versions = useApi<{ versions: { version: number; at: string }[] }>(isNew ? null : `/api/admin/materials/${params.id}/publish`);
 
-  const [f, setF] = useState({ title: "", summary: "", kind: "rich" as "rich" | "html", access: "paid" as "free" | "paid", tags: "" });
+  const [f, setF] = useState({ title: "", summary: "", kind: "rich" as "rich" | "html", access: "free" as "free" | "paid", tags: "" });
   const [rich, setRich] = useState<{ json: unknown; html: string }>({ json: null, html: "" });
   const [doc, setDoc] = useState<HtmlDoc>({ html: "", css: "", js: "" });
   const [tab, setTab] = useState<"html" | "css" | "js" | "preview">("html");

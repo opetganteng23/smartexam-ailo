@@ -5,10 +5,12 @@ import Link from "next/link";
 import { useApi } from "@/lib/useApi";
 import { tgl } from "@/lib/client";
 import { Loading, ErrorNote } from "@/components/Charts";
+import { useT } from "@/components/LangProvider";
 
 type C = { id: string; type: "itp" | "sim_report" | "course_completion"; officialFile?: { name: string; mime: string; size: number } | null; number: string; issuedAt: string; data: { name?: string; testName?: string; scores?: { listening?: number; structure?: number; reading?: number; total?: number } }; verifyUrl: string };
 
 export default function Sertifikat() {
+  const tr = useT();
   const { data, loading, error } = useApi<{ certificates: C[] }>("/api/certificates");
   const [copied, setCopied] = useState("");
   if (loading) return <Loading />;
@@ -41,10 +43,10 @@ export default function Sertifikat() {
       <ErrorNote text={error} />
       {courses.length > 0 && (
         <section className="flex flex-col gap-3" aria-label="Course completion certificates">
-          <h2 className="font-display text-xl font-extrabold text-navy">Course completion</h2>
+          <h2 className="font-display text-xl font-extrabold text-navy">{tr("Course completion")}</h2>
           <div className="grid gap-4 md:grid-cols-2">{courses.map((c) => (
             <div key={c.id} className="card flex flex-col gap-2">
-              <div className="flex flex-wrap items-center gap-2"><span className="badge-ok">Course completed</span><span className="text-xs text-ink-soft">{c.number}</span></div>
+              <div className="flex flex-wrap items-center gap-2"><span className="badge-ok">{tr("Course completed")}</span><span className="text-xs text-ink-soft">{c.number}</span></div>
               <h3 className="font-display text-lg font-extrabold text-navy">{(c.data as { courseTitle?: string }).courseTitle ?? "Course"}</h3>
               <p className="text-sm text-ink-soft">Issued {tgl(c.issuedAt)}</p>
               <div className="flex flex-col gap-2 sm:flex-row"><a className="btn-outline" href={`/api/certificates/${c.id}/pdf`} target="_blank" rel="noreferrer">Download PDF</a><button className="btn-outline" onClick={() => copy(c)}>{copied === c.id ? "Link copied" : "Copy verification link"}</button></div>

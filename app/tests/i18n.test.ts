@@ -30,7 +30,7 @@ describe("i18n", () => {
   });
   it("setiap teks t(\"...\") di kode punya terjemahan Indonesia", () => {
     // Kata yang sama di kedua bahasa tidak perlu terjemahan terpisah.
-    const same = new Set(["Coaching", "FAQ", "Fullscreen"]);
+    const same = new Set(["Coaching", "FAQ", "Fullscreen", "unit", "Moderator"]);
     const missing: string[] = [];
     for (const f of files(ROOT).filter((x) => !x.endsWith(path.join("lib", "i18n.ts")))) {
       const src = readFileSync(f, "utf-8");

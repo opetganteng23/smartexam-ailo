@@ -14,7 +14,7 @@ import { PART_LABEL } from "@/lib/exam-format";
 type Unit = { id: string; title: string; description: string; order: number; active: boolean; materialIds: string[]; quizTestId: string | null; moduleId: string | null; unlockAfterDays: number };
 type Mod = { id: string; title: string; description: string; order: number; active: boolean };
 type Course = { whatYouLearn?: string[]; requirements?: string[]; targetAudience?: string; tags?: string[]; previewVideoUrl?: string | null; id: string; levelId: string | null; track?: "general" | "itp"; categoryId?: string | null; institutionIds?: string[]; classIds?: string[]; accessMode?: "assigned" | "paid"; priceIdr?: number | null; title: string; description: string; order: number; active: boolean; archived: boolean; previewMode?: boolean; part?: string | null; sectionTestId?: string | null; requireSectionTest?: boolean; secureMode?: boolean; coverAssetId: string | null; prerequisiteCourseIds: string[]; modules: Mod[]; units: Unit[] };
-type Data = { categories: { id: string; name: string; active: boolean }[]; institutions: { id: string; name: string }[]; classes: { id: string; name: string; institutionId: string | null }[]; levels: { id: string; name: string }[]; materials: { id: string; title: string; status: string; kind: string }[]; quizzes: { id: string; kind?: string; name: string; unitId: string | null }[]; courses: Course[] };
+type Data = { itpPack?: boolean; categories: { id: string; name: string; active: boolean }[]; institutions: { id: string; name: string }[]; classes: { id: string; name: string; institutionId: string | null }[]; levels: { id: string; name: string }[]; materials: { id: string; title: string; status: string; kind: string }[]; quizzes: { id: string; kind?: string; name: string; unitId: string | null }[]; courses: Course[] };
 const label = "flex flex-col gap-1.5 text-sm font-semibold text-navy";
 const lines = (t: string) => t.split("\n").map((x) => x.trim()).filter(Boolean);
 
@@ -34,8 +34,11 @@ export default function Kursus() {
   const [unit, setUnit] = useState<(Partial<Unit> & { courseId: string }) | null>(null);
   const [mod, setMod] = useState<(Partial<Mod> & { courseId: string }) | null>(null);
   const [showArchived, setShowArchived] = useState(false);
-  const [ws, setWs] = useState<Workspace>("general");
+  const [wsCookie, setWs] = useState<Workspace>("general");
   const [tplDlg, setTplDlg] = useState(false);
+  // Tanpa paket TOEFL ITP (saklar di Settings) ruang kerjanya selalu Umum. Course ITP yang sudah ada tetap terjangkau di bagian bawah.
+  const ws: Workspace = data?.itpPack ? wsCookie : "general";
+  const legacyItp = !!data && !data.itpPack && data.courses.some((c) => c.track !== "general");
   useEffect(() => { const f = () => setWs(readWorkspace()); f(); window.addEventListener("workspace-change", f); return () => window.removeEventListener("workspace-change", f); }, []);
   const [err, setErr] = useState("");
   const run = async (fn: () => Promise<unknown>) => { setErr(""); try { await fn(); reload(); } catch (e) { setErr((e as Error).message); } };
@@ -87,7 +90,7 @@ export default function Kursus() {
         <button className="btn-solid" onClick={() => setCourse(ws === "itp" ? { track: "itp", active: true, previewMode: true, order: 0, levelId: data?.levels[0]?.id } : { track: "general", active: true, previewMode: true, order: 0 })}>+ New course</button></div>
       </div>
       <ErrorNote text={error || err} />
-      {data && ws === "general" && data.courses.some((c) => c.track !== "general") && (
+      {data && data.itpPack && ws === "general" && data.courses.some((c) => c.track !== "general") && (
         <p role="note" className="rounded-xl border border-accent bg-accent-tint p-3 text-sm text-navy">{data.courses.filter((c) => c.track !== "general").length} TOEFL ITP course(s) are kept in the TOEFL ITP workspace. <button className="font-semibold underline" onClick={() => { document.cookie = "ws=itp; path=/; max-age=31536000; SameSite=Lax"; window.location.reload(); }}>Open the TOEFL ITP workspace</button></p>
       )}
       {data && <CategoriesPanel categories={data.categories} onChanged={reload} />}
@@ -101,7 +104,7 @@ export default function Kursus() {
           </section>
         );
       })()}
-      {data && ws === "itp" && data.levels.map((l) => {
+      {data && (ws === "itp" || legacyItp) && data.levels.map((l) => {
         const cs = data.courses.filter((c) => c.track !== "general" && c.levelId === l.id && (showArchived || !c.archived));
         return (
           <section key={l.id} className="flex flex-col gap-3">

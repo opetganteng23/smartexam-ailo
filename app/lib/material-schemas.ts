@@ -12,7 +12,7 @@ export const materialInput = z.object({
   contentHtml: z.string().max(500_000).optional(),
   htmlDoc: z.object({ html: z.string().optional(), css: z.string().optional(), js: z.string().optional() }).optional(),
   tags: z.array(z.string().trim().min(1).max(30)).max(10).default([]),
-  access: z.enum(["free", "paid"]).default("paid"),
+  access: z.enum(["free", "paid"]).default("free"),
 });
 
 export function normalizeMaterial(b: z.infer<typeof materialInput>) {

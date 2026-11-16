@@ -90,16 +90,16 @@ Legenda sama: ✅ selesai dan teruji · 🔄 sebagian · ⬜ belum · ⏭️ dit
 - ✅ U6.5 `accessMode: paid` hanya disiapkan di data (`priceIdr`); pembayaran tidak dibangun
 
 ### Tahap 7 - Isolasi paket ITP dan sisa
-- ⬜ U7.1 Scaffold TOEFL menjadi preset; paket ITP di balik saklar
-- ⬜ U7.2 PPTX dan laporan generik mengikuti bagian tes
-- ⬜ U7.3 `access: paid` bawaan materi ditinjau (bawaan tidak membingungkan kelas biasa)
-- ⬜ U7.4 Sisa dwibahasa EN/ID dan `i18n.test.ts` hijau
-- ⬜ U7.5 `scripts/smoke.mjs` diperbarui untuk jenis soal baru dan skor persen
-- ⬜ U7.6 Statistik butir soal (kesulitan nyata, daya beda, jumlah pemakaian)
+- ✅ U7.1 Scaffold TOEFL menjadi preset; paket ITP di balik saklar — preset `toefl-itp` di daftar templat; saklar `itpPack` (Settings, bawaan mati) menyembunyikan preset, rute scaffold, dan ruang kerja ITP; course ITP lama tetap terjangkau
+- ✅ U7.2 PPTX dan laporan generik mengikuti bagian tes
+- ✅ U7.3 `access: paid` bawaan materi ditinjau (bawaan tidak membingungkan kelas biasa)
+- 🔄 U7.4 Sisa dwibahasa EN/ID dan `i18n.test.ts` hijau — layar peserta baru (kartu dan rincian course, diskusi, tugas, sertifikat course) diterjemahkan dan tes hijau; layar admin baru masih berbahasa Inggris
+- ✅ U7.5 `scripts/smoke.mjs` diperbarui untuk jenis soal baru dan skor persen — bagian baru `ONLY=umum` (23 pemeriksaan) hijau pada server dev dengan DB in-memory; bagian lama (placement, coaching ITP) sudah usang sejak ITP dibuang dan gagal di bagian placement (bukan akibat program ini)
+- 🔄 U7.6 Statistik butir soal (kesulitan nyata, daya beda, jumlah pemakaian) — perhitungan, API, dan tes hijau; halaman belum diuji visual
 
 ### Lintas tahap, gerbang, dan dokumen
-- ⬜ Q.1 Tes keamanan per fitur (akses/IDOR, XSS, impor XML, unggah, CSRF, rate limit, audit log) tertulis dan hijau
-- ⬜ Q.2 `npm audit --omit=dev` tidak menambah temuan high/critical
+- 🔄 Q.1 Tes keamanan per fitur (akses/IDOR, XSS, impor XML, unggah, CSRF, rate limit, audit log) tertulis dan hijau — lihat tabel bukti di CATATAN-IMPLEMENTASI; CSRF memakai pemeriksaan Origin global di middleware (tidak ada tes per rute baru)
+- ✅ Q.2 `npm audit --omit=dev` tidak menambah temuan high/critical — 12 temuan (baseline 13)
 - ⬜ Q.3 Tinjauan independen subagent (keamanan dan QA/regresi) di akhir tiap tahap; temuan berat diperbaiki
 - ⬜ D.1 `docs/panduan/PANDUAN-ADMIN.txt` diperbarui (kategori, course umum, koleksi, impor XML, tes umum, video, akses)
 - ⬜ D.2 `docs/panduan/QA_Panduan_Uji_Umum.md` (format seperti QA_Panduan_Uji_T01.md)
