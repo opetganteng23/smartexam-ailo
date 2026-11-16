@@ -96,7 +96,8 @@ export async function collectTestRows(testId: string, now = new Date(), sessionI
     const done = a?.status === "submitted" && typeof a.scoreEst === "number";
     const sec = (n: string) => a?.sectionScores?.find((s) => s.section === n)?.scaled ?? null;
     const flags = (k: string) => (a ? (a as unknown as Record<string, number>)[`flag_${k}`] ?? 0 : 0);
-    const lvl = done ? levelForScore(levels, a!.scoreEst!)?.name ?? "" : "";
+    const pct = (a as unknown as { scoreScale?: string } | null)?.scoreScale === "percent"; // tes umum: skor 0-100, tanpa level ITP
+    const lvl = done && !pct ? levelForScore(levels, a!.scoreEst!)?.name ?? "" : "";
     return {
       name: u.name ?? "", email: u.email, institution: u.institutionId ? insts.get(String(u.institutionId)) ?? "" : "",
       qa: u.qaTester ? "QA" : "",
@@ -107,7 +108,7 @@ export async function collectTestRows(testId: string, now = new Date(), sessionI
       account: u.status === "active" ? "Active" : u.status === "invited" ? "Awaiting activation" : u.status === "disabled" ? "Inactive" : String(u.status ?? ""),
       invitedAt: seat?.invitedAt ? WIB(seat.invitedAt) : seat ? "Not sent" : "",
       lastLogin: u.lastLoginAt ? WIB(u.lastLoginAt) : "Never",
-      score: done ? a!.scoreEst! : null, level: lvl,
+      score: done ? a!.scoreEst! : null, pct, level: lvl,
       listening: done ? sec("listening") : null, structure: done ? sec("structure") : null, reading: done ? sec("reading") : null,
       secs: done ? Object.fromEntries((a!.sectionScores ?? []).map((s) => [s.section ?? "", s.scaled ?? null])) as Record<string, number | null> : {} as Record<string, number | null>, // semua bagian tes, kunci = nama bagian
       answered: a ? a.answered : null,
@@ -184,7 +185,7 @@ export async function buildTestExport(testId: string, now = new Date(), sessionI
   res.autoFilter = { from: "A1", to: { row: 1, column: res.columns.length } };
   const STC: Record<string, string> = { Finished: "FFE6F4EC", "In progress": "FFE6EEFA", Missed: "FFFBE3E3", "Not started (open now)": "FFFBF1DB" };
   res.eachRow((row, i) => { if (i > 1) { const c = row.getCell("status"); const col = STC[String(c.value)]; if (col) c.fill = { type: "pattern", pattern: "solid", fgColor: { argb: col } }; } });
-  if (rows.length) res.addConditionalFormatting({ ref: `L2:L${rows.length + 1}`, rules: [{ type: "dataBar", priority: 1, cfvo: [{ type: "num", value: 310 }, { type: "num", value: 677 }], color: { argb: "FF0B4FA6" } } as never] });
+  if (rows.length) res.addConditionalFormatting({ ref: `L2:L${rows.length + 1}`, rules: [{ type: "dataBar", priority: 1, cfvo: rows.some((x) => x.pct) ? [{ type: "num", value: 0 }, { type: "num", value: 100 }] : [{ type: "num", value: 310 }, { type: "num", value: 677 }], color: { argb: "FF0B4FA6" } } as never] });
 
   // ---- Analisis per peserta (narasi bahasa Indonesia untuk institusi): dari narasi tersimpan (scripts/gen-report-narratives.ts,
   // ditulis AI); bila belum ada, disusun dari skor per topik. Hanya peserta yang skornya terlihat (hasil ditahan tidak ikut).

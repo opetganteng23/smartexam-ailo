@@ -24,8 +24,8 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
     const test = await Test.findById(params.id).select("name sections kind").lean();
     if (!test) throw new HttpError(404, "Test not found");
     const staff = await User.find({ $or: [{ role: { $ne: "participant" } }, { qaTester: true }] }).select("_id").lean();
-    const attempts = await Attempt.find({ testId: test._id, status: "submitted", userId: { $nin: staff.map((u) => u._id) } }).select("answers sections").limit(5000).lean();
-    const snaps = new Map((await AttemptSnapshot.find({ attemptId: { $in: attempts.map((a) => a._id) } }).lean()).map((s) => [String(s.attemptId), s]));
+    const attempts = await Attempt.find({ testId: test._id, status: "submitted", userId: { $nin: staff.map((u) => u._id) } }).select("answers sections").sort({ _id: -1 }).limit(5000).lean();
+    const snaps = new Map((await AttemptSnapshot.find({ attemptId: { $in: attempts.map((a) => a._id) } }).select("attemptId items.qid items.section items.kind items.points items.answerKey items.key items.stem items.stemFormat items.options").lean()).map((s) => [String(s.attemptId), s]));
     // Percobaan tanpa snapshot (lama): pakai soal yang ada sekarang.
     const live = new Map((await Question.find({ _id: { $in: test.sections.flatMap((s) => s.questionIds) } }).select("section kind points answerKey key stem stemFormat difficulty options").lean()).map((q) => [String(q._id), q]));
     const fromLive = (q: NonNullable<ReturnType<typeof live.get>>) => ({ qid: String(q._id), section: q.section, kind: q.kind, points: q.points, answerKey: q.answerKey, key: q.key, stem: q.stemFormat === "html" ? htmlToText(q.stem) : q.stem, declared: q.difficulty, options: q.options?.length });
