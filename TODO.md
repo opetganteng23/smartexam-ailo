@@ -60,12 +60,12 @@ Legenda sama: ✅ selesai dan teruji · 🔄 sebagian · ⬜ belum · ⏭️ dit
 - ✅ U2.8 Fixture sintetis kecil (tanpa data asli) dan tes impor, XSS, dan duplikat
 
 ### Tahap 3 - Tes umum
-- ⬜ U3.1 Kind `general` dan `purpose` (daily, pretest, posttest, midterm, final), terikat ke course dan kategori; satu cabang baru di finalisasi percobaan, skala persen
-- ⬜ U3.2 Tes berdiri sendiri di course (tidak hanya di unit atau akhir course)
-- ⬜ U3.3 Ambil N soal acak dari koleksi per topik atau kesulitan; kunci jawaban tidak bocor
-- ⬜ U3.4 Kuis harian: jendela buka-tutup harian, soal acak atau tetap
-- ⬜ U3.5 Laporan selisih pre/post per peserta dan per topik
-- ⬜ U3.6 Regresi: placement, simulasi, final, hasil ditahan, sertifikat ITP tetap sama
+- ✅ U3.1 Kind `general` dan `purpose` (daily, pretest, posttest, midterm, final), terikat ke course dan kategori; satu cabang baru di finalisasi percobaan, skala persen
+- 🔄 U3.2 Tes berdiri sendiri di course (tidak hanya di unit atau akhir course) — API, akses, dan tes hijau; tampilan di halaman Learn belum diuji visual
+- ✅ U3.3 Ambil N soal acak dari koleksi per topik atau kesulitan; kunci jawaban tidak bocor
+- ✅ U3.4 Kuis harian: jendela buka-tutup harian, soal acak atau tetap
+- 🔄 U3.5 Laporan selisih pre/post per peserta dan per topik — API dan tes hijau; halaman laporan belum diuji visual
+- ✅ U3.6 Regresi: placement, simulasi, final, hasil ditahan, sertifikat ITP tetap sama
 
 ### Tahap 4 - Video
 - ⬜ U4.1 `<video>` diizinkan di sanitizer; perpustakaan video: embed YouTube/Vimeo dan unggah MP4 (maks 100 MB, GridFS bucket `video`, Range request, otorisasi sama dengan course)

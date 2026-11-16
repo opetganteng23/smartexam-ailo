@@ -9,8 +9,10 @@ import { Loading, ErrorNote, Empty } from "@/components/Charts";
 import { PART_LABEL } from "@/lib/exam-format";
 
 type Unit = { id: string; title: string; description: string; moduleId: string | null; status: "not_started" | "in_progress" | "completed"; done: number; total: number; locked: boolean; opensAt: string | null };
+type CourseTest = { id: string; name: string; purpose: string | null; totalQuestions: number; totalSec: number; unlocked: boolean; reason: string | null; attemptsUsed: number; maxAttempts: number; best: number | null; inProgressAttemptId: string | null; daily: { start: string; end: string; maxPerDay: number } | null; schedule: { text: string } | null };
+const PURPOSE_LABEL: Record<string, string> = { daily: "Daily quiz", pretest: "Pre-test", posttest: "Post-test", midterm: "Midterm", final: "Final exam" };
 type SectionTest = { name: string; questions: number; best: number | null; passed: boolean; attempts: number; required: boolean; state: "locked" | "available" | "in_progress"; inProgressAttemptId: string | null };
-type Course = { part?: string | null; sectionTest?: SectionTest | null; level?: string | null; previewOnly?: boolean; inactive?: boolean; id: string; title: string; description: string; cover: string | null; locked: boolean; missing: string[]; modules: { id: string; title: string; description: string }[]; units: Unit[]; completed: number };
+type Course = { part?: string | null; sectionTest?: SectionTest | null; level?: string | null; previewOnly?: boolean; inactive?: boolean; id: string; title: string; description: string; cover: string | null; locked: boolean; missing: string[]; modules: { id: string; title: string; description: string }[]; units: Unit[]; completed: number; tests?: CourseTest[] };
 const day = (d: string) => new Date(d).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
 const ST = { not_started: ["Not started", "badge-muted"], in_progress: ["In progress", "badge-warn"], completed: ["Completed", "badge-ok"] } as const;
 
@@ -105,7 +107,25 @@ export default function Belajar() {
                   </div>
                 );
               })}
-              {current.units.length === 0 && <p className="mt-3 text-sm text-ink-soft">No units in this course yet.</p>}
+              {current.units.length === 0 && (current.tests?.length ?? 0) === 0 && <p className="mt-3 text-sm text-ink-soft">No units in this course yet.</p>}
+              {(current.tests?.length ?? 0) > 0 && (
+                <div className="mt-4 flex flex-col gap-3" aria-label="Tests">
+                  {current.tests!.map((t) => (
+                    <div key={t.id} className="card">
+                      <div className="flex flex-wrap items-start justify-between gap-3">
+                        <div>
+                          <p className="text-xs font-semibold tracking-wider text-brand">{(t.purpose ? PURPOSE_LABEL[t.purpose] ?? "Test" : "Test").toUpperCase()}</p>
+                          <h3 className="font-display text-lg font-extrabold text-navy">{t.name}</h3>
+                          <p className="text-sm text-ink-soft">{t.totalQuestions} questions · {Math.round(t.totalSec / 60)} min{t.daily ? ` · open every day ${t.daily.start} to ${t.daily.end} WIB` : ""}{t.schedule ? ` · ${t.schedule.text}` : ""}{t.maxAttempts > 0 ? ` · ${t.attemptsUsed} of ${t.maxAttempts} attempts used` : ""}{t.best != null ? ` · Best: ${t.best}%` : ""}</p>
+                        </div>
+                      </div>
+                      {t.unlocked || t.inProgressAttemptId
+                        ? <button className="btn-solid mt-3" onClick={() => router.push(t.inProgressAttemptId ? `/test-room/${t.inProgressAttemptId}` : `/tests/prepare/${t.id}`)}>{t.inProgressAttemptId ? "Continue" : t.attemptsUsed > 0 ? "Take again" : "Start"}</button>
+                        : <p className="mt-3 text-sm text-ink-soft">{t.reason ?? "Not available right now."}</p>}
+                    </div>
+                  ))}
+                </div>
+              )}
               {current.sectionTest && (
                 <div className="card mt-4" aria-label="Section test">
                   <div className="flex flex-wrap items-start justify-between gap-3">

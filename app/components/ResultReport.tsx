@@ -19,7 +19,7 @@ type R = { scale?: "itp" | "percent"; passMark?: number | null; totalPassed?: bo
 import type { Insights } from "@/lib/insights";
 import type { Summary } from "@/lib/summary";
 import type { CourseProgressRow } from "@/lib/course-progress";
-const KIND: Record<string, string> = { placement: "PLACEMENT TEST", sim: "SIMULATION TEST", practice: "PRACTICE", final: "FINAL TEST", quiz: "UNIT QUIZ", section: "SECTION TEST" };
+const KIND: Record<string, string> = { placement: "PLACEMENT TEST", sim: "SIMULATION TEST", practice: "PRACTICE", final: "FINAL TEST", quiz: "UNIT QUIZ", section: "SECTION TEST", general: "TEST" };
 
 const fmtDelta = (n: number) => (n > 0 ? `+${n}` : n < 0 ? `${n}` : "±0");
 

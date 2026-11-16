@@ -11,7 +11,7 @@ import { Loading, ErrorNote, Empty } from "@/components/Charts";
 
 type T = { id: string; name: string; kind: string; testMode?: boolean; totalQuestions: number; totalSec: number; unlocked: boolean; reason: string | null; inProgressAttemptId: string | null; lastScore: number | null; schedule?: { state: "upcoming" | "open" | "closed"; label: string | null; opensAt: string; closesAt: string; text: string } | null };
 type A = { id: string; name: string; kind: string; status: string; finishedAt: string | null; scoreEst: number | null; sections: Record<string, number>; reportId: string | null };
-const KIND: Record<string, string> = { placement: "Placement", sim: "Simulation", final: "Final Test", practice: "Practice" };
+const KIND: Record<string, string> = { placement: "Placement", sim: "Simulation", final: "Final Test", practice: "Practice", general: "Test" };
 
 export default function TesSaya() {
   const tr = useT();

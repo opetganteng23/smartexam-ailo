@@ -42,7 +42,7 @@ export default function TestPage({ params }: { params: { id: string } }) {
   if (!draft) return <Loading />;
   const learning = LEARNING_KINDS.includes(draft.kind);
   const status = meta.archived ? "Archived" : draft.active ? (draft.testMode ? "Live · test mode (admins and QA only)" : "Live") : "Draft";
-  const questions = draft.sections.reduce((a, s) => a + s.questionIds.length, 0);
+  const questions = draft.sections.reduce((a, s) => a + (s.draw ? s.draw.count : s.questionIds.length), 0);
   const minutes = Math.round(draft.sections.reduce((a, s) => a + s.durationSec, 0) / 60);
   const tabs = TABS.filter(([k]) => !(learning && (k === "schedule" || k === "live" || k === "results")));
 
@@ -85,8 +85,9 @@ export default function TestPage({ params }: { params: { id: string } }) {
           <section className="card lg:col-span-2">
             <h2 className="mb-3 font-display text-lg font-extrabold text-navy">Sections</h2>
             <ul className="flex flex-col divide-y divide-line">
-              {draft.sections.map((s) => <li key={s.name} className="flex justify-between py-2 text-sm"><span className="font-semibold text-navy">{SECTION[s.name] ?? s.name}</span><span className="text-ink-soft">{s.questionIds.length} questions · {Math.round(s.durationSec / 60)} min</span></li>)}
+              {draft.sections.map((s) => <li key={s.name} className="flex justify-between py-2 text-sm"><span className="font-semibold text-navy">{SECTION[s.name] ?? s.name}</span><span className="text-ink-soft">{s.draw ? `${s.draw.count} random questions` : `${s.questionIds.length} questions`} · {Math.round(s.durationSec / 60)} min</span></li>)}
             </ul>
+            {draft.kind === "general" && draft.purpose === "posttest" && <Link href={`/admin/tests/${draft.id}/prepost`} className="btn-outline mt-4 inline-flex">Pre/post improvement report</Link>}
             <h2 className="mb-2 mt-5 font-display text-lg font-extrabold text-navy">Rules</h2>
             <div className="flex flex-wrap gap-1.5 text-xs">
               {[[draft.secureMode, "Secure mode"], [draft.screenWatch, "Live screen view"], [draft.shuffleQuestions, "Shuffled questions"], [draft.shuffleWithinParts, "Shuffled within parts"], [draft.shuffleOptions, "Shuffled options"], [(draft.resultDelayMin ?? 0) > 0, `Results after ${draft.resultDelayMin} min`], [(draft.maxAttempts ?? 0) > 0, `Max ${draft.maxAttempts} attempts`]]

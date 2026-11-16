@@ -26,7 +26,7 @@ type D = {
   attempts: { id: string; name: string; kind: string; score: number | null; finishedAt: string | null; minutes: number | null; sections: Sec[]; released: boolean; held: boolean; flags: number }[];
 };
 const SEC = SECTION_SHORT;
-const KIND: Record<string, string> = { placement: "Placement", sim: "Simulation", final: "Final test", practice: "Practice", quiz: "Unit quiz", section: "Section test" };
+const KIND: Record<string, string> = { placement: "Placement", sim: "Simulation", final: "Final test", practice: "Practice", quiz: "Unit quiz", section: "Section test", general: "General test" };
 const STATUS: Record<string, [string, string]> = { invited: ["Awaiting activation", "badge-warn"], active: ["Active", "badge-ok"], disabled: ["Inactive", "badge-muted"] };
 
 /**

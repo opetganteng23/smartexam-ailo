@@ -197,6 +197,15 @@ describe.skipIf(!safe)("tes umum utuh (database in-memory)", () => {
     expect(await Analysis.countDocuments({ attemptId })).toBe(0);
     expect((await User.findById(ua._id).lean())?.currentScoreEst).toBeUndefined();
 
+    // Hasil peserta: terbaca, berskala persen, tanpa teks soal atau kunci.
+    const resultRoute = await import("@/app/api/attempts/[id]/result/route");
+    as(ua);
+    const rr = await resultRoute.GET(new Request("http://x"), { params: { id: attemptId } });
+    expect(rr.status).toBe(200);
+    const rj = JSON.stringify(await rr.json());
+    expect(rj).toContain("percent");
+    expect(rj).not.toMatch(/kunci-|Soal d|answerKey/);
+
     // Batas percobaan per hari (2): percobaan ke-2 boleh, ke-3 ditolak sampai besok.
     expect((await start.POST(req({}), { params: { id: testId } })).status).toBe(201);
     const running2 = (await Attempt.findOne({ userId: ua._id, status: "in_progress" }))!;

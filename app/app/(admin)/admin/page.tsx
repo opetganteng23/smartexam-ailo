@@ -16,7 +16,7 @@ type D = {
   ai: { claude: number; template: number; tokensIn: number; tokensOut: number; failed: number };
   expiring: { name: string; contractEnd: string }[];
 };
-const KIND: Record<string, string> = { placement: "Placement", sim: "Simulation", final: "Final Test", practice: "Practice", quiz: "Unit quiz" };
+const KIND: Record<string, string> = { placement: "Placement", sim: "Simulation", final: "Final Test", practice: "Practice", quiz: "Unit quiz", general: "General test" };
 
 export default function AdminHome() {
   const [days, setDays] = useState(30);

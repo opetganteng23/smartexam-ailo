@@ -13,7 +13,7 @@ import { isValidObjectId } from "mongoose";
 
 export const dynamic = "force-dynamic";
 
-const KIND: Record<string, string> = { placement: "PLACEMENT TEST", sim: "SIMULATION TEST", final: "FINAL TEST", practice: "PRACTICE", quiz: "UNIT QUIZ", section: "SECTION TEST" };
+const KIND: Record<string, string> = { placement: "PLACEMENT TEST", sim: "SIMULATION TEST", final: "FINAL TEST", practice: "PRACTICE", quiz: "UNIT QUIZ", section: "SECTION TEST", general: "TEST" };
 
 /** Ekspor hasil tes dan diagnostic (analisis AI) satu percobaan sebagai PDF. Hanya pemilik (atau admin); tanpa pembahasan per soal. */
 export async function GET(_req: Request, { params }: { params: { id: string } }) {
