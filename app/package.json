@@ -43,6 +43,7 @@
     "bcryptjs": "^3.0.3",
     "dompurify": "^3.4.16",
     "exceljs": "^4.4.0",
+    "fast-xml-parser": "5.12.1",
     "jose": "^6.2.12",
     "leaflet": "^1.9.4",
     "mammoth": "^1.8.0",
