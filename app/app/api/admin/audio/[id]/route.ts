@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { htmlToText } from "@/lib/html-text";
 import { isValidObjectId } from "mongoose";
 import { connectDB } from "@/lib/db";
 import { requireRole, handleError, HttpError, CONTENT_ROLES } from "@/lib/rbac";
@@ -25,7 +26,7 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
       id: String(a._id), title: a.title, kind: a.kind ?? "other", description: a.description ?? "", source: a.source ?? "", transcript: a.transcript ?? "", mime: a.mime ?? "audio/mpeg", peaks: a.peaks ?? [], markers: (a.markers ?? []).map((m) => ({ t: m.t, label: m.label })),
       durationSec: a.durationSec, size: a.size, createdAt: a.createdAt,
       groups: groups.map((g) => ({ id: String(g._id), section: g.section, instruction: g.instruction ?? "" })),
-      questions: questions.map((q) => ({ id: String(q._id), section: q.section, type: q.type, stem: q.stem.slice(0, 120), status: q.status })),
+      questions: questions.map((q) => ({ id: String(q._id), section: q.section, type: q.type, stem: (q.stemFormat === "html" ? htmlToText(q.stem) : q.stem).slice(0, 120), status: q.status })),
       materials: materials.map((m) => ({ id: String(m._id), title: m.title, status: m.status })),
     });
   } catch (e) {

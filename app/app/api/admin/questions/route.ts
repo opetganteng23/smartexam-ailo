@@ -31,7 +31,8 @@ export async function GET(req: Request) {
     // ?ids=a,b,c: ambil soal tertentu (untuk perakit tes), urutan mengikuti ids.
     const ids = (sp.get("ids") ?? "").split(",").filter((x) => /^[0-9a-f]{24}$/.test(x)).slice(0, 200);
     if (sp.has("ids")) {
-      const found = await Question.find(scoped({ _id: { $in: ids } })).select("section type stem status").lean();
+      const found = await Question.find(scoped({ _id: { $in: ids } })).select("section type stem stemFormat status").lean();
+      for (const it of found) if (it.stemFormat === "html") it.stem = htmlToText(it.stem).slice(0, 300);
       const by = new Map(found.map((x) => [String(x._id), x]));
       return NextResponse.json({ items: ids.map((i) => by.get(i)).filter(Boolean) });
     }

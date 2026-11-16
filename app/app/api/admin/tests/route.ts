@@ -33,7 +33,7 @@ export async function POST(req: Request) {
     const admin = await requireRole(ACADEMIC_ROLES);
     const body = testSchema.parse(await req.json());
     await connectDB();
-    await validateTestQuestions(body.sections);
+    await validateTestQuestions(body.sections, admin);
     body.shuffleQuestions = body.shuffleQuestions && !body.shuffleWithinParts;
     const t = await Test.create(body);
     await AuditLog.create({ actorId: admin._id, action: "test.create", target: String(t._id) });

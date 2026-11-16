@@ -1,13 +1,15 @@
 import { HttpError } from "./rbac";
 import { Question } from "@/models/Question";
+import { questionVisibleFilter } from "./collections";
 
 type Sec = { name: string; questionIds: string[] };
 
 /** Semua soal harus ada, berstatus published, sesuai section, dan tidak dipakai dua kali dalam satu tes. */
-export async function validateTestQuestions(sections: Sec[]) {
+export async function validateTestQuestions(sections: Sec[], user: Parameters<typeof questionVisibleFilter>[0]) {
   const all = sections.flatMap((s) => s.questionIds);
   if (new Set(all).size !== all.length) throw new HttpError(400, "A question is used more than once");
-  const qs = await Question.find({ _id: { $in: all } }).select("section status").lean();
+  const vis = await questionVisibleFilter(user);
+  const qs = await Question.find(Object.keys(vis).length ? { $and: [{ _id: { $in: all } }, vis] } : { _id: { $in: all } }).select("section status").lean();
   const by = new Map(qs.map((q) => [String(q._id), q]));
   for (const s of sections) {
     for (const id of s.questionIds) {

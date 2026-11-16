@@ -5,6 +5,7 @@ import { connectDB } from "@/lib/db";
 import { requireRole, handleError, HttpError, CONTENT_ROLES } from "@/lib/rbac";
 import { zodMessage } from "@/lib/zod-message";
 import { audit } from "@/lib/audit";
+import { questionVisibleFilter } from "@/lib/collections";
 import { aiEnabled } from "@/lib/ai";
 import { generateInput, generateQuestionDrafts, stemKey } from "@/lib/ai-questions";
 import { Question } from "@/models/Question";
@@ -33,7 +34,9 @@ export async function POST(req: Request) {
     try { await limiter.consume(String(user._id)); } catch (e) { if (e instanceof RateLimiterRes) throw new HttpError(429, "Too many AI requests. Please wait a few minutes."); throw e; }
     const b = generateInput.parse(await req.json());
     await connectDB();
-    const existing = await Question.find({ section: b.section, "tags.topic": b.topic }).select("stem").limit(500).lean();
+    const vis = await questionVisibleFilter(user);
+    const base = { section: b.section, "tags.topic": b.topic };
+    const existing = await Question.find(Object.keys(vis).length ? { $and: [base, vis] } : base).select("stem").limit(500).lean();
     const out = await generateQuestionDrafts(b, new Set(existing.map((q) => stemKey(q.stem))));
     await audit(user._id, "questions.ai_generate", b.topic, { count: b.count, got: out.drafts.length, dropped: out.dropped, tokens: out.tokensIn + out.tokensOut });
     return NextResponse.json({ drafts: out.drafts, dropped: out.dropped, truncated: out.truncated });

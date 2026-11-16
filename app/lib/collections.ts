@@ -33,3 +33,15 @@ export async function checkQuestionRefs(u: U, b: { collectionId?: string | null;
   if (b.collectionId) assertCollectionWritable(u, await QuestionCollection.findById(b.collectionId).lean());
   if (b.categoryId && !(await Category.exists({ _id: b.categoryId }))) throw new HttpError(400, "Category not found");
 }
+
+/** Soal di koleksi yang tidak terlihat pengguna ini dijawab seolah tidak ada. */
+export async function assertQuestionVisible(u: U, q: { collectionId?: Types.ObjectId | null }) {
+  if (q.collectionId && !(await QuestionCollection.exists({ _id: q.collectionId, ...collectionVisible(u) }))) throw new HttpError(404, "Question not found");
+}
+
+/** Mengubah soal di dalam koleksi butuh hak tulis atas koleksinya (soal tanpa koleksi bebas seperti sebelumnya). */
+export async function assertQuestionWritable(u: U, q: { collectionId?: Types.ObjectId | null }) {
+  if (!q.collectionId) return;
+  await assertQuestionVisible(u, q);
+  assertCollectionWritable(u, await QuestionCollection.findById(q.collectionId).lean());
+}

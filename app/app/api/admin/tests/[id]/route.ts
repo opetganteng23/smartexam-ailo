@@ -60,7 +60,7 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
     if ((!!t.shuffleQuestions !== body.shuffleQuestions || !!t.shuffleWithinParts !== body.shuffleWithinParts) && (await realInProgress(t._id)))
       throw new HttpError(409, "Question shuffling cannot be changed while participants are taking this test.");
     if (attempts > 0 && !!t.shuffleOptions !== body.shuffleOptions) throw new HttpError(409, "Answer-option shuffling cannot be changed after the test has been taken.");
-    if (attempts === 0) await validateTestQuestions(body.sections);
+    if (attempts === 0) await validateTestQuestions(body.sections, admin);
     t.set(body);
     await t.save();
     await AuditLog.create({ actorId: admin._id, action: "test.update", target: params.id });

@@ -42,3 +42,14 @@ Dicatat, belum dikerjakan: judul course prasyarat dari cakupan lain bisa tampil 
 ## Terhalang
 
 `npm install --save-exact fast-xml-parser@5.12.1` ditolak oleh pengklasifikasi izin; U2.2 (impor Moodle XML) menunggu izin dari pemilik. Tahap 2 lainnya belum dimulai.
+
+## Tinjauan independen tahap 2
+
+Dua subagent menemukan IDOR nyata (rute yang belum memakai filter visibilitas koleksi) dan beberapa regresi tampilan. Semua temuan berat diperbaiki dan diuji (`tests/umum-koleksi2.test.ts`):
+- Ekspor CSV, riwayat versi dan pemulihan, duplikat, rute `generate`, perakit tes (`validateTestQuestions`), dan deteksi duplikat impor kini memakai visibilitas koleksi; soal tak terlihat dijawab 404 atau dianggap tidak ada (tidak menjadi oracle keberadaan).
+- Mengubah soal yang berada di koleksi butuh hak tulis atas koleksinya; berpindah koleksi tercatat di audit (`collectionFrom`/`collectionTo`).
+- Soal berformat HTML tampil sebagai teks di Test Builder, daftar pratinjau tes, halaman audio, dan ekspor CSV; "Check first" pada impor XML memeriksa gambar sama ketatnya dengan impor nyata.
+
+Dicatat, tidak dikerjakan: tidak ada indeks unik `contentHash` (dua admin yang mengimpor berkas sama bersamaan bisa menggandakan; klik ganda di UI dicegah `busy`); gambar yang sudah tersimpan tetap ada bila soalnya kemudian gagal atau duplikat (aset memang dipakai ulang lewat sidik); impor ulang CSV dari ekspor tidak membawa `stemFormat`/jenis non-pilihan-ganda (ekspor hanya pilihan ganda, sebagaimana sebelumnya); opsi bergambar Moodle diratakan menjadi teks; `question-versions` belum menampilkan `stemFormat`/`categoryId` pada diff.
+
+Keputusan otonom: rute aset gambar (`/api/assets/<id>`) tidak dibuat sadar-course. Aset non-sensitif memang publik dan dicache `immutable`; pembatasan hanya berarti bila anonim juga ditolak, yang merusak landing dan cache. ID aset tidak dapat dienumerasi lewat API mana pun. Risiko diterima dan dicatat.

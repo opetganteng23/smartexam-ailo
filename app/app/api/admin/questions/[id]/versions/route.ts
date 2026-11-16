@@ -3,6 +3,7 @@ import { z } from "zod";
 import { isValidObjectId } from "mongoose";
 import { connectDB } from "@/lib/db";
 import { requireRole, handleError, HttpError, CONTENT_ROLES } from "@/lib/rbac";
+import { assertQuestionVisible, assertQuestionWritable } from "@/lib/collections";
 import { zodMessage } from "@/lib/zod-message";
 import { audit } from "@/lib/audit";
 import { Question, QuestionGroup } from "@/models/Question";
@@ -13,16 +14,18 @@ import { registerQuestionType } from "@/lib/question-types";
 
 export const dynamic = "force-dynamic";
 
-async function ensure(id: string) {
+async function ensure(id: string, user: Parameters<typeof assertQuestionVisible>[0], write = false) {
   if (!isValidObjectId(id)) throw new HttpError(404, "Question not found");
   await connectDB();
+  const q = await Question.findById(id).select("collectionId").lean();
+  if (q) await (write ? assertQuestionWritable : assertQuestionVisible)(user, q);
 }
 
 /** Riwayat versi soal (terbaru dulu): siapa, kapan, kolom yang berubah, dan salinan lengkapnya untuk perbandingan. */
 export async function GET(_req: Request, { params }: { params: { id: string } }) {
   try {
-    await requireRole(CONTENT_ROLES);
-    await ensure(params.id);
+    const me = await requireRole(CONTENT_ROLES);
+    await ensure(params.id, me);
     const versions = await QuestionVersion.find({ questionId: params.id }).sort({ version: -1 }).limit(100).lean();
     const actors = new Map((await User.find({ _id: { $in: versions.map((v) => v.actorId).filter((x): x is NonNullable<typeof x> => !!x) } }).select("name email").lean()).map((u) => [String(u._id), u]));
     return NextResponse.json({
@@ -39,7 +42,7 @@ const restoreInput = z.object({ version: z.number().int().min(1) });
 export async function POST(req: Request, { params }: { params: { id: string } }) {
   try {
     const admin = await requireRole(CONTENT_ROLES);
-    await ensure(params.id);
+    await ensure(params.id, admin, true);
     const { version } = restoreInput.parse(await req.json());
     const v = await QuestionVersion.findOne({ questionId: params.id, version }).lean();
     if (!v) throw new HttpError(404, "Version not found");

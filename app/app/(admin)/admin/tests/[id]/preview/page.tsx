@@ -2,6 +2,7 @@
 
 import { SECTION_SHORT } from "@/lib/exam-format";
 import { QuestionStem } from "@/components/QuestionStem";
+import { htmlToText } from "@/lib/html-text";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useApi } from "@/lib/useApi";
@@ -55,7 +56,7 @@ export default function TestPreview({ params }: { params: { id: string } }) {
           <ol className="flex flex-col divide-y divide-line text-sm">
             {s.questions.map((q, i) => {
               const ok = ans[q.id] === q.answerKey;
-              return <li key={q.id} className="py-2"><p><b className={ok ? "text-success" : "text-red-700"}>{i + 1}. {ok ? "Correct" : ans[q.id] === undefined ? "Not answered" : `Wrong (${"ABCDEF"[ans[q.id]]})`}</b> · key {"ABCDEF"[q.answerKey]}</p><p className="text-ink-soft">{q.stem}</p>{q.explanation && <p className="mt-1 text-xs text-ink-soft">{q.explanation}</p>}</li>;
+              return <li key={q.id} className="py-2"><p><b className={ok ? "text-success" : "text-red-700"}>{i + 1}. {ok ? "Correct" : ans[q.id] === undefined ? "Not answered" : `Wrong (${"ABCDEF"[ans[q.id]]})`}</b> · key {"ABCDEF"[q.answerKey]}</p><p className="text-ink-soft">{q.stemFormat === "html" ? htmlToText(q.stem) : q.stem}</p>{q.explanation && <p className="mt-1 text-xs text-ink-soft">{q.explanation}</p>}</li>;
             })}
           </ol>
         </section>

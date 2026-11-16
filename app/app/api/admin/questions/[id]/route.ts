@@ -10,7 +10,7 @@ import { Question } from "@/models/Question";
 import { Test } from "@/models/Test";
 import { AuditLog } from "@/models/AuditLog";
 import { questionSchema } from "@/lib/admin-schemas";
-import { checkQuestionRefs, collectionVisible } from "@/lib/collections";
+import { assertQuestionWritable, checkQuestionRefs, collectionVisible } from "@/lib/collections";
 import { QuestionCollection } from "@/models/Question";
 
 async function find(id: string, user: Parameters<typeof collectionVisible>[0]) {
@@ -38,7 +38,9 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
     const admin = await requireRole(CONTENT_ROLES);
     const q = await find(params.id, admin);
     const body = questionSchema.parse(await req.json());
-    await checkQuestionRefs(admin, body);
+    await assertQuestionWritable(admin, q);
+    const movedFrom = body.collectionId !== undefined && String(q.collectionId ?? "") !== String(body.collectionId ?? "") ? String(q.collectionId ?? "") : null;
+    await checkQuestionRefs(admin, { categoryId: body.categoryId, collectionId: movedFrom !== null ? body.collectionId : undefined });
     if (admin.role === "content_editor") {
       if (!["draft", "review"].includes(q.status)) throw new HttpError(403, "This question is already published or archived. Ask an academic admin to change it.");
       if (!["draft", "review"].includes(body.status)) throw new HttpError(403, "Editors can save drafts and send questions for review. An academic admin publishes them.");
@@ -50,7 +52,7 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
     await q.save();
     await registerQuestionType(q.section, q.type);
     const ver = await recordQuestionVersion(q._id, q.toObject(), admin._id);
-    await AuditLog.create({ actorId: admin._id, action: "question.update", target: String(q._id), meta: { usedInTest: !!used, version: ver?.version, changed: ver?.changed } });
+    await AuditLog.create({ actorId: admin._id, action: "question.update", target: String(q._id), meta: { usedInTest: !!used, version: ver?.version, changed: ver?.changed, ...(movedFrom !== null ? { collectionFrom: movedFrom, collectionTo: String(body.collectionId ?? "") } : {}) } });
     return NextResponse.json({ ok: true, usedInTest: !!used });
   } catch (e) {
     if (e instanceof z.ZodError) return NextResponse.json({ error: zodMessage(e) }, { status: 400 });

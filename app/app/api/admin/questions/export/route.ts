@@ -1,6 +1,8 @@
 import { connectDB } from "@/lib/db";
 import { requireRole, handleError, CONTENT_ROLES } from "@/lib/rbac";
 import { Question } from "@/models/Question";
+import { questionVisibleFilter } from "@/lib/collections";
+import { htmlToText } from "@/lib/html-text";
 
 export const dynamic = "force-dynamic";
 
@@ -12,16 +14,17 @@ const esc = (v: unknown) => {
 /** Ekspor soal pilihan ganda ke CSV dengan kolom yang sama dengan templat impor (bisa diimpor kembali). Jenis lain tidak ikut. Filter: section, type, status, difficulty. */
 export async function GET(req: Request) {
   try {
-    await requireRole(CONTENT_ROLES);
+    const me = await requireRole(CONTENT_ROLES);
     await connectDB();
     const sp = new URL(req.url).searchParams;
     const filter: Record<string, unknown> = {};
     for (const k of ["section", "status", "difficulty"]) if (sp.get(k)) filter[k] = sp.get(k);
     if (sp.get("type")) filter.type = { $regex: "^" + sp.get("type")!.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "$", $options: "i" };
-    const qs = await Question.find(filter).sort({ section: 1, type: 1, createdAt: 1 }).limit(5000).lean();
+    const vis = await questionVisibleFilter(me);
+    const qs = await Question.find(Object.keys(vis).length ? { $and: [filter, vis] } : filter).sort({ section: 1, type: 1, createdAt: 1 }).limit(5000).lean();
     const head = ["section", "type", "stem", "A", "B", "C", "D", "E", "F", "answer", "explanation", "difficulty", "tags", "status"];
     const rows = qs.filter((q) => (q.kind ?? "mcq") === "mcq").map((q) => [
-      q.section, q.type, q.stem, ...Array.from({ length: 6 }, (_, i) => q.options[i] ?? ""), "ABCDEF"[q.answerKey ?? -1] ?? "", q.explanation ?? "", q.difficulty,
+      q.section, q.type, q.stemFormat === "html" ? htmlToText(q.stem) : q.stem, ...Array.from({ length: 6 }, (_, i) => q.options[i] ?? ""), "ABCDEF"[q.answerKey ?? -1] ?? "", q.explanation ?? "", q.difficulty,
       (q.tags ?? []).map((t) => `${t.skill}:${t.topic}`).join("; "), q.status,
     ]);
     const csv = [head, ...rows].map((r) => r.map(esc).join(",")).join("\r\n");

@@ -6,6 +6,7 @@ import { FILE_REF, type MoodleItem } from "./import-moodle";
 import { Question } from "@/models/Question";
 import { Asset } from "@/models/Asset";
 import { slugTag } from "./import-questions";
+import { questionVisibleFilter } from "./collections";
 
 export const IMAGE_MAX_BYTES = 1.5 * 1024 * 1024;
 
@@ -19,7 +20,7 @@ export function sniffImage(b: Buffer): "image/jpeg" | "image/png" | "image/gif" 
 }
 
 /** Simpan gambar dari berkas impor sebagai Asset (dipakai ulang bila sidik sama). Mengembalikan peta nama berkas ke URL, dan pesan untuk berkas ditolak. */
-export async function storeImportImages(files: { name: string; base64: string }[], ownerId?: import("mongoose").Types.ObjectId) {
+export async function storeImportImages(files: { name: string; base64: string }[], ownerId?: import("mongoose").Types.ObjectId, dry = false) {
   const urls = new Map<string, string>(), rejected: string[] = [];
   for (const f of files) {
     if (urls.has(f.name)) continue;
@@ -27,6 +28,7 @@ export async function storeImportImages(files: { name: string; base64: string }[
     const mime = sniffImage(buf);
     if (!mime) { rejected.push(`${f.name}: not a JPEG, PNG, GIF, or WebP image`); continue; }
     if (buf.length > IMAGE_MAX_BYTES) { rejected.push(`${f.name}: larger than 1.5 MB`); continue; }
+    if (dry) { urls.set(f.name, "/api/assets/" + "0".repeat(24)); continue; } // pratinjau: hanya memeriksa, tidak menyimpan
     const sha = createHash("sha256").update(buf).digest("hex");
     const a = (await Asset.findOne({ sha256: sha }).select("_id").lean()) ?? (await Asset.create({ ownerId, mime, size: buf.length, dataBase64: buf.toString("base64"), sha256: sha, name: f.name.slice(0, 120) }));
     urls.set(f.name, `/api/assets/${a._id}`);
@@ -62,17 +64,18 @@ export function moodleToQuestions(items: MoodleItem[], urls: Map<string, string>
 }
 
 /** Buang soal yang isinya sudah ada (di berkas ini atau di bank). Soal lama tanpa sidik dicocokkan lewat teks soal yang sama. */
-export async function dropDuplicates(qs: ParsedQuestion[]) {
+export async function dropDuplicates(qs: ParsedQuestion[], user: Parameters<typeof questionVisibleFilter>[0]) {
   const hashes = qs.map((q) => questionHash(q.data));
-  const seen = new Set<string>(await existingHashes(qs, hashes));
+  const seen = new Set<string>(await existingHashes(qs, hashes, await questionVisibleFilter(user)));
   const fresh: ParsedQuestion[] = [], dups: ImportFailure[] = [];
   qs.forEach((q, i) => { if (seen.has(hashes[i])) dups.push({ row: q.label, reason: "Duplicate: the same question already exists" }); else { seen.add(hashes[i]); fresh.push(q); } });
   return { fresh, dups };
 }
 
-async function existingHashes(qs: ParsedQuestion[], hashes: string[]) {
-  const have = new Set((await Question.find({ contentHash: { $in: hashes } }).select("contentHash").lean()).map((q) => q.contentHash as string));
-  const legacy = await Question.find({ contentHash: { $exists: false }, stem: { $in: qs.map((q) => q.data.stem) } }).select("kind stem options answerKey key").lean();
+async function existingHashes(qs: ParsedQuestion[], hashes: string[], vis: Record<string, unknown>) {
+  const scoped = (f: Record<string, unknown>) => (Object.keys(vis).length ? { $and: [f, vis] } : f);
+  const have = new Set((await Question.find(scoped({ contentHash: { $in: hashes } })).select("contentHash").lean()).map((q) => q.contentHash as string));
+  const legacy = await Question.find(scoped({ contentHash: { $exists: false }, stem: { $in: qs.map((q) => q.data.stem) } })).select("kind stem options answerKey key").lean();
   for (const q of legacy) have.add(questionHash(q));
   return have;
 }

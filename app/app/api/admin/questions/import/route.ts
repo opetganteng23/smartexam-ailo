@@ -76,7 +76,7 @@ export async function POST(req: Request) {
       total = parsed.total;
       skipped.push(...parsed.skipped.map((s) => ({ name: s.name, type: s.type, reason: s.reason })));
       const files = parsed.items.flatMap((i) => i.files);
-      const stored = dry ? { urls: new Map(files.map((f) => [f.name, "/api/assets/" + "0".repeat(24)])), rejected: [] as string[] } : await storeImportImages(files, admin._id);
+      const stored = await storeImportImages(files, admin._id, dry);
       stored.rejected.forEach((r) => failed.push({ row: "image", reason: r }));
       const m = moodleToQuestions(parsed.items, stored.urls, { section: sectionRaw || "umum", categoryId, collectionId, status, defaultSkill: slugTag(cat?.name ?? "") || "umum" });
       ok = m.ok; failed.push(...m.failed);
@@ -124,7 +124,7 @@ export async function POST(req: Request) {
       ok = good.map((g) => ({ label: `row ${g.row}`, data: g.data }));
     }
 
-    const { fresh, dups } = await dropDuplicates(ok);
+    const { fresh, dups } = await dropDuplicates(ok, admin);
     if (!dry) {
       await createQuestions(fresh, admin.role === "content_editor");
       await audit(admin._id, "questions.import", file.name, { created: fresh.length, failed: failed.length, duplicates: dups.length, skipped: skipped.length, collectionId });

@@ -5,6 +5,7 @@ import { requireRole, handleError, CONTENT_ROLES } from "@/lib/rbac";
 import { zodMessage } from "@/lib/zod-message";
 import { Question } from "@/models/Question";
 import { questionVisibleFilter } from "@/lib/collections";
+import { htmlToText } from "@/lib/html-text";
 import { SECTION_KEY_RE } from "@/lib/exam-format";
 
 const input = z.object({
@@ -32,7 +33,8 @@ export async function POST(req: Request) {
     if (b.difficulties?.length) filter.difficulty = { $in: b.difficulties };
     if (b.topics?.length) filter["tags.topic"] = { $in: b.topics.map((t) => new RegExp(`^${esc(t)}$`, "i")) };
     const vis = await questionVisibleFilter(me);
-    const pool = await Question.find(Object.keys(vis).length ? { $and: [filter, vis] } : filter).select("groupId type difficulty stem").lean();
+    const pool = await Question.find(Object.keys(vis).length ? { $and: [filter, vis] } : filter).select("groupId type difficulty stem stemFormat").lean();
+    for (const q of pool) if (q.stemFormat === "html") q.stem = htmlToText(q.stem).slice(0, 300);
     // Kelompokkan: tiap grup satu blok, soal tanpa grup masing-masing satu blok; lalu acak blok.
     const blocks = new Map<string, typeof pool>();
     for (const q of pool) { const k = q.groupId ? `g:${q.groupId}` : `q:${q._id}`; (blocks.get(k) ?? blocks.set(k, []).get(k)!).push(q); }
