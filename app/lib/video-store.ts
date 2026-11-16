@@ -43,7 +43,7 @@ export const embedSrc = (v: { provider?: string | null; externalId?: string | nu
 // ---- Tautan bertanda tangan untuk materi HTML (iframe tersandbox tanpa cookie) ----
 const key = () => new TextEncoder().encode(process.env.JWT_SECRET);
 export async function signVideoToken(videoId: string, userId: string) {
-  return new SignJWT({ vid: videoId, p: "video" }).setSubject(userId).setProtectedHeader({ alg: "HS256" }).setExpirationTime("3h").sign(key());
+  return new SignJWT({ vid: videoId, p: "video" }).setSubject(userId).setProtectedHeader({ alg: "HS256" }).setExpirationTime("1h").sign(key());
 }
 export async function verifyVideoToken(token: string | null | undefined, videoId: string) {
   if (!token) return null;
@@ -55,7 +55,7 @@ export async function verifyVideoToken(token: string | null | undefined, videoId
 
 /**
  * Materi HTML tampil di iframe tersandbox tanpa cookie, jadi klip unggahan diminta dengan tautan bertanda tangan
- * (terikat ke satu klip dan satu pengguna, berlaku 3 jam). Dipanggil hanya setelah akses ke materi lolos.
+ * (terikat ke satu klip dan satu pengguna, berlaku 1 jam). Dipanggil hanya setelah akses ke materi lolos.
  */
 export async function injectVideoTokens(html: string, userId: string) {
   const ids = [...new Set([...html.matchAll(/\/api\/video\/([0-9a-f]{24})(?![0-9a-f])/g)].map((m) => m[1]))];

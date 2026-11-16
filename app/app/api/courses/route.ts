@@ -7,6 +7,7 @@ import { requireRole, handleError } from "@/lib/rbac";
 import { Course, CourseModule, CourseProgress, Unit, UnitProgress } from "@/models/Course";
 import { Attempt, Test } from "@/models/Test";
 import { generalTestStates } from "@/lib/course-tests";
+import { Category } from "@/models/Category";
 import { visibleTestFilter } from "@/lib/test-access";
 import { participantCourseFilter, trackOf } from "@/lib/course-scope";
 import { featuresFor } from "@/lib/features";
@@ -46,6 +47,7 @@ export async function GET() {
     // Tes umum yang berdiri sendiri di course (kuis harian, pre/post-test, UTS): satu query untuk semua course.
     const cTests = await Test.find({ kind: "general", courseId: { $in: courses.map((c) => c._id) }, ...visibleTestFilter(me) }).sort({ createdAt: 1 }).lean();
     const tState = await generalTestStates(me, cTests);
+    const catNames = new Map((await Category.find({ _id: { $in: courses.map((c) => c.categoryId).filter((x): x is NonNullable<typeof x> => !!x) } }).select("name").lean()).map((c) => [String(c._id), c.name]));
     const started = new Map<string, Date>();
     for (const p of await UnitProgress.find({ userId: me._id, courseId: { $in: courses.map((c) => c._id) } }).select("courseId createdAt").sort({ createdAt: 1 }).lean()) {
       const k = String(p.courseId);
@@ -70,7 +72,8 @@ export async function GET() {
         const allDone = us.length > 0 && us.every((u) => u.status === "completed");
         const sectionTest = st ? { name: st.name, questions: st.sections.reduce((n, s) => n + s.questionIds.length, 0), best: cp?.sectionTestBest ?? null, passed: !!cp?.sectionTestPassed, attempts: cp?.sectionTestAttempts ?? 0, required: !!c.requireSectionTest, state: lock?.locked ? "locked" : run ? "in_progress" : allDone || preview ? "available" : "locked", inProgressAttemptId: run ? String(run._id) : null } : null;
         return {
-          id: String(c._id), title: c.title, description: c.description ?? "", level: preview ? lvl.get(String(c.levelId))?.name ?? null : null, part: c.part ?? null, track: trackOf(c), categoryId: c.categoryId ? String(c.categoryId) : null, sectionTest, previewOnly: !!c.previewMode, inactive: !c.active, cover: c.coverAssetId ? `/api/assets/${c.coverAssetId}` : null,
+          id: String(c._id), title: c.title, description: c.description ?? "", level: preview ? lvl.get(String(c.levelId))?.name ?? null : null, part: c.part ?? null, track: trackOf(c), categoryId: c.categoryId ? String(c.categoryId) : null, category: c.categoryId ? catNames.get(String(c.categoryId)) ?? null : null,
+          whatYouLearn: c.whatYouLearn ?? [], requirements: c.requirements ?? [], targetAudience: c.targetAudience ?? "", tags: c.tags ?? [], previewVideo: c.previewVideoUrl ?? null, sectionTest, previewOnly: !!c.previewMode, inactive: !c.active, cover: c.coverAssetId ? `/api/assets/${c.coverAssetId}` : null,
           locked: !!lock?.locked, missing: lock?.missing ?? [],
           modules: mods.filter((m) => String(m.courseId) === String(c._id)).map((m) => ({ id: String(m._id), title: m.title, description: m.description ?? "" })),
           units: us, completed: us.filter((u) => u.status === "completed").length,

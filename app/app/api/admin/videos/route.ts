@@ -58,11 +58,14 @@ export async function POST(req: Request) {
     const up = bucket.openUploadStream(title.slice(0, 120), { metadata: { ownerId: String(admin._id) } });
     const hash = createHash("sha256");
     let total = 0, head = Buffer.alloc(0);
+    let upErr: Error | null = null;
+    up.on("error", (e: Error) => { upErr = e; }); // galat tulis GridFS tidak boleh menjadi uncaught exception
     const reader = req.body.getReader();
     try {
       for (;;) {
         const { done, value } = await reader.read();
         if (done) break;
+        if (upErr) throw upErr;
         total += value.length;
         if (total > limit) throw new HttpError(413, `The video is larger than ${Math.round(limit / 1048576)} MB`);
         if (head.length < 12) { head = Buffer.concat([head, Buffer.from(value.subarray(0, 12 - head.length))]); if (head.length >= 12 && !isMp4(head)) throw new HttpError(415, "This is not an MP4 video file"); }
@@ -71,13 +74,20 @@ export async function POST(req: Request) {
       }
       if (!head.length) throw new HttpError(400, "The video file is empty");
       if (!isMp4(head)) throw new HttpError(415, "This is not an MP4 video file");
-      await new Promise<void>((res, rej) => up.end((err?: Error) => (err ? rej(err) : res())));
+      await new Promise<void>((res, rej) => up.end((err?: Error) => (err ?? upErr ? rej(err ?? upErr) : res())));
     } catch (e) {
       await up.abort().catch(() => {}); // buang potongan yang sudah tertulis
       throw e;
     }
-    const v = await Video.create({ title, kind: "upload", gridFsId: up.id, size: total, sha256: hash.digest("hex"), ownerId: admin._id });
-    await audit(admin._id, "video.upload", String(v._id), { size: total });
+    let v;
+    try {
+      v = await Video.create({ title, kind: "upload", gridFsId: up.id, size: total, sha256: hash.digest("hex"), ownerId: admin._id });
+      await audit(admin._id, "video.upload", String(v._id), { size: total });
+    } catch (e) {
+      await bucket.delete(up.id).catch(() => {}); // jangan tinggalkan berkas yatim bila metadata gagal tersimpan
+      if (v) await Video.deleteOne({ _id: v._id }).catch(() => {});
+      throw e;
+    }
     return NextResponse.json({ id: String(v._id) }, { status: 201 });
   } catch (e) {
     if (e instanceof z.ZodError) return NextResponse.json({ error: zodMessage(e) }, { status: 400 });

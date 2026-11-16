@@ -13,6 +13,12 @@ const courseSchema = new Schema(
     classIds: [{ type: Schema.Types.ObjectId, ref: "ClassGroup" }], // kosong = semua kelas di institusi itu
     accessMode: { type: String, enum: ["assigned", "paid"] }, // kosong dibaca "assigned"; "paid" baru disiapkan di data
     priceIdr: { type: Number, min: 0 },
+    // Katalog course (halaman detail): apa yang dipelajari, prasyarat pengetahuan, untuk siapa, label, dan video pengantar (embed).
+    whatYouLearn: [String],
+    requirements: [String],
+    targetAudience: String,
+    tags: [String],
+    previewVideoUrl: String, // URL embed YouTube-nocookie atau Vimeo yang sudah dinormalkan (lib/video-store parseEmbed)
     title: { type: String, required: true },
     description: String,
     order: { type: Number, default: 0 },

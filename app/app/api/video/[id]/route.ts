@@ -4,7 +4,7 @@ import { RateLimiterMemory } from "rate-limiter-flexible";
 import { connectDB } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
 import { Video } from "@/models/Video";
-import { videoBucket } from "@/lib/video-store";
+import { videoBucket, verifyVideoToken } from "@/lib/video-store";
 import { canWatchVideo } from "@/lib/video-access";
 
 export const dynamic = "force-dynamic";
@@ -21,7 +21,10 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
   if (!isValidObjectId(params.id)) return notFound();
   const token = new URL(req.url).searchParams.get("t");
   const user = await getCurrentUser();
-  const who = user ? String(user._id) : `t:${(token ?? "").slice(-16)}`;
+  // Tamu hanya dilayani dengan tautan sah (tanda tangan diperiksa dulu, murah), dan dibatasi per pemilik tautan, bukan per teks token.
+  const sub = user ? null : await verifyVideoToken(token, params.id);
+  if (!user && !sub) return notFound();
+  const who = user ? String(user._id) : `t:${sub}`;
   try { await limiter.consume(who); } catch { return new Response("Too many requests", { status: 429, headers: { "Retry-After": "30" } }); }
 
   await connectDB();
@@ -47,10 +50,12 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
     partial = true;
   }
 
-  const stream = (await videoBucket()).openDownloadStream(v.gridFsId, { start, end: end + 1 });
+  const bucket = await videoBucket();
+  if (!(await bucket.find({ _id: v.gridFsId }).limit(1).toArray()).length) return notFound(); // metadata ada tetapi berkas hilang
+  const stream = bucket.openDownloadStream(v.gridFsId, { start, end: end + 1 });
   const headers: Record<string, string> = {
     "Content-Type": "video/mp4", "Accept-Ranges": "bytes", "Content-Length": String(end - start + 1),
-    "X-Content-Type-Options": "nosniff", "Cache-Control": "private, max-age=300", "Content-Disposition": "inline",
+    "X-Content-Type-Options": "nosniff", "Cache-Control": "private, max-age=300", "Content-Disposition": "inline", "Referrer-Policy": "no-referrer",
     ...(partial ? { "Content-Range": `bytes ${start}-${end}/${size}` } : {}),
   };
   return new Response(Readable.toWeb(stream) as unknown as ReadableStream, { status: partial ? 206 : 200, headers });

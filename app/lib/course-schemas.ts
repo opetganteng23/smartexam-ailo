@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { SECTION_KEY_RE } from "@/lib/exam-format";
+import { parseEmbed, embedSrc } from "@/lib/video-store";
 
 const oid = z.string().regex(/^[0-9a-f]{24}$/);
 
@@ -11,6 +12,11 @@ export const courseInput = z.object({
   classIds: z.array(oid).max(500).default([]),
   accessMode: z.enum(["assigned", "paid"]).default("assigned"),
   priceIdr: z.number().int().min(0).max(1_000_000_000).nullable().optional(),
+  whatYouLearn: z.array(z.string().trim().min(1).max(160)).max(8).default([]),
+  requirements: z.array(z.string().trim().min(1).max(160)).max(8).default([]),
+  targetAudience: z.string().trim().max(300).optional(),
+  tags: z.array(z.string().trim().min(1).max(30)).max(8).default([]),
+  previewVideoUrl: z.string().trim().max(300).nullable().optional(),
   title: z.string().trim().min(1).max(120),
   description: z.string().trim().max(1000).optional(),
   order: z.number().int().min(0).max(1000).default(0),
@@ -24,6 +30,8 @@ export const courseInput = z.object({
   sectionTestId: oid.nullable().optional(),
   requireSectionTest: z.boolean().default(false),
 }).refine((c) => c.track === "general" || !!c.levelId, { message: "Choose a level for a TOEFL ITP course", path: ["levelId"] })
+  .refine((c) => !c.previewVideoUrl || !!parseEmbed(c.previewVideoUrl), { message: "The preview video must be a YouTube or Vimeo link", path: ["previewVideoUrl"] })
+  .transform((c) => { const e = c.previewVideoUrl ? parseEmbed(c.previewVideoUrl) : null; return { ...c, previewVideoUrl: e ? embedSrc(e) : null, tags: [...new Set(c.tags.map((t) => t.toLowerCase()))] }; })
   .transform((c) => (c.track === "general" ? { ...c, levelId: null } : c)); // course umum tidak terikat level (jaga query remedial dan progres berbasis level)
 
 export const moduleInput = z.object({

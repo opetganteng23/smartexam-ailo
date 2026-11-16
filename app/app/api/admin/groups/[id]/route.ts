@@ -32,7 +32,7 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
     const g = await find(params.id);
     const b = groupSchema.parse(await req.json());
     if (b.videoId && !(await Video.exists({ _id: b.videoId }))) return NextResponse.json({ error: "Video not found" }, { status: 400 });
-    g.set({ ...b, audioId: b.audioId ?? undefined, videoId: b.videoId ?? undefined, passageHtml: b.passageHtml ? sanitizePassage(b.passageHtml) : undefined });
+    g.set({ ...b, audioId: b.audioId ?? undefined, ...(b.videoId !== undefined ? { videoId: b.videoId ?? undefined } : {}), passageHtml: b.passageHtml ? sanitizePassage(b.passageHtml) : undefined });
     await g.save();
     return NextResponse.json({ ok: true });
   } catch (e) {

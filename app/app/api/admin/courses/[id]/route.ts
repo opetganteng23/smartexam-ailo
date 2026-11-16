@@ -19,7 +19,7 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
     if (raw && typeof raw === "object" && raw.track === undefined) raw.track = (await Course.findById(params.id).select("track").lean())?.track ?? "itp";
     const b = courseInput.parse(raw);
     await checkCourseRefs(b, params.id);
-    const { coverAssetId, part, sectionTestId, levelId, categoryId, priceIdr, ...rest } = b;
+    const { coverAssetId, part, sectionTestId, levelId, categoryId, priceIdr, previewVideoUrl, targetAudience, ...rest } = b;
     const unset: Record<string, 1> = {};
     if (!coverAssetId) unset.coverAssetId = 1;
     if (!part) unset.part = 1;
@@ -27,7 +27,9 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
     if (!levelId) unset.levelId = 1;
     if (!categoryId) unset.categoryId = 1;
     if (priceIdr == null) unset.priceIdr = 1;
-    const r = await Course.updateOne({ _id: params.id }, { ...rest, ...(levelId ? { levelId } : {}), ...(categoryId ? { categoryId } : {}), ...(priceIdr != null ? { priceIdr } : {}), ...(coverAssetId ? { coverAssetId } : {}), ...(part ? { part } : {}), ...(sectionTestId ? { sectionTestId } : {}), ...(Object.keys(unset).length ? { $unset: unset } : {}) });
+    if (!previewVideoUrl) unset.previewVideoUrl = 1;
+    if (!targetAudience) unset.targetAudience = 1;
+    const r = await Course.updateOne({ _id: params.id }, { ...rest, ...(levelId ? { levelId } : {}), ...(categoryId ? { categoryId } : {}), ...(priceIdr != null ? { priceIdr } : {}), ...(previewVideoUrl ? { previewVideoUrl } : {}), ...(targetAudience ? { targetAudience } : {}), ...(coverAssetId ? { coverAssetId } : {}), ...(part ? { part } : {}), ...(sectionTestId ? { sectionTestId } : {}), ...(Object.keys(unset).length ? { $unset: unset } : {}) });
     if (!r.matchedCount) throw new HttpError(404, "Course not found");
     await audit(admin._id, b.archived ? "course.archive" : "course.update", params.id);
     return NextResponse.json({ ok: true });

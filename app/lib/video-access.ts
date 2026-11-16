@@ -15,7 +15,9 @@ type U = { _id: Types.ObjectId; role: string; institutionId?: Types.ObjectId | n
  * `token`: tautan bertanda tangan untuk materi HTML (iframe tersandbox tanpa cookie), terikat ke satu klip dan satu pengguna.
  */
 export async function canWatchVideo(user: U | null, videoId: string, token?: string | null): Promise<boolean> {
-  if (token && (await verifyVideoToken(token, videoId))) return true; // tautan bertanda tangan: pemiliknya sudah lolos pemeriksaan akses saat tautan dibuat
+  // Tautan bertanda tangan: pemiliknya sudah lolos pemeriksaan akses saat tautan dibuat. Pengguna yang masuk hanya boleh memakai tautan miliknya sendiri.
+  const sub = token ? await verifyVideoToken(token, videoId) : null;
+  if (sub && (!user || String(user._id) === sub)) return true;
   if (!user) return false;
   if (["admin", "academic_admin", "content_editor"].includes(user.role)) return true;
   if (user.role !== "participant" && user.role !== "inst_admin" && user.role !== "coach") return false;
