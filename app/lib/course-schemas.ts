@@ -23,7 +23,8 @@ export const courseInput = z.object({
   part: z.string().regex(SECTION_KEY_RE).nullable().optional(),
   sectionTestId: oid.nullable().optional(),
   requireSectionTest: z.boolean().default(false),
-}).refine((c) => c.track === "general" || !!c.levelId, { message: "Choose a level for a TOEFL ITP course", path: ["levelId"] });
+}).refine((c) => c.track === "general" || !!c.levelId, { message: "Choose a level for a TOEFL ITP course", path: ["levelId"] })
+  .transform((c) => (c.track === "general" ? { ...c, levelId: null } : c)); // course umum tidak terikat level (jaga query remedial dan progres berbasis level)
 
 export const moduleInput = z.object({
   courseId: oid,

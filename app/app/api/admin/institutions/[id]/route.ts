@@ -9,6 +9,7 @@ import { institutionInput } from "@/lib/admin-schemas";
 import { Institution } from "@/models/Institution";
 import { User } from "@/models/User";
 import { Enrollment } from "@/models/Access";
+import { Course } from "@/models/Course";
 import { releaseOrgHeld, holdInProgress } from "@/lib/attempt-release";
 
 export async function PATCH(req: Request, { params }: { params: { id: string } }) {
@@ -49,6 +50,7 @@ export async function DELETE(_req: Request, { params }: { params: { id: string }
     await connectDB();
     if (await User.exists({ institutionId: params.id })) throw new HttpError(409, "This institution already has members. Deactivate it instead.");
     await Institution.deleteOne({ _id: params.id });
+    await Course.updateMany({ institutionIds: params.id }, { $pull: { institutionIds: params.id } }); // hindari course tak terlihat karena rujukan mati
     await audit(admin._id, "institution.delete", params.id);
     return NextResponse.json({ ok: true });
   } catch (e) {

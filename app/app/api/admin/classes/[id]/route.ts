@@ -9,7 +9,7 @@ import { classInput } from "@/lib/class-schemas";
 import { memberCounts } from "@/lib/clustering";
 import { ClassGroup, ClassMember } from "@/models/Cluster";
 import { User } from "@/models/User";
-import { LearningEvent } from "@/models/Course";
+import { Course, LearningEvent } from "@/models/Course";
 
 async function find(id: string) {
   if (!isValidObjectId(id)) throw new HttpError(404, "Class not found");
@@ -71,6 +71,7 @@ export async function DELETE(_req: Request, { params }: { params: { id: string }
     if (await ClassMember.exists({ classId: c._id, active: true })) throw new HttpError(409, "This class still has students. Move them first, or deactivate the class.");
     if (await ClassMember.exists({ classId: c._id })) { c.active = false; await c.save(); await audit(admin._id, "class.deactivate", params.id); return NextResponse.json({ ok: true, deactivated: true }); }
     await c.deleteOne();
+    await Course.updateMany({ classIds: c._id }, { $pull: { classIds: c._id } }); // jangan tinggalkan rujukan kelas mati: course akan tak terlihat siapa pun
     await audit(admin._id, "class.delete", params.id);
     return NextResponse.json({ ok: true });
   } catch (e) {

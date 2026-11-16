@@ -13,8 +13,11 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
   try {
     const admin = await requireRole(ACADEMIC_ROLES);
     if (!isValidObjectId(params.id)) throw new HttpError(404, "Course not found");
-    const b = courseInput.parse(await req.json());
+    const raw = await req.json();
     await connectDB();
+    // Klien yang tidak mengirim track tidak boleh mengubah course umum menjadi ITP secara diam-diam.
+    if (raw && typeof raw === "object" && raw.track === undefined) raw.track = (await Course.findById(params.id).select("track").lean())?.track ?? "itp";
+    const b = courseInput.parse(raw);
     await checkCourseRefs(b, params.id);
     const { coverAssetId, part, sectionTestId, levelId, categoryId, priceIdr, ...rest } = b;
     const unset: Record<string, 1> = {};

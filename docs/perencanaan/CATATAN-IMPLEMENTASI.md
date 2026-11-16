@@ -30,3 +30,15 @@ Diisi per tahap.
 | Validasi zod ketat (tahap 1) | `tests/umum-kategori.test.ts` (ObjectId, operator `$`, enum, batas daftar) |
 | CSRF | Pengecekan Origin global di `middleware.ts` berlaku untuk semua mutasi baru; tidak ada rute baru di luar `/api/` |
 | Audit log (tahap 1) | `category.create/update/delete` dan `course.*` memanggil `audit()` |
+
+## Tinjauan independen tahap 1
+
+Dua subagent (keamanan, QA/regresi) tidak menemukan celah berat atau regresi ITP. Diperbaiki (tes: `tests/umum-review1.test.ts`):
+- Hapus kelas atau institusi kini mencabut id-nya dari `Course.classIds` / `institutionIds` (sebelumnya course jadi tak terlihat siapa pun).
+- Course umum selalu disimpan tanpa `levelId` (skema); PATCH tanpa `track` tidak lagi mengubah course umum menjadi ITP.
+
+Dicatat, belum dikerjakan: judul course prasyarat dari cakupan lain bisa tampil pada pesan "Finish X first" (konfigurasi admin); heartbeat `/api/events` menerima `refId` sembarang (sudah ada sebelumnya, hanya mengotori analitik); rute aset gambar belum diperiksa terhadap `restrictedMaterialIds`; `restrictedMaterialIds` memuat semua unit course umum per permintaan (aman untuk skala kecil); tes rute untuk jalur `itpBlocked` dan `ClassMember` nonaktif belum ada.
+
+## Terhalang
+
+`npm install --save-exact fast-xml-parser@5.12.1` ditolak oleh pengklasifikasi izin; U2.2 (impor Moodle XML) menunggu izin dari pemilik. Tahap 2 lainnya belum dimulai.
