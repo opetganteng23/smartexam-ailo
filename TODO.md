@@ -83,11 +83,11 @@ Legenda sama: ✅ selesai dan teruji · 🔄 sebagian · ⬜ belum · ⏭️ dit
 - 🔄 U5.6 Empty state dengan arahan dan teks bantuan; QA visual desktop 1280 dan ponsel 390; EN/ID — empty state dan teks bantuan ada; belum diuji visual (tidak ada browser); layar baru memakai teks Inggris (belum diterjemahkan ke ID)
 
 ### Tahap 6 - Pengayaan
-- ⬜ U6.1 Assignment (unggah berkas atau berbasis soal, tenggat, batas percobaan) dengan penilaian
-- ⬜ U6.2 Diskusi dan komentar per lesson (moderasi, sanitasi)
-- ⬜ U6.3 Sertifikat penyelesaian course (bukan skala ITP)
-- ⬜ U6.4 Template course (pengganti scaffold TOEFL) dan template ITP sebagai preset
-- ⬜ U6.5 `accessMode: paid` hanya disiapkan di data (`priceIdr`); pembayaran tidak dibangun
+- 🔄 U6.1 Assignment (unggah berkas atau berbasis soal, tenggat, batas percobaan) dengan penilaian — API, keamanan unggahan, dan penilaian teruji (`umum-tugas.test.ts`); halaman peserta dan admin belum diuji visual
+- 🔄 U6.2 Diskusi dan komentar per lesson (moderasi, sanitasi) — API, sanitasi, lingkup institusi, dan moderasi teruji; tampilan belum diuji visual
+- ✅ U6.3 Sertifikat penyelesaian course (bukan skala ITP)
+- 🔄 U6.4 Template course (pengganti scaffold TOEFL) dan template ITP sebagai preset — API teruji; dialog belum diuji visual
+- ✅ U6.5 `accessMode: paid` hanya disiapkan di data (`priceIdr`); pembayaran tidak dibangun
 
 ### Tahap 7 - Isolasi paket ITP dan sisa
 - ⬜ U7.1 Scaffold TOEFL menjadi preset; paket ITP di balik saklar

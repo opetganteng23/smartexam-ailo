@@ -8,6 +8,7 @@ import { useApi } from "@/lib/useApi";
 import { Loading, ErrorNote, Empty } from "@/components/Charts";
 import { PART_LABEL } from "@/lib/exam-format";
 import { CourseCard, type CourseItem } from "@/components/CourseCard";
+import { CourseAssignments } from "@/components/CourseAssignments";
 
 const PURPOSE_LABEL: Record<string, string> = { daily: "Daily quiz", pretest: "Pre-test", posttest: "Post-test", midterm: "Midterm", final: "Final exam" };
 type Course = CourseItem;
@@ -101,6 +102,7 @@ export default function Belajar() {
                   ))}
                 </div>
               )}
+              {current.track === "general" && !current.locked && <CourseAssignments courseId={current.id} />}
               {current.sectionTest && (
                 <div className="card mt-4" aria-label="Section test">
                   <div className="flex flex-wrap items-start justify-between gap-3">

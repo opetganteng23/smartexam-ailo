@@ -35,6 +35,7 @@ export default function Kursus() {
   const [mod, setMod] = useState<(Partial<Mod> & { courseId: string }) | null>(null);
   const [showArchived, setShowArchived] = useState(false);
   const [ws, setWs] = useState<Workspace>("general");
+  const [tplDlg, setTplDlg] = useState(false);
   useEffect(() => { const f = () => setWs(readWorkspace()); f(); window.addEventListener("workspace-change", f); return () => window.removeEventListener("workspace-change", f); }, []);
   const [err, setErr] = useState("");
   const run = async (fn: () => Promise<unknown>) => { setErr(""); try { await fn(); reload(); } catch (e) { setErr((e as Error).message); } };
@@ -82,6 +83,7 @@ export default function Kursus() {
         <div><h1 className="page-title">Courses & Units</h1><p className="text-sm text-ink-soft">Build Level, Course, Module, then Unit (lesson) with its required materials (sub-lessons). A unit is complete when all required materials are done and its quiz is passed (pass mark in System Parameters).</p></div>
         <div className="flex items-center gap-4"><label className="flex min-h-[44px] items-center gap-2 text-sm"><input type="checkbox" className="h-5 w-5" checked={showArchived} onChange={(e) => setShowArchived(e.target.checked)} />Show archived</label>
         <Link href="/learn" className="btn-outline">Preview as learner</Link>
+        <button className="btn-outline" onClick={() => setTplDlg(true)}>New from template</button>
         <button className="btn-solid" onClick={() => setCourse(ws === "itp" ? { track: "itp", active: true, previewMode: true, order: 0, levelId: data?.levels[0]?.id } : { track: "general", active: true, previewMode: true, order: 0 })}>+ New course</button></div>
       </div>
       <ErrorNote text={error || err} />
@@ -114,6 +116,7 @@ export default function Kursus() {
       <RemedialMapSection />
 
       {mod && <ModuleEditor init={mod} onClose={() => setMod(null)} onSaved={() => { setMod(null); reload(); }} />}
+      {tplDlg && data && <TemplateDialog ws={ws} data={data} onClose={() => setTplDlg(false)} onDone={(m) => { setTplDlg(false); toast(m); reload(); }} />}
       {course && data && <CourseEditor init={course} data={data} levels={data.levels} sectionTests={sectionTests} others={data.courses.filter((x) => x.id !== course.id)} onClose={() => setCourse(null)} onSaved={() => { setCourse(null); reload(); }} />}
       {unit && data && <UnitEditor init={unit} data={data} onClose={() => setUnit(null)} onSaved={() => { setUnit(null); reload(); }} />}
     </div>
@@ -325,6 +328,47 @@ function UnitEditor({ init, data, onClose, onSaved }: { init: Partial<Unit> & { 
         <label className="flex min-h-[44px] items-center gap-2 text-sm"><input type="checkbox" className="h-5 w-5" checked={v.active} onChange={(e) => setV({ ...v, active: e.target.checked })} />Active</label>
         <ErrorNote text={err} />
         <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end"><button className="btn-outline" onClick={onClose}>Cancel</button><button className="btn-solid" disabled={!v.title.trim()} onClick={save}>Save</button></div>
+      </div>
+    </Modal>
+  );
+}
+
+function TemplateDialog({ ws, data, onClose, onDone }: { ws: Workspace; data: Data; onClose: () => void; onDone: (msg: string) => void }) {
+  const tpl = useApi<{ templates: { key: string; name: string; description: string; track: "general" | "itp"; modules: { title: string; units: number }[] }[] }>("/api/admin/course-templates");
+  const list = (tpl.data?.templates ?? []).filter((t) => t.track === ws);
+  const [key, setKey] = useState("");
+  const [title, setTitle] = useState("");
+  const [categoryId, setCategoryId] = useState("");
+  const [levelId, setLevelId] = useState(data.levels[0]?.id ?? "");
+  const [err, setErr] = useState("");
+  const cur = list.find((t) => t.key === key) ?? list[0];
+  async function create() {
+    setErr("");
+    try {
+      const r = await api<{ id?: string; created?: number; skipped?: number; modules?: number; units?: number }>("/api/admin/course-templates", { json: cur?.track === "itp" ? { templateKey: cur.key, levelId } : { templateKey: cur?.key, title: title.trim(), categoryId: categoryId || null }, silent: true });
+      onDone(cur?.track === "itp" ? `${r.created} course(s) created, ${r.skipped} already existed.` : `Course created with ${r.modules} modules and ${r.units} units. It is Preview only until you release it.`);
+    } catch (e) { setErr((e as Error).message); }
+  }
+  return (
+    <Modal title="New course from a template" onClose={onClose}>
+      <div className="flex flex-col gap-3 text-sm">
+        <p className="text-ink-soft">A template creates the modules and empty units for you. The new course is Preview only: participants cannot see it until you release it.</p>
+        <ul className="flex flex-col gap-2" aria-label="Templates">
+          {list.map((t) => (
+            <li key={t.key}><label className={`flex cursor-pointer items-start gap-3 rounded-xl border p-3 ${cur?.key === t.key ? "border-brand bg-brand-tint" : "border-line"}`}>
+              <input type="radio" name="tpl" className="mt-1 h-4 w-4" checked={cur?.key === t.key} onChange={() => setKey(t.key)} />
+              <span><b className="text-navy">{t.name}</b><br /><span className="text-xs text-ink-soft">{t.description}</span>{t.modules.length > 0 && <span className="mt-1 block text-xs text-ink-soft">{t.modules.length} modules · {t.modules.reduce((n, m) => n + m.units, 0)} units</span>}</span>
+            </label></li>
+          ))}
+        </ul>
+        {cur?.track === "itp"
+          ? <label className={label}>Level<select className="field font-normal" value={levelId} onChange={(e) => setLevelId(e.target.value)}>{data.levels.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}</select></label>
+          : <>
+            <label className={label}>Course title<input className="field font-normal" maxLength={120} value={title} onChange={(e) => setTitle(e.target.value)} /></label>
+            <label className={label}>Category<select className="field font-normal" value={categoryId} onChange={(e) => setCategoryId(e.target.value)}><option value="">No category</option>{data.categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select></label>
+          </>}
+        <ErrorNote text={err} />
+        <div className="flex justify-end gap-2"><button className="btn-outline" onClick={onClose}>Cancel</button><button className="btn-solid" disabled={!cur || (cur.track === "general" && !title.trim())} onClick={create}>Create course</button></div>
       </div>
     </Modal>
   );

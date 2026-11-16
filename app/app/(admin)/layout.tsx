@@ -22,6 +22,7 @@ const nav: NavGroup[] = [
     { href: "/admin/courses", label: "Courses & Units", feature: "learning" },
     { href: "/admin/materials", label: "Materials", feature: "learning" },
     { href: "/admin/comments", label: "Discussions", feature: "learning" },
+    { href: "/admin/assignments", label: "Assignments", feature: "learning" },
   ] },
   { label: "Monitoring", items: [
     { href: "/admin/proctoring", label: "Monitoring" },
