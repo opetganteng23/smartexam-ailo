@@ -50,14 +50,14 @@ Legenda sama: ✅ selesai dan teruji · 🔄 sebagian · ⬜ belum · ⏭️ dit
 - ✅ U1.7 Tes: peserta lintas institusi atau kelas tidak bisa membuka course lain lewat ID; alur ITP lama tidak berubah
 
 ### Tahap 2 - Bank soal
-- ⬜ U2.1 Impor CSV/Excel/DOCX menerima kategori bebas (hapus pembatasan listening/structure/reading)
-- ⬜ U2.2 Impor Moodle XML (`fast-xml-parser`): multichoice, truefalse, shortanswer, matching, essay; tag XML ke skill + topic; gambar ke `Asset`; jenis lain dilewati dan dilaporkan; tolak DOCTYPE/entity (XXE)
-- ⬜ U2.3 Impor semua jenis soal untuk CSV, Excel, DOCX; templat unduhan diperbarui
-- ⬜ U2.4 Deteksi duplikat saat impor (hash isi soal dan opsi); impor ulang tidak menggandakan
-- ⬜ U2.5 Teks soal HTML tersanitasi (kode, gambar) di ruang tes, pratinjau, Grading, dan hasil
-- ⬜ U2.6 Koleksi bank soal: pemilik, visibilitas (pribadi/institusi/global), tab per kategori menggantikan tab Listening/Structure/Reading
-- ⬜ U2.7 Cek dukungan lebih dari satu jawaban benar (`single=false`); bila belum didukung, dilaporkan saat impor, bukan gagal diam-diam
-- ⬜ U2.8 Fixture sintetis kecil (tanpa data asli) dan tes impor, XSS, dan duplikat
+- ✅ U2.1 Impor CSV/Excel/DOCX menerima kategori bebas (hapus pembatasan listening/structure/reading)
+- ✅ U2.2 Impor Moodle XML (`fast-xml-parser`): multichoice, truefalse, shortanswer, matching, essay; tag XML ke skill + topic; gambar ke `Asset`; jenis lain dilewati dan dilaporkan; tolak DOCTYPE/entity (XXE)
+- ✅ U2.3 Impor semua jenis soal untuk CSV, Excel, DOCX; templat unduhan diperbarui
+- ✅ U2.4 Deteksi duplikat saat impor (hash isi soal dan opsi); impor ulang tidak menggandakan
+- 🔄 U2.5 Teks soal HTML tersanitasi (kode, gambar) di ruang tes, pratinjau, Grading, dan hasil — server dan tes hijau; tampilan klien belum diuji visual (hasil peserta memang tidak memuat teks soal)
+- 🔄 U2.6 Koleksi bank soal: pemilik, visibilitas (pribadi/institusi/global), tab per kategori menggantikan tab Listening/Structure/Reading — API, visibilitas, dan tes hijau; UI belum diuji visual
+- ✅ U2.7 Cek dukungan lebih dari satu jawaban benar (`single=false`); bila belum didukung, dilaporkan saat impor, bukan gagal diam-diam
+- ✅ U2.8 Fixture sintetis kecil (tanpa data asli) dan tes impor, XSS, dan duplikat
 
 ### Tahap 3 - Tes umum
 - ⬜ U3.1 Kind `general` dan `purpose` (daily, pretest, posttest, midterm, final), terikat ke course dan kategori; satu cabang baru di finalisasi percobaan, skala persen

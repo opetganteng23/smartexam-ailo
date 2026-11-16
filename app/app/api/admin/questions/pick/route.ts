@@ -4,6 +4,7 @@ import { connectDB } from "@/lib/db";
 import { requireRole, handleError, CONTENT_ROLES } from "@/lib/rbac";
 import { zodMessage } from "@/lib/zod-message";
 import { Question } from "@/models/Question";
+import { questionVisibleFilter } from "@/lib/collections";
 import { SECTION_KEY_RE } from "@/lib/exam-format";
 
 const input = z.object({
@@ -23,14 +24,15 @@ const esc = (x: string) => x.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
  */
 export async function POST(req: Request) {
   try {
-    await requireRole(CONTENT_ROLES);
+    const me = await requireRole(CONTENT_ROLES);
     const b = input.parse(await req.json());
     await connectDB();
     const filter: Record<string, unknown> = { section: b.section, status: "published", _id: { $nin: b.excludeIds } };
     if (b.types?.length) filter.type = { $in: b.types.map((t) => new RegExp(`^${esc(t)}$`, "i")) };
     if (b.difficulties?.length) filter.difficulty = { $in: b.difficulties };
     if (b.topics?.length) filter["tags.topic"] = { $in: b.topics.map((t) => new RegExp(`^${esc(t)}$`, "i")) };
-    const pool = await Question.find(filter).select("groupId type difficulty stem").lean();
+    const vis = await questionVisibleFilter(me);
+    const pool = await Question.find(Object.keys(vis).length ? { $and: [filter, vis] } : filter).select("groupId type difficulty stem").lean();
     // Kelompokkan: tiap grup satu blok, soal tanpa grup masing-masing satu blok; lalu acak blok.
     const blocks = new Map<string, typeof pool>();
     for (const q of pool) { const k = q.groupId ? `g:${q.groupId}` : `q:${q._id}`; (blocks.get(k) ?? blocks.set(k, []).get(k)!).push(q); }

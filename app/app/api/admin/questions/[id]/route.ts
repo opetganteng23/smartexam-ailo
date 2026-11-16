@@ -10,19 +10,23 @@ import { Question } from "@/models/Question";
 import { Test } from "@/models/Test";
 import { AuditLog } from "@/models/AuditLog";
 import { questionSchema } from "@/lib/admin-schemas";
+import { checkQuestionRefs, collectionVisible } from "@/lib/collections";
+import { QuestionCollection } from "@/models/Question";
 
-async function find(id: string) {
+async function find(id: string, user: Parameters<typeof collectionVisible>[0]) {
   if (!isValidObjectId(id)) throw new HttpError(404, "Question not found");
   await connectDB();
   const q = await Question.findById(id);
   if (!q) throw new HttpError(404, "Question not found");
+  // Soal di koleksi yang tidak terlihat pengguna ini dijawab seolah tidak ada.
+  if (q.collectionId && !(await QuestionCollection.exists({ _id: q.collectionId, ...collectionVisible(user) }))) throw new HttpError(404, "Question not found");
   return q;
 }
 
 export async function GET(_req: Request, { params }: { params: { id: string } }) {
   try {
-    await requireRole(CONTENT_ROLES);
-    const q = await find(params.id);
+    const me = await requireRole(CONTENT_ROLES);
+    const q = await find(params.id, me);
     return NextResponse.json(q.toObject());
   } catch (e) {
     return handleError(e);
@@ -32,8 +36,9 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
 export async function PATCH(req: Request, { params }: { params: { id: string } }) {
   try {
     const admin = await requireRole(CONTENT_ROLES);
-    const q = await find(params.id);
+    const q = await find(params.id, admin);
     const body = questionSchema.parse(await req.json());
+    await checkQuestionRefs(admin, body);
     if (admin.role === "content_editor") {
       if (!["draft", "review"].includes(q.status)) throw new HttpError(403, "This question is already published or archived. Ask an academic admin to change it.");
       if (!["draft", "review"].includes(body.status)) throw new HttpError(403, "Editors can save drafts and send questions for review. An academic admin publishes them.");
@@ -41,7 +46,7 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
     // Ubah kunci/pilihan pada soal yang sudah dipakai tes mengubah skor lama; dicatat di audit.
     const used = await Test.exists({ "sections.questionIds": q._id });
     await ensureBaseline(q._id, q.toObject());
-    q.set({ ...body, groupId: body.groupId ?? undefined });
+    q.set({ ...body, groupId: body.groupId ?? undefined, ...(body.categoryId !== undefined ? { categoryId: body.categoryId ?? undefined } : {}), ...(body.collectionId !== undefined ? { collectionId: body.collectionId ?? undefined } : {}) });
     await q.save();
     await registerQuestionType(q.section, q.type);
     const ver = await recordQuestionVersion(q._id, q.toObject(), admin._id);
@@ -56,7 +61,7 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
 export async function DELETE(_req: Request, { params }: { params: { id: string } }) {
   try {
     const admin = await requireRole(ACADEMIC_ROLES);
-    const q = await find(params.id);
+    const q = await find(params.id, admin);
     if (await Test.exists({ "sections.questionIds": q._id })) throw new HttpError(409, "The question is used by a test. Remove it from the test first or change its status to draft.");
     await q.deleteOne();
     await AuditLog.create({ actorId: admin._id, action: "question.delete", target: params.id });

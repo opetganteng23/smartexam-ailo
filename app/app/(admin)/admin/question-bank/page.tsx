@@ -4,12 +4,13 @@ import { QuestionKeyEditor, defaultKey } from "@/components/QuestionKeyEditor";
 import { QUESTION_KINDS, KIND_LABEL, type QuestionKind } from "@/lib/question-kinds";
 import { SECTION_SHORT } from "@/lib/exam-format";
 import { askConfirm } from "@/components/Feedback";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { QuestionHistoryDialog } from "@/components/QuestionHistoryDialog";
 import { QuestionPreviewDialog } from "@/components/QuestionPreviewDialog";
 import { QuestionTypesDialog, type QType } from "@/components/QuestionTypesDialog";
 import { AiQuestionDialog } from "@/components/AiQuestionDialog";
 import { uploadImage } from "@/lib/compress-image";
+import { CollectionsDialog, ImportDialog, type Cat, type Coll } from "@/components/QuestionCollections";
 
 type Row = { _id: string; section: string; type: string; stem: string; status: string; difficulty: string; issues?: string[] };
 type Group = { id: string; section: string; instruction?: string; passageTitle?: string; audioId: string | null; questions: number };
@@ -18,7 +19,7 @@ type AudioRow = { id: string; title: string; durationSec: number; inUse: boolean
 type Form = {
   id?: string; section: string; type: string; groupId: string; stem: string; options: string[]; answerKey: number;
   explanation: string; tags: { skill: string; topic: string }[]; difficulty: string; status: string; assetIds: string[]; source: string;
-  kind: QuestionKind; points: number; key?: unknown; stemFormat?: "text" | "html";
+  kind: QuestionKind; points: number; key?: unknown; stemFormat?: "text" | "html"; categoryId?: string; collectionId?: string;
 };
 
 const SECTION = SECTION_SHORT;
@@ -37,7 +38,10 @@ export default function BankSoal() {
   const [page, setPage] = useState(1);
   const [pages, setPages] = useState(1);
   const [total, setTotal] = useState(0);
-  const [f, setF] = useState({ section: "", type: "", status: "", q: "" });
+  const [f, setF] = useState({ section: "", type: "", status: "", q: "", categoryId: "", collectionId: "" });
+  const [cats, setCats] = useState<Cat[]>([]);
+  const [colls, setColls] = useState<Coll[]>([]);
+  const [collDlg, setCollDlg] = useState(false);
   const [types, setTypes] = useState<QType[]>([]);
   const [secCounts, setSecCounts] = useState<Record<string, number>>({});
   const [typesDlg, setTypesDlg] = useState(false);
@@ -57,6 +61,10 @@ export default function BankSoal() {
   const loadTypes = useCallback(async () => {
     try { const d = await api("/api/admin/question-types"); setTypes(d.types); setSecCounts(d.sectionCounts); } catch { /* daftar jenis opsional bagi tampilan */ }
   }, []);
+  const loadMeta = useCallback(async () => {
+    try { const [c, k] = await Promise.all([api("/api/admin/categories"), api("/api/admin/collections")]); setCats(c.categories); setColls(k.collections); } catch { /* kategori dan koleksi opsional bagi tampilan */ }
+  }, []);
+  useEffect(() => { loadMeta(); }, [loadMeta]);
   useEffect(() => { load(); }, [load]);
   useEffect(() => { loadTypes(); }, [loadTypes]);
   useEffect(() => { api("/api/admin/questions?status=review&page=1").then((d) => setReviewCount(d.total ?? 0)).catch(() => {}); }, [rows]);
@@ -64,7 +72,7 @@ export default function BankSoal() {
   async function edit(id: string) {
     try {
       const q = await api(`/api/admin/questions/${id}`);
-      setForm({ id, section: q.section, type: q.type, groupId: q.groupId ?? "", stem: q.stem, options: q.options, answerKey: q.answerKey, explanation: q.explanation ?? "", tags: (q.tags ?? []).map((t: { skill: string; topic: string }) => ({ skill: t.skill, topic: t.topic })), difficulty: q.difficulty, status: q.status, source: q.source ?? "", assetIds: q.assetIds ?? [], kind: q.kind ?? "mcq", points: q.points ?? 1, key: q.key, stemFormat: q.stemFormat ?? "text" });
+      setForm({ id, section: q.section, type: q.type, groupId: q.groupId ?? "", stem: q.stem, options: q.options, answerKey: q.answerKey, explanation: q.explanation ?? "", tags: (q.tags ?? []).map((t: { skill: string; topic: string }) => ({ skill: t.skill, topic: t.topic })), difficulty: q.difficulty, status: q.status, source: q.source ?? "", assetIds: q.assetIds ?? [], kind: q.kind ?? "mcq", points: q.points ?? 1, key: q.key, stemFormat: q.stemFormat ?? "text", categoryId: q.categoryId ?? "", collectionId: q.collectionId ?? "" });
     } catch (e) { setErr((e as Error).message); }
   }
   async function setStatus(id: string, status: "published" | "draft") {
@@ -93,13 +101,14 @@ export default function BankSoal() {
           <a href={`/api/admin/questions/export?${new URLSearchParams(Object.entries(f).filter(([k, v]) => v && k !== "q") as [string, string][])}`} className="rounded-xl border border-line-strong px-4 py-2.5 text-sm font-semibold text-navy">Export CSV</a>
           <button onClick={() => setTypesDlg(true)} className="rounded-xl border border-line-strong px-4 py-2.5 text-sm font-semibold text-navy">Manage types</button>
           <button onClick={() => setAiDlg(true)} className="rounded-xl border border-line-strong px-4 py-2.5 text-sm font-semibold text-navy">Draft with AI</button>
-          <button onClick={() => setImportDlg(true)} className="rounded-xl border border-line-strong px-4 py-2.5 text-sm font-semibold text-navy">Import Excel/CSV/Word</button>
+          <button onClick={() => setImportDlg(true)} className="rounded-xl border border-line-strong px-4 py-2.5 text-sm font-semibold text-navy">Import questions</button>
+          <button onClick={() => setCollDlg(true)} className="rounded-xl border border-line-strong px-4 py-2.5 text-sm font-semibold text-navy">Collections</button>
           <button onClick={() => setGroupDlg(true)} className="rounded-xl border border-line-strong px-4 py-2.5 text-sm font-semibold text-navy">+ Audio/passage group</button>
-          <button onClick={() => setForm(empty(f.section || ""))} className="rounded-xl bg-brand px-4 py-2.5 text-sm font-semibold text-white">+ New question</button>
+          <button onClick={() => setForm({ ...empty(f.section || ""), categoryId: f.categoryId, collectionId: f.collectionId })} className="rounded-xl bg-brand px-4 py-2.5 text-sm font-semibold text-white">+ New question</button>
         </div>
       </div>
 
-      <div className="flex flex-wrap gap-1 rounded-xl bg-white p-1 text-sm" role="tablist" aria-label="Category">
+      <div className="flex flex-wrap gap-1 rounded-xl bg-white p-1 text-sm" role="tablist" aria-label="Section">
         {[["", "All"], ...Object.keys(secCounts).sort().map((k) => [k, SECTION[k]] as [string, string])].map(([k, n]) => (
           <button key={k || "all"} role="tab" aria-selected={f.section === k} onClick={() => { setPage(1); setF({ ...f, section: k, type: "" }); }}
             className={`flex items-center gap-2 rounded-lg px-4 py-2 font-semibold transition ${f.section === k ? "bg-navy text-white" : "text-ink-soft hover:bg-canvas"}`}>
@@ -107,6 +116,19 @@ export default function BankSoal() {
           </button>
         ))}
       </div>
+
+      <div className="flex flex-wrap items-center gap-2 text-sm" role="tablist" aria-label="Subject">
+        <span className="font-semibold text-ink-soft">Subject</span>
+        {[{ id: "", name: "All subjects" }, ...cats.filter((c) => c.active)].map((c) => (
+          <button key={c.id || "all"} role="tab" aria-selected={f.categoryId === c.id} onClick={() => { setPage(1); setF({ ...f, categoryId: c.id, collectionId: "" }); }}
+            className={`rounded-lg border px-3 py-1.5 font-semibold transition ${f.categoryId === c.id ? "border-navy bg-navy text-white" : "border-line-strong text-ink-soft hover:bg-canvas"}`}>{c.name}</button>
+        ))}
+        <select className="field w-auto" aria-label="Collection" value={f.collectionId} onChange={(e) => { setPage(1); setF({ ...f, collectionId: e.target.value }); }}>
+          <option value="">All collections</option>
+          {colls.filter((c) => !f.categoryId || c.categoryId === f.categoryId).map((c) => <option key={c.id} value={c.id}>{c.name} ({c.questions})</option>)}
+        </select>
+      </div>
+      {cats.length === 0 && <p className="rounded-xl border border-line bg-white p-3 text-sm text-ink-soft">No subjects yet. Create a category under Courses &amp; Units, then use Collections to organise questions per subject.</p>}
 
       {reviewCount > 0 && f.status !== "review" && (
         <button onClick={() => { setPage(1); setF({ ...f, status: "review" }); }} className="flex items-center justify-between gap-3 rounded-xl border border-accent bg-accent-tint px-4 py-3 text-left text-sm font-semibold text-accent-dark hover:brightness-95">
@@ -128,7 +150,7 @@ export default function BankSoal() {
 
       <div className="overflow-x-auto rounded-2xl border border-line bg-white">
         <table className="w-full text-left text-sm">
-          <thead className="bg-canvas text-xs uppercase text-ink-soft"><tr><th className="p-3">Category</th><th>Type</th><th>Question</th><th>Status</th><th /></tr></thead>
+          <thead className="bg-canvas text-xs uppercase text-ink-soft"><tr><th className="p-3">Section</th><th>Type</th><th>Question</th><th>Status</th><th /></tr></thead>
           <tbody>
             {rows.map((r) => (
               <tr key={r._id} className="border-t border-line">
@@ -150,11 +172,12 @@ export default function BankSoal() {
         </div>
       </div>
 
-      {form && <Editor types={types} onTypesChanged={loadTypes} form={form} onClose={() => setForm(null)} onSaved={() => { setForm(null); load(); }} onNewGroup={() => setGroupDlg(true)} />}
+      {form && <Editor cats={cats} colls={colls} types={types} onTypesChanged={loadTypes} form={form} onClose={() => setForm(null)} onSaved={() => { setForm(null); load(); }} onNewGroup={() => setGroupDlg(true)} />}
       {typesDlg && <QuestionTypesDialog types={types} onClose={() => setTypesDlg(false)} onChanged={() => { loadTypes(); load(); }} />}
       {groupDlg && <GroupDialog onClose={() => setGroupDlg(false)} />}
       {aiDlg && <AiQuestionDialog types={types} onClose={() => setAiDlg(false)} onSaved={() => { setAiDlg(false); load(); }} />}
-      {importDlg && <ImportDialog onClose={() => { setImportDlg(false); load(); }} />}
+      {importDlg && <ImportDialog cats={cats} colls={colls} defaults={{ categoryId: f.categoryId, collectionId: f.collectionId }} onClose={() => { setImportDlg(false); load(); loadMeta(); loadTypes(); }} />}
+      {collDlg && <CollectionsDialog cats={cats} colls={colls} onClose={() => setCollDlg(false)} onChanged={() => { loadMeta(); load(); }} />}
     </div>
   );
 }
@@ -171,7 +194,7 @@ function Modal({ title, onClose, children }: { title: string; onClose: () => voi
 }
 const Label = ({ t, children }: { t: string; children: React.ReactNode }) => <label className="flex flex-col gap-1.5 text-sm font-semibold text-navy">{t}{children}</label>;
 
-function Editor({ form, types, onTypesChanged, onClose, onSaved, onNewGroup }: { form: Form; types: QType[]; onTypesChanged: () => void; onClose: () => void; onSaved: () => void; onNewGroup: () => void }) {
+function Editor({ cats, colls, form, types, onTypesChanged, onClose, onSaved, onNewGroup }: { cats: Cat[]; colls: Coll[]; form: Form; types: QType[]; onTypesChanged: () => void; onClose: () => void; onSaved: () => void; onNewGroup: () => void }) {
   const [v, setV] = useState(form);
   const [groups, setGroups] = useState<Group[]>([]);
   const [err, setErr] = useState("");
@@ -185,7 +208,7 @@ function Editor({ form, types, onTypesChanged, onClose, onSaved, onNewGroup }: {
     setBusy(true); setErr("");
     try {
       const body = {
-        section: v.section, type: v.type, groupId: v.groupId || null, stem: v.stem, stemFormat: v.stemFormat ?? "text", kind: v.kind, points: v.points,
+        section: v.section, type: v.type, groupId: v.groupId || null, stem: v.stem, stemFormat: v.stemFormat ?? "text", categoryId: v.categoryId || null, collectionId: v.collectionId || null, kind: v.kind, points: v.points,
         ...(v.kind === "mcq" ? { options: v.options, answerKey: v.answerKey } : { key: v.key }),
         explanation: v.explanation || undefined, tags: v.tags.filter((t) => t.skill.trim() && t.topic.trim()), difficulty: v.difficulty, status: v.status, assetIds: v.assetIds, source: v.source || undefined,
       };
@@ -203,7 +226,9 @@ function Editor({ form, types, onTypesChanged, onClose, onSaved, onNewGroup }: {
     <Modal title={v.id ? "Edit question" : "New question"} onClose={onClose}>
       <div className="flex flex-col gap-4">
         <div className="grid gap-4 sm:grid-cols-2">
-          <Label t="Category"><input className="field font-normal" list="qb-sections" maxLength={32} placeholder="e.g. math, logic, reading" value={v.section} onChange={(e) => { set("section", e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, "_")); set("groupId", ""); }} /><datalist id="qb-sections">{Object.keys(SECTION).map((k) => <option key={k} value={k}>{SECTION[k]}</option>)}</datalist></Label>
+          <Label t="Section"><input className="field font-normal" list="qb-sections" maxLength={32} placeholder="e.g. math, logic, reading" value={v.section} onChange={(e) => { set("section", e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, "_")); set("groupId", ""); }} /><datalist id="qb-sections">{Object.keys(SECTION).map((k) => <option key={k} value={k}>{SECTION[k]}</option>)}</datalist></Label>
+          <Label t="Subject"><select className="field font-normal" value={v.categoryId ?? ""} onChange={(e) => { set("categoryId", e.target.value); set("collectionId", ""); }}><option value="">No subject</option>{cats.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select></Label>
+          <Label t="Collection"><select className="field font-normal" value={v.collectionId ?? ""} onChange={(e) => set("collectionId", e.target.value)}><option value="">No collection</option>{colls.filter((c) => !v.categoryId || !c.categoryId || c.categoryId === v.categoryId).map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select></Label>
           <TypePicker section={v.section} value={v.type} types={types} onChange={(t) => set("type", t)} onCreated={onTypesChanged} />
         </div>
         <div className="grid gap-4 sm:grid-cols-2">
@@ -276,41 +301,6 @@ function Editor({ form, types, onTypesChanged, onClose, onSaved, onNewGroup }: {
       </div>
       {sub === "preview" && <QuestionPreviewDialog q={{ section: v.section, type: v.type, groupId: v.groupId, stem: v.stem, stemFormat: v.stemFormat, options: v.options, answerKey: v.answerKey, explanation: v.explanation, assetIds: v.assetIds }} onClose={() => setSub(null)} />}
       {sub === "history" && v.id && <QuestionHistoryDialog questionId={v.id} onClose={() => setSub(null)} onRestored={() => { setSub(null); onSaved(); }} />}
-    </Modal>
-  );
-}
-
-function ImportDialog({ onClose }: { onClose: () => void }) {
-  const file = useRef<HTMLInputElement>(null);
-  const [res, setRes] = useState<{ dry: boolean; created: number; failed: { row: number; reason: string }[] } | null>(null);
-  const [err, setErr] = useState("");
-  const [busy, setBusy] = useState(false);
-  async function run(dry: boolean) {
-    const f = file.current?.files?.[0];
-    if (!f) return setErr("Choose a CSV, Excel, or Word file first");
-    setBusy(true); setErr(""); setRes(null);
-    try {
-      const fd = new FormData(); fd.append("file", f);
-      const r = await fetch(`/api/admin/questions/import${dry ? "?dry=1" : ""}`, { method: "POST", body: fd });
-      const d = await r.json().catch(() => ({}));
-      if (!r.ok) throw new Error(d.error ?? "Import failed");
-      setRes(d);
-    } catch (e) { setErr((e as Error).message); } finally { setBusy(false); }
-  }
-  return (
-    <Modal title="Import questions from Excel, CSV, or Word" onClose={onClose}>
-      <div className="flex flex-col gap-4 text-sm">
-        <p className="text-ink-soft">Columns: section, type, stem, A-F (options), answer (A-F), explanation, difficulty (easy/medium/hard), tags (<code>skill:topic; skill:topic</code>), status, audio, instruction. Maximum 500 rows. Questions with status <b>published</b> must be tagged. For listening, put the <b>exact title</b> of an audio already uploaded in Audio Library in the audio column; rows with the same audio title are grouped together automatically (the optional instruction column sets the group&apos;s instruction). Passages are still linked manually after import. <a className="font-semibold text-brand" href="/api/admin/questions/import">Download template</a>. <b>Word (.docx):</b> number each question (<code>1. ...</code>), list options as <code>A. B. C. D.</code>, then <code>Answer: B</code> and optional <code>Explanation:</code>. Lines such as <code>Section:</code>, <code>Type:</code>, <code>Difficulty:</code>, <code>Tags:</code>, <code>Status:</code> apply to the questions below them. <a className="font-semibold text-brand" href="/api/admin/questions/import?format=word">Download Word format example</a></p>
-        <input ref={file} type="file" aria-label="Question file" accept=".csv,.xlsx,.docx" className="field" />
-        {err && <p role="alert" className="text-red-700">{err}</p>}
-        <div className="flex flex-wrap gap-2"><button className="rounded-lg border border-line-strong px-4 py-2 font-semibold" disabled={busy} onClick={() => run(true)}>Check first (without saving)</button><button className="rounded-lg bg-brand px-4 py-2 font-semibold text-white disabled:opacity-60" disabled={busy} onClick={() => run(false)}>Import</button></div>
-        {res && (
-          <div role="status" className="rounded-xl bg-canvas p-3">
-            <p><b>{res.created}</b> rows {res.dry ? "valid (not saved yet)" : "imported"} · <b className={res.failed.length ? "text-red-700" : ""}>{res.failed.length}</b> failed</p>
-            {res.failed.length > 0 && <ul className="mt-2 list-disc pl-5 text-red-700">{res.failed.slice(0, 30).map((f) => <li key={f.row}>Row {f.row}: {f.reason}</li>)}</ul>}
-          </div>
-        )}
-      </div>
     </Modal>
   );
 }

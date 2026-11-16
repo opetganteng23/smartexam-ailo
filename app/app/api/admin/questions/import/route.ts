@@ -50,7 +50,8 @@ export async function POST(req: Request) {
     await connectDB();
 
     const field = (k: string) => { const v = form.get(k); return typeof v === "string" ? v.trim() : ""; };
-    let categoryId = field("categoryId") || null, collectionId = field("collectionId") || null;
+    let categoryId = field("categoryId") || null;
+    const collectionId = field("collectionId") || null;
     if (categoryId && !oidRe.test(categoryId)) throw new HttpError(400, "Invalid category");
     if (collectionId && !oidRe.test(collectionId)) throw new HttpError(400, "Invalid collection");
     const col = collectionId ? await QuestionCollection.findById(collectionId).lean() : null;

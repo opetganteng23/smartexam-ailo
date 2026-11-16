@@ -9,23 +9,29 @@ import { registerQuestionType } from "@/lib/question-types";
 import { recordQuestionVersion } from "@/lib/question-versions";
 import { questionSchema } from "@/lib/admin-schemas";
 import { AuditLog } from "@/models/AuditLog";
+import { checkQuestionRefs, collectionVisible, questionVisibleFilter } from "@/lib/collections";
+import { QuestionCollection } from "@/models/Question";
 
 
 const escapeRegex = (x: string) => x.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
 export async function GET(req: Request) {
   try {
-    await requireRole(CONTENT_ROLES);
+    const me = await requireRole(CONTENT_ROLES);
     await connectDB();
     const sp = new URL(req.url).searchParams;
+    const vis = await questionVisibleFilter(me);
+    const scoped = (f: Record<string, unknown>) => (Object.keys(vis).length ? { $and: [f, vis] } : f);
     const filter: Record<string, unknown> = {};
     for (const k of ["section", "status", "difficulty"]) if (sp.get(k)) filter[k] = sp.get(k);
+    for (const k of ["categoryId", "collectionId"]) if (sp.get(k)) { if (!/^[0-9a-f]{24}$/.test(sp.get(k)!)) throw new HttpError(400, "Invalid " + k); filter[k] = sp.get(k); }
+    if (sp.get("collectionId") && !(await QuestionCollection.exists({ _id: sp.get("collectionId"), ...collectionVisible(me) }))) throw new HttpError(404, "Collection not found");
     // Jenis dicocokkan tanpa membedakan huruf besar/kecil (soal lama bisa menulisnya berbeda dari daftar jenis).
     if (sp.get("type")) filter.type = { $regex: "^" + escapeRegex(sp.get("type")!) + "$", $options: "i" };
     // ?ids=a,b,c: ambil soal tertentu (untuk perakit tes), urutan mengikuti ids.
     const ids = (sp.get("ids") ?? "").split(",").filter((x) => /^[0-9a-f]{24}$/.test(x)).slice(0, 200);
     if (sp.has("ids")) {
-      const found = await Question.find({ _id: { $in: ids } }).select("section type stem status").lean();
+      const found = await Question.find(scoped({ _id: { $in: ids } })).select("section type stem status").lean();
       const by = new Map(found.map((x) => [String(x._id), x]));
       return NextResponse.json({ items: ids.map((i) => by.get(i)).filter(Boolean) });
     }
@@ -34,8 +40,8 @@ export async function GET(req: Request) {
     const page = Math.max(1, Number(sp.get("page")) || 1);
     const size = 20;
     const [items, total] = await Promise.all([
-      Question.find(filter).select("section type stem stemFormat status difficulty groupId tags explanation updatedAt kind points").sort({ updatedAt: -1 }).skip((page - 1) * size).limit(size).lean(),
-      Question.countDocuments(filter),
+      Question.find(scoped(filter)).select("section type stem stemFormat status difficulty groupId tags explanation updatedAt kind points").sort({ updatedAt: -1 }).skip((page - 1) * size).limit(size).lean(),
+      Question.countDocuments(scoped(filter)),
     ]);
     // Daftar menampilkan ringkasan teks: soal berformat HTML dikirim sebagai teks tanpa tag.
     for (const it of items) if (it.stemFormat === "html") it.stem = htmlToText(it.stem).slice(0, 300);
@@ -64,7 +70,8 @@ export async function POST(req: Request) {
     const body = questionSchema.parse(await req.json());
     if (admin.role === "content_editor" && !["draft", "review"].includes(body.status)) throw new HttpError(403, "Editors can save drafts and send questions for review. An academic admin publishes them.");
     await connectDB();
-    const q = await Question.create({ ...body, groupId: body.groupId ?? undefined });
+    await checkQuestionRefs(admin, body);
+    const q = await Question.create({ ...body, groupId: body.groupId ?? undefined, categoryId: body.categoryId ?? undefined, collectionId: body.collectionId ?? undefined });
     await registerQuestionType(body.section, body.type);
     await recordQuestionVersion(q._id, q.toObject(), admin._id);
     await AuditLog.create({ actorId: admin._id, action: "question.create", target: String(q._id) });
