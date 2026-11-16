@@ -2,6 +2,11 @@ import { AppShell, type NavGroup } from "@/components/AppShell";
 import { getCurrentUser } from "@/lib/auth";
 import { STAFF_ROLES } from "@/lib/rbac";
 import { ROLE_PAGES } from "@/lib/admin-sections";
+import { cookies } from "next/headers";
+import { WorkspaceSwitch } from "@/components/WorkspaceSwitch";
+
+// Menu khusus program TOEFL ITP: disembunyikan di ruang kerja Umum.
+const ITP_ONLY = ["/admin/official-exams", "/admin/external-results", "/admin/coaching", "/admin/cycles"];
 
 // Menu harian di atas; alat yang jarang dipakai di "More tools" (tertutup secara default). Tidak ada halaman yang dihapus.
 const nav: NavGroup[] = [
@@ -44,6 +49,9 @@ export default async function Layout({ children }: { children: React.ReactNode }
   const allow = user ? ALLOWED[user.role] : undefined;
   // academic_admin tidak membuka Settings umum, tetapi tetap membuka Scoring profiles: menu Settings diarahkan ke sana.
   const forRole = (i: NavGroup["items"][number]) => (!allow || allow.includes(i.href) ? i : i.also?.find((h) => allow.includes(h)) ? { ...i, href: i.also.find((h) => allow.includes(h))! } : null);
-  const menu = allow ? nav.map((g) => ({ ...g, items: g.items.map(forRole).filter((i): i is NavGroup["items"][number] => !!i) })).filter((g) => g.items.length) : nav;
-  return <AppShell roles={STAFF_ROLES} nav={menu} search title={user?.role === "content_editor" ? "Question Editor" : user?.role === "academic_admin" ? "Academic" : "Admin"}>{children}</AppShell>;
+  const ws = cookies().get("ws")?.value === "itp" ? "itp" : "general";
+  const inWs = (g: NavGroup): NavGroup => (ws === "itp" ? g : { ...g, items: g.items.filter((i) => !ITP_ONLY.includes(i.href)) });
+  const menu = allow ? nav.map(inWs).map((g) => ({ ...g, items: g.items.map(forRole).filter((i): i is NavGroup["items"][number] => !!i) })).filter((g) => g.items.length) : nav.map(inWs);
+  const showSwitch = !!user && (user.role === "admin" || user.role === "academic_admin");
+  return <AppShell roles={STAFF_ROLES} nav={menu} search title={user?.role === "content_editor" ? "Question Editor" : user?.role === "academic_admin" ? "Academic" : "Admin"}>{showSwitch && <div className="mb-4 flex justify-end"><WorkspaceSwitch current={ws} /></div>}{children}</AppShell>;
 }

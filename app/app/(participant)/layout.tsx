@@ -4,12 +4,12 @@ import { AppShell, type NavGroup } from "@/components/AppShell";
 const nav: NavGroup[] = [
   { items: [
     { href: "/home", label: "Home" },
-    { href: "/learn", label: "Learn", feature: "learning", afterPlacement: true },
+    { href: "/learn", label: "Learn", feature: "learning" },
     { href: "/coaching", label: "Coaching", feature: "coaching", afterPlacement: true },
     { href: "/tests", label: "My Tests" },
     { href: "/results", label: "Test Results" },
     { href: "/upload-result", label: "Upload External Results", feature: "externalResults", afterPlacement: true },
-    { href: "/materials", label: "Materials", feature: "learning", afterPlacement: true },
+    { href: "/materials", label: "Materials", feature: "learning" },
     { href: "/counselor", label: "AI Counselor", feature: "aiCounselor", afterPlacement: true },
     { href: "/official-exam", label: "Official Exam", feature: "officialTest", afterPlacement: true },
     { href: "/certificates", label: "Certificates", feature: "certificates", afterPlacement: true },

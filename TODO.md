@@ -75,12 +75,12 @@ Legenda sama: ✅ selesai dan teruji · 🔄 sebagian · ⬜ belum · ⏭️ dit
 - ✅ U4.5 Tes unggah: tipe berkas palsu, ukuran berlebih, Range tidak sah, akses tanpa izin
 
 ### Tahap 5 - UI course
-- ⬜ U5.1 `CourseCard` dan grid di `/learn`
-- ⬜ U5.2 Halaman detail course (modul dan unit, field katalog: whatYouLearn, requirements, targetAudience, tags, previewVideoUrl)
-- ⬜ U5.3 Admin course bertab: Info, Kurikulum, Pengaturan, Akses
-- ⬜ U5.4 Pemilih ruang kerja (Umum/TOEFL ITP) di header admin; menu dan istilah menyesuaikan
-- ⬜ U5.5 Preset materi umum: flashcard, penjelasan bertahap, visualisasi struktur data
-- ⬜ U5.6 Empty state dengan arahan dan teks bantuan; QA visual desktop 1280 dan ponsel 390; EN/ID
+- 🔄 U5.1 `CourseCard` dan grid di `/learn` — kode, tipe, lint, dan build hijau; belum diuji visual
+- 🔄 U5.2 Halaman detail course (modul dan unit, field katalog: whatYouLearn, requirements, targetAudience, tags, previewVideoUrl) — API katalog dan akses teruji (`umum-katalog.test.ts`); halaman belum diuji visual
+- 🔄 U5.3 Admin course bertab: Info, Kurikulum, Pengaturan, Akses — editor bertab di kode; belum diuji visual
+- 🔄 U5.4 Pemilih ruang kerja (Umum/TOEFL ITP) di header admin; menu dan istilah menyesuaikan — pemilih di bagian atas konten (cookie `ws`), menu ITP disembunyikan di ruang kerja Umum; belum diuji visual
+- ✅ U5.5 Preset materi umum: flashcard, penjelasan bertahap, visualisasi struktur data
+- 🔄 U5.6 Empty state dengan arahan dan teks bantuan; QA visual desktop 1280 dan ponsel 390; EN/ID — empty state dan teks bantuan ada; belum diuji visual (tidak ada browser); layar baru memakai teks Inggris (belum diterjemahkan ke ID)
 
 ### Tahap 6 - Pengayaan
 - ⬜ U6.1 Assignment (unggah berkas atau berbasis soal, tenggat, batas percobaan) dengan penilaian

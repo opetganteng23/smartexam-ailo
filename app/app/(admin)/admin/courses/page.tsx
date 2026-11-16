@@ -1,7 +1,8 @@
 "use client";
 
 import { askConfirm, toast } from "@/components/Feedback";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { readWorkspace, type Workspace } from "@/components/WorkspaceSwitch";
 import Link from "next/link";
 import { useApi } from "@/lib/useApi";
 import { api } from "@/lib/client";
@@ -12,9 +13,10 @@ import { PART_LABEL } from "@/lib/exam-format";
 
 type Unit = { id: string; title: string; description: string; order: number; active: boolean; materialIds: string[]; quizTestId: string | null; moduleId: string | null; unlockAfterDays: number };
 type Mod = { id: string; title: string; description: string; order: number; active: boolean };
-type Course = { id: string; levelId: string | null; track?: "general" | "itp"; categoryId?: string | null; institutionIds?: string[]; classIds?: string[]; accessMode?: "assigned" | "paid"; priceIdr?: number | null; title: string; description: string; order: number; active: boolean; archived: boolean; previewMode?: boolean; part?: string | null; sectionTestId?: string | null; requireSectionTest?: boolean; secureMode?: boolean; coverAssetId: string | null; prerequisiteCourseIds: string[]; modules: Mod[]; units: Unit[] };
+type Course = { whatYouLearn?: string[]; requirements?: string[]; targetAudience?: string; tags?: string[]; previewVideoUrl?: string | null; id: string; levelId: string | null; track?: "general" | "itp"; categoryId?: string | null; institutionIds?: string[]; classIds?: string[]; accessMode?: "assigned" | "paid"; priceIdr?: number | null; title: string; description: string; order: number; active: boolean; archived: boolean; previewMode?: boolean; part?: string | null; sectionTestId?: string | null; requireSectionTest?: boolean; secureMode?: boolean; coverAssetId: string | null; prerequisiteCourseIds: string[]; modules: Mod[]; units: Unit[] };
 type Data = { categories: { id: string; name: string; active: boolean }[]; institutions: { id: string; name: string }[]; classes: { id: string; name: string; institutionId: string | null }[]; levels: { id: string; name: string }[]; materials: { id: string; title: string; status: string; kind: string }[]; quizzes: { id: string; kind?: string; name: string; unitId: string | null }[]; courses: Course[] };
 const label = "flex flex-col gap-1.5 text-sm font-semibold text-navy";
+const lines = (t: string) => t.split("\n").map((x) => x.trim()).filter(Boolean);
 
 /** Yang masih kosong di sebuah course (daftar periksa sebelum dirilis). */
 const todo = (c: Course) => {
@@ -32,6 +34,8 @@ export default function Kursus() {
   const [unit, setUnit] = useState<(Partial<Unit> & { courseId: string }) | null>(null);
   const [mod, setMod] = useState<(Partial<Mod> & { courseId: string }) | null>(null);
   const [showArchived, setShowArchived] = useState(false);
+  const [ws, setWs] = useState<Workspace>("general");
+  useEffect(() => { const f = () => setWs(readWorkspace()); f(); window.addEventListener("workspace-change", f); return () => window.removeEventListener("workspace-change", f); }, []);
   const [err, setErr] = useState("");
   const run = async (fn: () => Promise<unknown>) => { setErr(""); try { await fn(); reload(); } catch (e) { setErr((e as Error).message); } };
 
@@ -78,11 +82,11 @@ export default function Kursus() {
         <div><h1 className="page-title">Courses & Units</h1><p className="text-sm text-ink-soft">Build Level, Course, Module, then Unit (lesson) with its required materials (sub-lessons). A unit is complete when all required materials are done and its quiz is passed (pass mark in System Parameters).</p></div>
         <div className="flex items-center gap-4"><label className="flex min-h-[44px] items-center gap-2 text-sm"><input type="checkbox" className="h-5 w-5" checked={showArchived} onChange={(e) => setShowArchived(e.target.checked)} />Show archived</label>
         <Link href="/learn" className="btn-outline">Preview as learner</Link>
-        <button className="btn-solid" onClick={() => setCourse({ track: "general", active: true, previewMode: true, order: 0 })}>+ New course</button></div>
+        <button className="btn-solid" onClick={() => setCourse(ws === "itp" ? { track: "itp", active: true, previewMode: true, order: 0, levelId: data?.levels[0]?.id } : { track: "general", active: true, previewMode: true, order: 0 })}>+ New course</button></div>
       </div>
       <ErrorNote text={error || err} />
       {data && <CategoriesPanel categories={data.categories} onChanged={reload} />}
-      {data && (() => {
+      {data && ws === "general" && (() => {
         const gs = data.courses.filter((c) => c.track === "general" && (showArchived || !c.archived));
         return (
           <section className="flex flex-col gap-3" aria-label="General courses">
@@ -92,7 +96,7 @@ export default function Kursus() {
           </section>
         );
       })()}
-      {data?.levels.map((l) => {
+      {data && ws === "itp" && data.levels.map((l) => {
         const cs = data.courses.filter((c) => c.track !== "general" && c.levelId === l.id && (showArchived || !c.archived));
         return (
           <section key={l.id} className="flex flex-col gap-3">
@@ -168,9 +172,10 @@ function CategoriesPanel({ categories, onChanged }: { categories: Data["categori
 }
 
 function CourseEditor({ init, data, levels, others, sectionTests, onClose, onSaved }: { init: Partial<Course>; data: Data; levels: Data["levels"]; others: Course[]; sectionTests: Data["quizzes"]; onClose: () => void; onSaved: () => void }) {
-  const [v, setV] = useState({ track: init.track ?? (init.id ? "itp" : "general") as "general" | "itp", levelId: init.levelId ?? (init.id || init.track === "general" ? "" : levels[0]?.id ?? ""), categoryId: init.categoryId ?? "", institutionIds: init.institutionIds ?? [] as string[], classIds: init.classIds ?? [] as string[], accessMode: init.accessMode ?? "assigned" as "assigned" | "paid", priceIdr: init.priceIdr ?? null as number | null, title: init.title ?? "", description: init.description ?? "", order: init.order ?? 0, active: init.active ?? true, archived: init.archived ?? false, previewMode: init.previewMode ?? false, part: init.part ?? "", sectionTestId: init.sectionTestId ?? "", requireSectionTest: init.requireSectionTest ?? false, secureMode: init.secureMode ?? false, coverAssetId: init.coverAssetId ?? null as string | null, prerequisiteCourseIds: init.prerequisiteCourseIds ?? [] as string[] });
+  const [v, setV] = useState({ whatYouLearn: (init.whatYouLearn ?? []).join("\n"), requirements: (init.requirements ?? []).join("\n"), targetAudience: init.targetAudience ?? "", tagsText: (init.tags ?? []).join(", "), previewVideoUrl: init.previewVideoUrl ?? "", track: init.track ?? (init.id ? "itp" : "general") as "general" | "itp", levelId: init.levelId ?? (init.id || init.track === "general" ? "" : levels[0]?.id ?? ""), categoryId: init.categoryId ?? "", institutionIds: init.institutionIds ?? [] as string[], classIds: init.classIds ?? [] as string[], accessMode: init.accessMode ?? "assigned" as "assigned" | "paid", priceIdr: init.priceIdr ?? null as number | null, title: init.title ?? "", description: init.description ?? "", order: init.order ?? 0, active: init.active ?? true, archived: init.archived ?? false, previewMode: init.previewMode ?? false, part: init.part ?? "", sectionTestId: init.sectionTestId ?? "", requireSectionTest: init.requireSectionTest ?? false, secureMode: init.secureMode ?? false, coverAssetId: init.coverAssetId ?? null as string | null, prerequisiteCourseIds: init.prerequisiteCourseIds ?? [] as string[] });
   const [err, setErr] = useState("");
   const [busy, setBusy] = useState(false);
+  const [tab, setTab] = useState<"info" | "curriculum" | "settings" | "access">("info");
   async function pickCover(f: File | undefined) {
     if (!f) return;
     setErr(""); setBusy(true);
@@ -178,18 +183,68 @@ function CourseEditor({ init, data, levels, others, sectionTests, onClose, onSav
     setBusy(false);
   }
   async function save() {
-    try { await api(init.id ? `/api/admin/courses/${init.id}` : "/api/admin/courses", { method: init.id ? "PATCH" : "POST", json: { ...v, levelId: v.track === "itp" ? v.levelId || null : null, categoryId: v.categoryId || null, priceIdr: v.accessMode === "paid" ? v.priceIdr : null, part: v.track === "itp" ? v.part || null : null, sectionTestId: v.sectionTestId || null, order: Number(v.order), description: v.description || undefined } }); onSaved(); }
+    try { await api(init.id ? `/api/admin/courses/${init.id}` : "/api/admin/courses", { method: init.id ? "PATCH" : "POST", json: { ...v, whatYouLearn: lines(v.whatYouLearn), requirements: lines(v.requirements), tags: v.tagsText.split(",").map((t) => t.trim()).filter(Boolean), previewVideoUrl: v.previewVideoUrl.trim() || null, targetAudience: v.targetAudience.trim() || undefined, levelId: v.track === "itp" ? v.levelId || null : null, categoryId: v.categoryId || null, priceIdr: v.accessMode === "paid" ? v.priceIdr : null, part: v.track === "itp" ? v.part || null : null, sectionTestId: v.sectionTestId || null, order: Number(v.order), description: v.description || undefined } }); onSaved(); }
     catch (e) { setErr((e as Error).message); }
   }
   return (
     <Modal title={init.id ? "Edit course" : "New course"} onClose={onClose}>
       <div className="flex flex-col gap-4">
+        <div role="tablist" aria-label="Course settings" className="flex flex-wrap gap-1 rounded-xl bg-canvas p-1 text-sm">
+          {(["info", "curriculum", "settings", "access"] as const).map((k) => (
+            <button key={k} type="button" role="tab" aria-selected={tab === k} onClick={() => setTab(k)}
+              className={`rounded-lg px-3 py-1.5 font-semibold transition ${tab === k ? "bg-navy text-white" : "text-ink-soft hover:bg-white"}`}>{{ info: "Info", curriculum: "Curriculum", settings: "Settings", access: "Access" }[k]}</button>
+          ))}
+        </div>
+        {tab === "info" && <>
         <label className={label}>Course type<select className="field font-normal" value={v.track} disabled={!!init.id} onChange={(e) => setV({ ...v, track: e.target.value as "general" | "itp" })}><option value="general">General subject (any course or subject)</option><option value="itp">TOEFL ITP (by level)</option></select></label>
         {v.track === "itp" ? <>
           <label className={label}>Level<select className="field font-normal" value={v.levelId} onChange={(e) => setV({ ...v, levelId: e.target.value })}>{levels.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}</select></label>
           <label className={label}>Exam part<select className="field font-normal" value={v.part} onChange={(e) => setV({ ...v, part: e.target.value })}><option value="">Not tied to a part</option>{Object.entries(PART_LABEL).map(([k, n]) => <option key={k} value={k}>{n}</option>)}</select></label>
         </> : <>
           <label className={label}>Category<select className="field font-normal" value={v.categoryId} onChange={(e) => setV({ ...v, categoryId: e.target.value })}><option value="">No category</option>{data.categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select></label>
+        </>}
+        <label className={label}>Title<input className="field font-normal" value={v.title} onChange={(e) => setV({ ...v, title: e.target.value })} /></label>
+        <label className={label}>Description<textarea className="field h-20 py-2 font-normal" value={v.description} onChange={(e) => setV({ ...v, description: e.target.value })} /></label>
+        <div className={label}>Cover image
+          <div className="flex items-center gap-3">
+            {v.coverAssetId ? <img src={`/api/assets/${v.coverAssetId}`} alt="Course cover" className="h-16 w-28 rounded-lg object-cover" /> : <span className="flex h-16 w-28 items-center justify-center rounded-lg bg-canvas text-xs font-normal text-ink-soft">No cover</span>}
+            <div className="flex flex-col gap-1 font-normal"><input type="file" accept="image/*" aria-label="Upload cover image" disabled={busy} onChange={(e) => pickCover(e.target.files?.[0])} className="text-sm" />{v.coverAssetId && <button type="button" className="self-start text-sm font-semibold text-red-700" onClick={() => setV({ ...v, coverAssetId: null })}>Remove cover</button>}</div>
+          </div>
+        </div>
+
+        <label className={label}>What participants will learn (one per line, up to 8)<textarea className="field h-24 py-2 font-normal" value={v.whatYouLearn} onChange={(e) => setV({ ...v, whatYouLearn: e.target.value })} /></label>
+        <label className={label}>Before starting (knowledge needed, one per line, up to 8)<textarea className="field h-20 py-2 font-normal" value={v.requirements} onChange={(e) => setV({ ...v, requirements: e.target.value })} /></label>
+        <label className={label}>Who this course is for<input className="field font-normal" maxLength={300} value={v.targetAudience} onChange={(e) => setV({ ...v, targetAudience: e.target.value })} /></label>
+        <label className={label}>Tags (comma separated, up to 8)<input className="field font-normal" value={v.tagsText} onChange={(e) => setV({ ...v, tagsText: e.target.value })} /></label>
+        <label className={label}>Introduction video (YouTube or Vimeo link, optional)<input className="field font-normal" placeholder="https://www.youtube.com/watch?v=..." value={v.previewVideoUrl} onChange={(e) => setV({ ...v, previewVideoUrl: e.target.value })} /></label>
+        </>}
+        {tab === "curriculum" && (
+          <div className="flex flex-col gap-3 text-sm">
+            {!init.id ? <p className="rounded-lg bg-canvas p-3 text-ink-soft">Save the course first. Then add modules and units with <b>+ Module</b> and <b>+ Unit</b> on the course card.</p> : <>
+              <p className="text-ink-soft">{(init.modules ?? []).length} modules · {(init.units ?? []).length} units. Add or edit them with <b>+ Module</b> and <b>+ Unit</b> on the course card, after closing this window.</p>
+              <ul className="divide-y divide-line rounded-lg border border-line">
+                {(init.units ?? []).map((u, i) => <li key={u.id} className="flex items-center justify-between gap-2 px-3 py-2"><span><span className="text-xs font-semibold text-ink-soft">UNIT {i + 1}</span> <b className="text-navy">{u.title}</b></span><span className="text-xs text-ink-soft">{u.materialIds.length} materials{u.quizTestId ? " · quiz" : ""}</span></li>)}
+                {(init.units ?? []).length === 0 && <li className="p-3 text-ink-soft">No units yet.</li>}
+              </ul>
+            </>}
+          </div>
+        )}
+        {tab === "settings" && <>
+        <label className={label}>Order<input className="field font-normal" type="number" min={0} value={v.order} onChange={(e) => setV({ ...v, order: Number(e.target.value) })} /></label>
+        <fieldset><legend className="mb-1 text-sm font-semibold text-navy">Prerequisites ({v.prerequisiteCourseIds.length})</legend>
+          <ul className="max-h-40 overflow-y-auto rounded-lg border border-line">
+            {others.map((o) => <li key={o.id}><label className="flex min-h-[44px] cursor-pointer items-center gap-3 border-b border-line px-3 text-sm last:border-0"><input type="checkbox" className="h-5 w-5" checked={v.prerequisiteCourseIds.includes(o.id)} onChange={() => setV((x) => ({ ...x, prerequisiteCourseIds: x.prerequisiteCourseIds.includes(o.id) ? x.prerequisiteCourseIds.filter((i) => i !== o.id) : [...x.prerequisiteCourseIds, o.id] }))} /><span className="flex-1">{o.title}</span></label></li>)}
+            {others.length === 0 && <li className="p-3 text-sm text-ink-soft">No other courses yet.</li>}
+          </ul>
+          <p className="mt-1 text-xs text-ink-soft">Participants can open this course after finishing every unit of the courses ticked here.</p>
+        </fieldset>
+        <label className={label}>Section test (end of course)<select className="field font-normal" value={v.sectionTestId} onChange={(e) => setV({ ...v, sectionTestId: e.target.value })}><option value="">None</option>{sectionTests.map((q) => <option key={q.id} value={q.id}>{q.name}</option>)}</select></label>
+        <label className="flex items-start gap-2 text-sm"><input type="checkbox" className="mt-0.5 h-5 w-5" checked={v.requireSectionTest} disabled={!v.sectionTestId} onChange={(e) => setV({ ...v, requireSectionTest: e.target.checked })} /><span><b>Require passing the section test</b><br /><span className="text-xs text-ink-soft">When on, courses that list this one as a prerequisite open only after its section test is passed. Off by default: the score is shown as progress only.</span></span></label>
+        <label className="flex min-h-[44px] items-center gap-2 text-sm"><input type="checkbox" className="h-5 w-5" checked={v.active} onChange={(e) => setV({ ...v, active: e.target.checked })} />Active</label>
+        <label className="flex items-start gap-2 rounded-lg bg-brand-tint p-2 text-sm"><input type="checkbox" className="mt-0.5 h-5 w-5" checked={v.previewMode} onChange={(e) => setV({ ...v, previewMode: e.target.checked })} /><span><b>Preview only</b><br /><span className="text-xs text-ink-soft">While this is on, participants (including AirNav) cannot see this course or the materials used only in it, even if Active is on. Admins and QA testers can open it from Learn, at every level, without prerequisites or unlock days. Turn it off to release the course.</span></span></label>
+        <label className="flex items-start gap-2 rounded-lg bg-accent-tint p-2 text-sm"><input type="checkbox" className="mt-0.5 h-5 w-5" checked={v.secureMode} onChange={(e) => setV({ ...v, secureMode: e.target.checked })} /><span><b>Secure mode</b><br /><span className="text-xs text-ink-soft">In this course&apos;s units and materials, copying, pasting, right-click, and the browser Back button are turned off.</span></span></label>
+        </>}
+        {tab === "access" && (v.track === "general" ? <>
           <fieldset><legend className="mb-1 text-sm font-semibold text-navy">Institutions ({v.institutionIds.length === 0 ? "all" : v.institutionIds.length})</legend>
             <ul className="max-h-40 overflow-y-auto rounded-lg border border-line">
               {data.institutions.map((o) => <li key={o.id}><label className="flex min-h-[44px] cursor-pointer items-center gap-3 border-b border-line px-3 text-sm last:border-0"><input type="checkbox" className="h-5 w-5" checked={v.institutionIds.includes(o.id)} onChange={() => setV((x) => ({ ...x, institutionIds: x.institutionIds.includes(o.id) ? x.institutionIds.filter((i) => i !== o.id) : [...x.institutionIds, o.id] }))} /><span className="flex-1">{o.name}</span></label></li>)}
@@ -205,28 +260,7 @@ function CourseEditor({ init, data, levels, others, sectionTests, onClose, onSav
           </fieldset>
           <label className={label}>Access<select className="field font-normal" value={v.accessMode} onChange={(e) => setV({ ...v, accessMode: e.target.value as "assigned" | "paid" })}><option value="assigned">Assigned to institutions and classes</option><option value="paid">Paid by individuals (preparation only, not offered yet)</option></select></label>
           {v.accessMode === "paid" && <label className={label}>Price (IDR)<input className="field font-normal" inputMode="numeric" value={v.priceIdr ?? ""} onChange={(e) => setV({ ...v, priceIdr: e.target.value ? Number(e.target.value.replace(/\D/g, "")) : null })} /></label>}
-        </>}
-        <label className={label}>Title<input className="field font-normal" value={v.title} onChange={(e) => setV({ ...v, title: e.target.value })} /></label>
-        <label className={label}>Description<textarea className="field h-20 py-2 font-normal" value={v.description} onChange={(e) => setV({ ...v, description: e.target.value })} /></label>
-        <label className={label}>Order<input className="field font-normal" type="number" min={0} value={v.order} onChange={(e) => setV({ ...v, order: Number(e.target.value) })} /></label>
-        <div className={label}>Cover image
-          <div className="flex items-center gap-3">
-            {v.coverAssetId ? <img src={`/api/assets/${v.coverAssetId}`} alt="Course cover" className="h-16 w-28 rounded-lg object-cover" /> : <span className="flex h-16 w-28 items-center justify-center rounded-lg bg-canvas text-xs font-normal text-ink-soft">No cover</span>}
-            <div className="flex flex-col gap-1 font-normal"><input type="file" accept="image/*" aria-label="Upload cover image" disabled={busy} onChange={(e) => pickCover(e.target.files?.[0])} className="text-sm" />{v.coverAssetId && <button type="button" className="self-start text-sm font-semibold text-red-700" onClick={() => setV({ ...v, coverAssetId: null })}>Remove cover</button>}</div>
-          </div>
-        </div>
-        <fieldset><legend className="mb-1 text-sm font-semibold text-navy">Prerequisites ({v.prerequisiteCourseIds.length})</legend>
-          <ul className="max-h-40 overflow-y-auto rounded-lg border border-line">
-            {others.map((o) => <li key={o.id}><label className="flex min-h-[44px] cursor-pointer items-center gap-3 border-b border-line px-3 text-sm last:border-0"><input type="checkbox" className="h-5 w-5" checked={v.prerequisiteCourseIds.includes(o.id)} onChange={() => setV((x) => ({ ...x, prerequisiteCourseIds: x.prerequisiteCourseIds.includes(o.id) ? x.prerequisiteCourseIds.filter((i) => i !== o.id) : [...x.prerequisiteCourseIds, o.id] }))} /><span className="flex-1">{o.title}</span></label></li>)}
-            {others.length === 0 && <li className="p-3 text-sm text-ink-soft">No other courses yet.</li>}
-          </ul>
-          <p className="mt-1 text-xs text-ink-soft">Participants can open this course after finishing every unit of the courses ticked here.</p>
-        </fieldset>
-        <label className={label}>Section test (end of course)<select className="field font-normal" value={v.sectionTestId} onChange={(e) => setV({ ...v, sectionTestId: e.target.value })}><option value="">None</option>{sectionTests.map((q) => <option key={q.id} value={q.id}>{q.name}</option>)}</select></label>
-        <label className="flex items-start gap-2 text-sm"><input type="checkbox" className="mt-0.5 h-5 w-5" checked={v.requireSectionTest} disabled={!v.sectionTestId} onChange={(e) => setV({ ...v, requireSectionTest: e.target.checked })} /><span><b>Require passing the section test</b><br /><span className="text-xs text-ink-soft">When on, courses that list this one as a prerequisite open only after its section test is passed. Off by default: the score is shown as progress only.</span></span></label>
-        <label className="flex min-h-[44px] items-center gap-2 text-sm"><input type="checkbox" className="h-5 w-5" checked={v.active} onChange={(e) => setV({ ...v, active: e.target.checked })} />Active</label>
-        <label className="flex items-start gap-2 rounded-lg bg-brand-tint p-2 text-sm"><input type="checkbox" className="mt-0.5 h-5 w-5" checked={v.previewMode} onChange={(e) => setV({ ...v, previewMode: e.target.checked })} /><span><b>Preview only</b><br /><span className="text-xs text-ink-soft">While this is on, participants (including AirNav) cannot see this course or the materials used only in it, even if Active is on. Admins and QA testers can open it from Learn, at every level, without prerequisites or unlock days. Turn it off to release the course.</span></span></label>
-        <label className="flex items-start gap-2 rounded-lg bg-accent-tint p-2 text-sm"><input type="checkbox" className="mt-0.5 h-5 w-5" checked={v.secureMode} onChange={(e) => setV({ ...v, secureMode: e.target.checked })} /><span><b>Secure mode</b><br /><span className="text-xs text-ink-soft">In this course&apos;s units and materials, copying, pasting, right-click, and the browser Back button are turned off.</span></span></label>
+        </> : <p className="rounded-lg bg-canvas p-3 text-sm text-ink-soft">TOEFL ITP courses are opened by level and placement. Institution and class access applies to general courses.</p>)}
         <ErrorNote text={err} />
         <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end"><button className="btn-outline" onClick={onClose}>Cancel</button><button className="btn-solid" disabled={!v.title.trim() || busy} onClick={save}>Save</button></div>
       </div>

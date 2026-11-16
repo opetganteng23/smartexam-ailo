@@ -81,4 +81,39 @@ document.getElementById('go').onclick=function(){if(iv)return;set();msg.textCont
 document.getElementById('rs').onclick=function(){clearInterval(iv);iv=null;set();msg.textContent=''};M.onchange=set;set();`,
     },
   },
+  {
+    key: "steps", name: "Step-by-step explanation", desc: "Reveal an explanation one step at a time, with Back and Next.",
+    doc: {
+      css: BASE_CSS + `.cur{border-color:#00809C;box-shadow:0 0 0 3px rgba(0,128,156,.12)}.bar{height:8px;border-radius:99px;background:#E7F0F2;margin:8px 0}.bar span{display:block;height:8px;border-radius:99px;background:#00809C}pre{background:#0f172a;color:#e2e8f0;padding:10px 12px;border-radius:10px;overflow:auto}`,
+      html: `<h2>How a stack works</h2><div class="bar"><span id="bar"></span></div><div id="app"></div><p><button class="btn alt" id="bk">Back</button> <button class="btn" id="nx">Next step</button></p>`,
+      js: `// EDIT DATA HERE: t = step title, b = explanation (plain text), c = optional code shown under the step
+var DATA=[
+ {t:"Step 1: An empty stack",b:"A stack starts empty. We only ever touch the top.",c:"top = -1"},
+ {t:"Step 2: push(10)",b:"push puts a new value on top. The top index moves up by one.",c:"stack[++top] = 10"},
+ {t:"Step 3: push(20)",b:"The last value in is the first value out (LIFO).",c:"stack[++top] = 20"},
+ {t:"Step 4: pop()",b:"pop removes and returns the top value, here 20. The top index moves down by one.",c:"return stack[top--]"}
+];
+var i=0,app=document.getElementById('app'),bar=document.getElementById('bar');
+function show(){app.innerHTML='';for(var k=0;k<=i;k++){var c=document.createElement('div');c.className='card'+(k===i?' cur':'');var h=document.createElement('b');h.textContent=DATA[k].t;var p=document.createElement('p');p.textContent=DATA[k].b;c.appendChild(h);c.appendChild(p);if(DATA[k].c){var pr=document.createElement('pre');pr.textContent=DATA[k].c;c.appendChild(pr)}app.appendChild(c)}
+ bar.style.width=Math.round((i+1)/DATA.length*100)+'%';document.getElementById('bk').disabled=i===0;var nx=document.getElementById('nx');nx.disabled=i>=DATA.length-1;nx.textContent=i>=DATA.length-1?'All steps shown':'Next step';
+ if(i>=DATA.length-1)EI.complete(100,[])}
+document.getElementById('bk').onclick=function(){if(i>0){i--;show()}};document.getElementById('nx').onclick=function(){if(i<DATA.length-1){i++;show()}};show();`,
+    },
+  },
+  {
+    key: "dsviz", name: "Data structure visualizer", desc: "Try push, pop, enqueue, and dequeue and watch a stack or queue change.",
+    doc: {
+      css: BASE_CSS + `.cells{display:flex;gap:6px;flex-wrap:wrap;min-height:56px;align-items:center}.cell{min-width:52px;padding:12px 10px;text-align:center;border:1.5px solid #00809C;border-radius:10px;font-weight:700;background:#E7F5F8;color:#0A4256}.tag{font-size:12px;color:#4F6670;display:block}.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:10px 0}select{font:inherit;padding:8px;border:1.5px solid #C3D8DE;border-radius:8px}`,
+      html: `<h2>Data structure visualizer</h2><div class="row"><label>Type <select id="kind"><option value="stack">Stack (LIFO)</option><option value="queue">Queue (FIFO)</option></select></label><input type="text" id="val" aria-label="Value" placeholder="value" maxlength="6"><button class="btn" id="add">Push</button><button class="btn alt" id="rem">Pop</button><button class="btn alt" id="clr">Clear</button></div><div class="card"><div class="cells" id="cells"></div></div><p id="msg" class="muted" role="status"></p>`,
+      js: `// EDIT DATA HERE: the capacity of the structure
+var CAP=8;
+var items=[],kind=document.getElementById('kind'),val=document.getElementById('val'),cells=document.getElementById('cells'),msg=document.getElementById('msg'),add=document.getElementById('add'),rem=document.getElementById('rem');
+function isStack(){return kind.value==='stack'}
+function draw(){cells.innerHTML='';items.forEach(function(x,k){var c=document.createElement('div');c.className='cell';c.textContent=x;var t=document.createElement('span');t.className='tag';var last=k===items.length-1;t.textContent=isStack()?(last?'top':''):(k===0?'front':(last?'rear':''));c.appendChild(t);cells.appendChild(c)});if(!items.length)cells.textContent='(empty)';
+ add.textContent=isStack()?'Push':'Enqueue';rem.textContent=isStack()?'Pop':'Dequeue'}
+add.onclick=function(){var v=val.value.trim();if(!v){msg.textContent='Type a value first.';return}if(items.length>=CAP){msg.textContent=(isStack()?'Stack overflow':'Queue is full')+': capacity is '+CAP+'.';return}items.push(v);val.value='';msg.textContent=(isStack()?'push(':'enqueue(')+v+')';draw()};
+rem.onclick=function(){if(!items.length){msg.textContent=isStack()?'Stack underflow: the stack is empty.':'Queue is empty.';return}var v=isStack()?items.pop():items.shift();msg.textContent=(isStack()?'pop() returned ':'dequeue() returned ')+v;draw()};
+document.getElementById('clr').onclick=function(){items=[];msg.textContent='';draw()};kind.onchange=function(){items=[];msg.textContent='';draw()};draw();`,
+    },
+  },
 ];
