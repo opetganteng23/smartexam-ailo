@@ -1,3 +1,4 @@
+import { participantCourseFilter } from "@/lib/course-scope";
 import { NextResponse } from "next/server";
 import { isValidObjectId } from "mongoose";
 import { connectDB } from "@/lib/db";
@@ -16,7 +17,7 @@ export async function POST(_req: Request, { params }: { params: { id: string } }
     const preview = isPreviewer(me);
     if (!isValidObjectId(params.id)) throw new HttpError(404, "Course not found");
     await connectDB();
-    const course = await Course.findOne(preview ? { _id: params.id, ...PREVIEW_VISIBLE } : { _id: params.id, ...LIVE, levelId: me.currentLevelId ?? undefined }).lean();
+    const course = await Course.findOne(preview ? { _id: params.id, ...PREVIEW_VISIBLE } : { _id: params.id, ...LIVE, ...(await participantCourseFilter(me)) }).lean();
     if (!course || !course.sectionTestId) throw new HttpError(404, "Section test not found");
     if (!preview) {
       const lock = (await courseLocks(me._id, [course])).get(String(course._id));

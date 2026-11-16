@@ -4,6 +4,7 @@ import { requireRole, handleError } from "@/lib/rbac";
 import { Material, MaterialProgress } from "@/models/Material";
 import { visibleTo } from "@/lib/material-authz";
 import { isPreviewer, previewOnlyMaterialIds } from "@/lib/course-access";
+import { restrictedMaterialIds } from "@/lib/course-scope";
 
 export const dynamic = "force-dynamic";
 
@@ -11,7 +12,7 @@ export async function GET() {
   try {
     const user = await requireRole(["participant", "admin"]);
     await connectDB();
-    const hidden = isPreviewer(user) ? [] : await previewOnlyMaterialIds(); // materi course yang belum dirilis tidak tampil bagi peserta
+    const hidden = isPreviewer(user) ? [] : [...(await previewOnlyMaterialIds()), ...(await restrictedMaterialIds(user))]; // materi course yang belum dirilis tidak tampil bagi peserta
     const list = await Material.find({ status: "published", ...visibleTo(user), ...(hidden.length ? { _id: { $nin: hidden } } : {}) }).select("title slug summary kind tags access publishedAt").sort({ publishedAt: -1 }).lean();
     const prog = new Map((await MaterialProgress.find({ userId: user._id, materialId: { $in: list.map((m) => m._id) } }).lean()).map((p) => [String(p.materialId), p]));
     return NextResponse.json({

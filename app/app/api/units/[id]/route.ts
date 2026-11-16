@@ -1,5 +1,6 @@
 import { LIVE, PREVIEW_VISIBLE, isPreviewer, assertUnitAccess } from "@/lib/course-access";
 import { visibleTestFilter } from "@/lib/test-access";
+import { participantCourseFilter } from "@/lib/course-scope";
 import { NextResponse } from "next/server";
 import { isValidObjectId } from "mongoose";
 import { connectDB } from "@/lib/db";
@@ -20,7 +21,7 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
     if (!isValidObjectId(params.id)) throw new HttpError(404, "Unit not found");
     await connectDB();
     const unit = await Unit.findOne({ _id: params.id, active: true }).lean();
-    const course = unit ? await Course.findOne(preview ? { _id: unit.courseId, ...PREVIEW_VISIBLE } : { _id: unit.courseId, ...LIVE, levelId: me.currentLevelId ?? undefined }).lean() : null;
+    const course = unit ? await Course.findOne(preview ? { _id: unit.courseId, ...PREVIEW_VISIBLE } : { _id: unit.courseId, ...LIVE, ...(await participantCourseFilter(me)) }).lean() : null;
     if (!unit || !course) throw new HttpError(404, "Unit not found");
     if (!preview) await assertUnitAccess(me._id, unit, course);
 

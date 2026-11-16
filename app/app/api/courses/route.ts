@@ -1,4 +1,4 @@
-import { LIVE, PREVIEW_VISIBLE, isPreviewer, courseLocks, courseStartedAt, unitDrip } from "@/lib/course-access";
+import { LIVE, PREVIEW_VISIBLE, isPreviewer, courseLocks, unitDrip } from "@/lib/course-access";
 import { getLevels } from "@/lib/config";
 import { cycleState, placementNeeded } from "@/lib/cycles";
 import { NextResponse } from "next/server";
@@ -7,19 +7,27 @@ import { requireRole, handleError } from "@/lib/rbac";
 import { Course, CourseModule, CourseProgress, Unit, UnitProgress } from "@/models/Course";
 import { Attempt, Test } from "@/models/Test";
 import { visibleTestFilter } from "@/lib/test-access";
+import { participantCourseFilter, trackOf } from "@/lib/course-scope";
+import { featuresFor } from "@/lib/features";
 
 export const dynamic = "force-dynamic";
 
-/** Course di level peserta beserta unit dan progresnya. Level lain tidak terlihat. */
+/**
+ * Course peserta beserta unit dan progresnya: course umum milik institusi dan kelasnya, ditambah course ITP di levelnya.
+ * Course institusi, kelas, atau level lain tidak terlihat. `needsPlacement` hanya untuk jalur ITP dan hanya bila peserta
+ * tidak punya course umum.
+ */
 export async function GET() {
   try {
     const me = await requireRole(["participant", "admin"]);
     await connectDB();
     const preview = isPreviewer(me); // admin dan QA tester: semua level, termasuk course mode preview, tanpa prasyarat dan drip
-    if (!preview && (!me.currentLevelId || placementNeeded(me, await cycleState(me.institutionId)))) return NextResponse.json({ needsPlacement: true, courses: [] });
+    if (!preview && !(await featuresFor(me)).learning) return NextResponse.json({ needsPlacement: false, courses: [] }); // modul Learning mati (global atau institusi ini)
+    const itpBlocked = !preview && (!me.currentLevelId || placementNeeded(me, await cycleState(me.institutionId)));
     const levels = preview ? await getLevels() : [];
     const lvl = new Map(levels.map((l) => [String(l._id), l]));
-    const found = await Course.find(preview ? { ...PREVIEW_VISIBLE } : { levelId: me.currentLevelId, ...LIVE }).sort({ order: 1, createdAt: 1 }).lean();
+    const found = await Course.find(preview ? { ...PREVIEW_VISIBLE } : { ...LIVE, ...(await participantCourseFilter(me, { itp: !itpBlocked })) }).sort({ order: 1, createdAt: 1 }).lean();
+    if (!preview && itpBlocked && found.length === 0) return NextResponse.json({ needsPlacement: true, courses: [] });
     const courses = preview ? found.sort((a, b) => (lvl.get(String(a.levelId))?.order ?? 99) - (lvl.get(String(b.levelId))?.order ?? 99)) : found;
     const units = await Unit.find({ courseId: { $in: courses.map((c) => c._id) }, active: true }).sort({ order: 1, createdAt: 1 }).lean();
     const [mods, locks] = await Promise.all([
@@ -33,7 +41,12 @@ export async function GET() {
       tIds.length ? CourseProgress.find({ userId: me._id, courseId: { $in: courses.map((c) => c._id) } }).lean() : [],
       tIds.length ? Attempt.find({ userId: me._id, testId: { $in: tIds }, status: "in_progress" }).select("testId").lean() : [],
     ]);
-    const started = new Map(await Promise.all(courses.map(async (c) => [String(c._id), await courseStartedAt(me._id, c._id)] as const)));
+    // Awal belajar per course dalam satu query (bukan satu per course).
+    const started = new Map<string, Date>();
+    for (const p of await UnitProgress.find({ userId: me._id, courseId: { $in: courses.map((c) => c._id) } }).select("courseId createdAt").sort({ createdAt: 1 }).lean()) {
+      const k = String(p.courseId);
+      if (!started.has(k)) started.set(k, (p as { createdAt?: Date }).createdAt as Date);
+    }
     const prog = new Map((await UnitProgress.find({ userId: me._id, unitId: { $in: units.map((u) => u._id) } }).lean()).map((p) => [String(p.unitId), p]));
     return NextResponse.json({
       needsPlacement: false, preview,
@@ -53,7 +66,7 @@ export async function GET() {
         const allDone = us.length > 0 && us.every((u) => u.status === "completed");
         const sectionTest = st ? { name: st.name, questions: st.sections.reduce((n, s) => n + s.questionIds.length, 0), best: cp?.sectionTestBest ?? null, passed: !!cp?.sectionTestPassed, attempts: cp?.sectionTestAttempts ?? 0, required: !!c.requireSectionTest, state: lock?.locked ? "locked" : run ? "in_progress" : allDone || preview ? "available" : "locked", inProgressAttemptId: run ? String(run._id) : null } : null;
         return {
-          id: String(c._id), title: c.title, description: c.description ?? "", level: preview ? lvl.get(String(c.levelId))?.name ?? null : null, part: c.part ?? null, sectionTest, previewOnly: !!c.previewMode, inactive: !c.active, cover: c.coverAssetId ? `/api/assets/${c.coverAssetId}` : null,
+          id: String(c._id), title: c.title, description: c.description ?? "", level: preview ? lvl.get(String(c.levelId))?.name ?? null : null, part: c.part ?? null, track: trackOf(c), categoryId: c.categoryId ? String(c.categoryId) : null, sectionTest, previewOnly: !!c.previewMode, inactive: !c.active, cover: c.coverAssetId ? `/api/assets/${c.coverAssetId}` : null,
           locked: !!lock?.locked, missing: lock?.missing ?? [],
           modules: mods.filter((m) => String(m.courseId) === String(c._id)).map((m) => ({ id: String(m._id), title: m.title, description: m.description ?? "" })),
           units: us, completed: us.filter((u) => u.status === "completed").length,

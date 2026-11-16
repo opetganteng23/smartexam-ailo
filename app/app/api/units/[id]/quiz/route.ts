@@ -1,3 +1,4 @@
+import { participantCourseFilter } from "@/lib/course-scope";
 import { LIVE, PREVIEW_VISIBLE, isPreviewer, assertUnitAccess } from "@/lib/course-access";
 import { visibleTestFilter } from "@/lib/test-access";
 import { cycleState } from "@/lib/cycles";
@@ -16,7 +17,7 @@ export async function POST(_req: Request, { params }: { params: { id: string } }
     if (!isValidObjectId(params.id)) throw new HttpError(404, "Unit not found");
     await connectDB();
     const unit = await Unit.findOne({ _id: params.id, active: true }).lean();
-    const course = unit ? await Course.findOne(preview ? { _id: unit.courseId, ...PREVIEW_VISIBLE } : { _id: unit.courseId, ...LIVE, levelId: me.currentLevelId ?? undefined }).lean() : null;
+    const course = unit ? await Course.findOne(preview ? { _id: unit.courseId, ...PREVIEW_VISIBLE } : { _id: unit.courseId, ...LIVE, ...(await participantCourseFilter(me)) }).lean() : null;
     if (!unit || !course || !unit.quizTestId) throw new HttpError(404, "Quiz not found");
     if (!preview) await assertUnitAccess(me._id, unit, course);
     const cs = await cycleState(me.institutionId);
