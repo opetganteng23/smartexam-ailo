@@ -1,4 +1,5 @@
 import { hasAnswer } from "@/lib/grading";
+import { withAttemptSections } from "@/lib/attempt-sections";
 import { NextResponse } from "next/server";
 import { isValidObjectId } from "mongoose";
 import { z } from "zod";
@@ -29,8 +30,9 @@ export async function POST(req: Request, { params }: { params: { id: string } })
       return NextResponse.json({ ok: true, ...r });
     }
     if (attempt.status !== "in_progress") throw new HttpError(409, "This attempt is already finished");
-    const test = await Test.findById(attempt.testId);
-    if (!test) throw new HttpError(404, "Test not found");
+    const test0 = await Test.findById(attempt.testId).lean();
+    if (!test0) throw new HttpError(404, "Test not found");
+    const test = withAttemptSections(test0, attempt);
     const answered = attempt.answers.filter((a) => hasAnswer(a)).length;
     await finalize(attempt as never, test as never);
     await audit(admin._id, "attempt.terminate", params.id, { userId: String(attempt.userId), testId: String(attempt.testId), section: attempt.sectionIdx, answered, score: attempt.scoreEst ?? null, reason: b.reason });

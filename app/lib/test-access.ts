@@ -12,6 +12,7 @@ export function canStartTest(user: Pick<UserDoc, "role" | "placementAttemptId" |
   if (user.role === "admin" || user.qaTester) return { ok: true }; // admin dan QA tester menguji tanpa aturan placement, level, atau periode
   if (user.role !== "participant") return { ok: false, reason: "Only participants take tests" };
   if (ctx.blocked) return { ok: false, reason: ctx.blocked };
+  if (test.kind === "general") return { ok: true }; // tes umum: tanpa placement dan tanpa level; akses course dan jadwal dijaga di rute mulai
   if (test.kind === "placement" && ctx.pendingRelease) return { ok: false, reason: "Your placement test is finished. The result will be released at the scheduled time." };
   const done = !!user.placementAttemptId && !ctx.placementNeeded;
   if (test.kind === "placement") return done && !user.placementRetakeAllowed ? { ok: false, reason: "The placement test has already been taken. A retake is only allowed with coach or admin permission." } : { ok: true };

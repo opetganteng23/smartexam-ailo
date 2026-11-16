@@ -7,7 +7,7 @@ import { isValidObjectId } from "mongoose";
 import { connectDB } from "@/lib/db";
 import { requireRole, handleError, HttpError, ACADEMIC_ROLES } from "@/lib/rbac";
 import { testSchema } from "@/lib/admin-schemas";
-import { validateTestQuestions } from "@/lib/test-validate";
+import { validateTestQuestions, validateGeneralRefs } from "@/lib/test-validate";
 import { Test, Attempt } from "@/models/Test";
 import { TestSeat, TestSession } from "@/models/Schedule";
 import { AuditLog } from "@/models/AuditLog";
@@ -43,9 +43,11 @@ async function realInProgress(testId: Types.ObjectId) {
   return Attempt.exists({ testId, status: "in_progress", userId: { $nin: staff.map((u) => u._id) } });
 }
 
-const sameStructure = (a: { name: string; durationSec: number; questionIds: unknown[] }[], b: typeof a) =>
-  JSON.stringify(a.map((s) => [s.name, s.durationSec, s.questionIds.map(String)])) ===
-  JSON.stringify(b.map((s) => [s.name, s.durationSec, s.questionIds.map(String)]));
+type StructSec = { name: string; durationSec: number; questionIds: unknown[]; draw?: { collectionId?: unknown; count?: number | null; topics?: string[] | null; difficulties?: string[] | null } | null };
+const drawKey = (d: StructSec["draw"]) => (d?.collectionId ? [String(d.collectionId), d.count ?? 0, [...(d.topics ?? [])].sort(), [...(d.difficulties ?? [])].sort()] : null);
+const sameStructure = (a: StructSec[], b: StructSec[]) =>
+  JSON.stringify(a.map((s) => [s.name, s.durationSec, s.questionIds.map(String), drawKey(s.draw)])) ===
+  JSON.stringify(b.map((s) => [s.name, s.durationSec, s.questionIds.map(String), drawKey(s.draw)]));
 
 export async function PATCH(req: Request, { params }: { params: { id: string } }) {
   try {
@@ -61,6 +63,7 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
       throw new HttpError(409, "Question shuffling cannot be changed while participants are taking this test.");
     if (attempts > 0 && !!t.shuffleOptions !== body.shuffleOptions) throw new HttpError(409, "Answer-option shuffling cannot be changed after the test has been taken.");
     if (attempts === 0) await validateTestQuestions(body.sections, admin);
+    await validateGeneralRefs(body, params.id);
     t.set(body);
     await t.save();
     await AuditLog.create({ actorId: admin._id, action: "test.update", target: params.id });

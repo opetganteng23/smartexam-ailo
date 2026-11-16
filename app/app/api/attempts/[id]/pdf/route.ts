@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { withAttemptSections } from "@/lib/attempt-sections";
 import { connectDB } from "@/lib/db";
 import { isReleased, exemptFromDelay } from "@/lib/attempt-release";
 import { requireRole, handleError, HttpError } from "@/lib/rbac";
@@ -28,8 +29,9 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
       if (!a) throw new HttpError(404, "Attempt not found");
       const sv = await staffViewer(String(a.userId));
       if (!sv.full && !isReleased(a)) return NextResponse.json({ error: "This result is not released yet." }, { status: 423 });
-      attempt = a; test = await Test.findById(a.testId).lean();
-      if (!test) throw new HttpError(404, "Test not found");
+      attempt = a; const t0 = await Test.findById(a.testId).lean();
+      if (!t0) throw new HttpError(404, "Test not found");
+      test = withAttemptSections(t0, a);
     }
     if (attempt.status !== "submitted") throw new HttpError(409, "The test is not finished yet");
     if (user.role === "participant" && !exemptFromDelay(user) && !isReleased(attempt)) return NextResponse.json({ error: "Your results are not released yet.", availableAt: attempt.releaseAt }, { status: 423 });

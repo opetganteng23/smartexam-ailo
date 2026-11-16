@@ -1,4 +1,5 @@
 import { creditGap } from "./conn";
+import { withAttemptSections } from "@/lib/attempt-sections";
 import { isValidObjectId, type HydratedDocument } from "mongoose";
 import { connectDB } from "./db";
 import { HttpError } from "./rbac";
@@ -28,8 +29,9 @@ export async function loadAttempt(id: string, user: Pick<UserDoc, "_id" | "role"
   const attempt = await Attempt.findById(id);
   if (!attempt || (String(attempt.userId) !== String(user._id) && user.role !== "admin"))
     throw new HttpError(404, "Attempt not found");
-  const test = await Test.findById(attempt.testId).lean();
-  if (!test) throw new HttpError(500, "Test not found");
+  const test0 = await Test.findById(attempt.testId).lean();
+  if (!test0) throw new HttpError(500, "Test not found");
+  const test = withAttemptSections(test0, attempt); // soal acak per percobaan (tes dengan draw); selain itu tes apa adanya
   // Peserta sendiri kembali setelah koneksi putus: kembalikan waktu yang hilang sebelum timer diperiksa.
   if (String(attempt.userId) === String(user._id)) await creditGap(attempt as never);
   try {
@@ -40,7 +42,7 @@ export async function loadAttempt(id: string, user: Pick<UserDoc, "_id" | "role"
     const fresh = await Attempt.findById(id);
     if (!fresh) throw e;
     await syncTimer(fresh, test);
-    return { attempt: fresh, test };
+    return { attempt: fresh, test: withAttemptSections(test0, fresh) };
   }
   return { attempt, test };
 }
@@ -161,6 +163,7 @@ export async function runAttemptEffects(attempt: AttemptHydrated) {
     if (attempt.kind === "quiz") await recordQuizResult(attempt);
     if (attempt.kind === "section") await recordSectionTestResult(attempt);
   } catch (e) { console.error("[finalize] side effects failed", e); }
+  if (attempt.kind === "general") return; // tes umum: tidak ada rencana belajar, naik level, atau analisis ITP; skor dan topik sudah tersimpan di percobaan
   try { await processAttemptLearning(attempt); } catch (e) { console.error("[finalize] learning pipeline failed", e); }
   try { if (attempt.kind === "sim" || attempt.kind === "final") await evaluateLevelUp(attempt); } catch (e) { console.error("[finalize] level-up check failed", e); } // setelah pipeline: memakai rencana yang sudah diperbarui
   void runAnalysis(attempt._id);

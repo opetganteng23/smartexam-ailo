@@ -46,7 +46,16 @@ export const groupSchema = z.object({
 const oid = z.string().regex(/^[0-9a-f]{24}$/);
 export const testSchema = z.object({
   name: z.string().trim().min(1).max(120),
-  kind: z.enum(["placement", "sim", "final", "practice", "quiz", "section"]),
+  kind: z.enum(["placement", "sim", "final", "practice", "quiz", "section", "general"]),
+  purpose: z.enum(["daily", "pretest", "posttest", "midterm", "final"]).nullable().optional(),
+  courseId: oid.nullable().optional(),
+  categoryId: oid.nullable().optional(),
+  pairedTestId: oid.nullable().optional(),
+  daily: z.object({
+    start: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, "Use HH:mm (24-hour)"),
+    end: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, "Use HH:mm (24-hour)"),
+    maxPerDay: z.number().int().min(0).max(50).default(0),
+  }).refine((d) => d.start !== d.end, { message: "The opening and closing time must differ", path: ["end"] }).nullable().optional(),
   levelId: z.string().regex(/^[0-9a-f]{24}$/).nullable().optional(),
   active: z.boolean().default(true),
   testMode: z.boolean().default(false),
@@ -65,12 +74,22 @@ export const testSchema = z.object({
       z.object({
         name: z.string().regex(SECTION_KEY_RE, "Invalid section name"),
         durationSec: z.number().int().min(60, { message: "Minimum section duration is 1 minute" }).max(10_800, { message: "Maximum section duration is 180 minutes" }),
-        questionIds: z.array(oid).min(1).max(200),
-      })
+        questionIds: z.array(oid).max(200),
+        draw: z.object({
+          collectionId: oid,
+          count: z.number().int().min(1).max(200),
+          topics: z.array(z.string().trim().min(1).max(60)).max(20).default([]),
+          difficulties: z.array(z.enum(["easy", "medium", "hard"])).max(3).default([]),
+        }).nullable().optional(),
+      }).refine((s) => (s.draw ? s.questionIds.length === 0 : s.questionIds.length >= 1), { message: "Each section needs fixed questions or a random draw, not both", path: ["questionIds"] })
     )
     .min(1)
     .max(20)
     .refine((s) => new Set(s.map((x) => x.name)).size === s.length, { message: "Sections must not be duplicated" }),
+}).superRefine((t, ctx) => {
+  if (t.kind !== "general" && (t.purpose || t.courseId || t.daily)) ctx.addIssue({ code: "custom", message: "Purpose, course, and daily window apply only to general tests", path: ["kind"] });
+  if (t.kind !== "general" && t.sections.some((s) => s.draw)) ctx.addIssue({ code: "custom", message: "Random draw from a collection is available for general tests", path: ["sections"] });
+  if (t.daily && t.purpose !== "daily") ctx.addIssue({ code: "custom", message: "A daily window requires the purpose Daily quiz", path: ["daily"] });
 });
 
 export const sessionInput = z.object({

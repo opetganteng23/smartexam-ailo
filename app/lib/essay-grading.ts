@@ -1,5 +1,6 @@
 import { connectDB } from "./db";
 import { sanitizeQuestionHtml } from "./question-html";
+import { withAttemptSections } from "./attempt-sections";
 import { HttpError } from "./rbac";
 import { Attempt, Test } from "@/models/Test";
 import { Question } from "@/models/Question";
@@ -36,8 +37,9 @@ export async function recompute(attemptId: string) {
   await connectDB();
   const attempt = await Attempt.findById(attemptId);
   if (!attempt || attempt.status !== "submitted") throw new HttpError(404, "Attempt not found");
-  const test = await Test.findById(attempt.testId);
-  if (!test) throw new HttpError(404, "Test not found");
+  const test0 = await Test.findById(attempt.testId).lean();
+  if (!test0) throw new HttpError(404, "Test not found");
+  const test = withAttemptSections(test0, attempt); // tes dengan soal acak: pakai soal yang ditarik untuk percobaan ini
   const prof = (attempt.scoringProfileId && (await ScoringProfile.findById(attempt.scoringProfileId))) || (await profileForTest(test as never)); // profil yang sama dengan saat submit
   const { graded, topicScores, pending } = await scoreAttempt(attempt as never, test as never, prof);
   attempt.set({ ...graded, topicScores, essayPending: pending });

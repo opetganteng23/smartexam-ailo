@@ -1,3 +1,4 @@
+import { testSize } from "@/lib/attempt-sections";
 import { SECTION_SHORT } from "@/lib/exam-format";
 import { Types } from "mongoose";
 import { connectDB } from "./db";
@@ -40,7 +41,7 @@ export async function monitorRows(testId: string, now = new Date(), opts: { inst
   const test = await Test.findById(testId).select("name sections secureMode screenWatch").lean();
   const screens = test?.screenWatch ? screenStates(testId, opts.institutionId) : {};
   if (!test) return null;
-  const total = test.sections.reduce((n, s) => n + s.questionIds.length, 0);
+  const total = testSize(test);
   const limitMin = test.sections.reduce((n, s) => n + (s.durationSec ?? 0), 0) / 60;
   const list = await Attempt.aggregate<{
     _id: Types.ObjectId; userId: Types.ObjectId; status: string; startedAt: Date; finishedAt?: Date; updatedAt: Date; sectionIdx: number; scoreEst?: number;

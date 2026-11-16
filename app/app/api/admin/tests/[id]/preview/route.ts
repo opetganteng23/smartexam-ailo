@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { sanitizeQuestionHtml } from "@/lib/question-html";
+import { drawSections, hasDraw } from "@/lib/attempt-sections";
 import { isValidObjectId } from "mongoose";
 import { connectDB } from "@/lib/db";
 import { requireRole, handleError, HttpError, ACADEMIC_ROLES } from "@/lib/rbac";
@@ -16,14 +17,16 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
     await connectDB();
     const t = await Test.findById(params.id).lean();
     if (!t) throw new HttpError(404, "Test not found");
-    const ids = t.sections.flatMap((s) => s.questionIds);
+    // Bagian dengan soal acak: pratinjau memakai satu contoh tarikan (soal peserta berbeda tiap percobaan).
+    const secs = hasDraw(t) ? await drawSections(t, "preview") : t.sections;
+    const ids = secs.flatMap((s) => s.questionIds);
     const qs = await Question.find({ _id: { $in: ids } }).select("section type groupId stem stemFormat options answerKey explanation assetIds").lean();
     const gids = Array.from(new Set(qs.map((q) => q.groupId).filter(Boolean).map(String)));
     const groups = await QuestionGroup.find({ _id: { $in: gids } }).select("instruction audioId passageTitle passageHtml assetIds").lean();
     const byId = new Map(qs.map((q) => [String(q._id), q]));
     return NextResponse.json({
       name: t.name,
-      sections: t.sections.map((s) => ({
+      sections: secs.map((s) => ({
         name: s.name, durationSec: s.durationSec,
         questions: s.questionIds.map((id) => byId.get(String(id))).filter(Boolean).map((q) => ({
           id: String(q!._id), type: q!.type, groupId: q!.groupId ? String(q!.groupId) : null, stem: q!.stemFormat === "html" ? sanitizeQuestionHtml(q!.stem) : q!.stem, stemFormat: q!.stemFormat ?? "text",

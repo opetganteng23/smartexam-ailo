@@ -4,7 +4,8 @@ import { z } from "zod";
 import { connectDB } from "@/lib/db";
 import { requireRole, handleError, ACADEMIC_ROLES } from "@/lib/rbac";
 import { testSchema } from "@/lib/admin-schemas";
-import { validateTestQuestions } from "@/lib/test-validate";
+import { validateTestQuestions, validateGeneralRefs } from "@/lib/test-validate";
+import { testSize } from "@/lib/attempt-sections";
 import { Test, Attempt } from "@/models/Test";
 import { AuditLog } from "@/models/AuditLog";
 
@@ -18,7 +19,7 @@ export async function GET() {
     return NextResponse.json({
       tests: tests.map((t) => ({
         id: String(t._id), name: t.name, kind: t.kind, active: t.active, archived: !!t.archived, updatedAt: t.updatedAt, testMode: !!t.testMode,
-        questions: t.sections.reduce((a, s) => a + s.questionIds.length, 0),
+        questions: testSize(t),
         durationSec: t.sections.reduce((a, s) => a + s.durationSec, 0),
         attempts: n.get(String(t._id)) ?? 0,
       })),
@@ -34,6 +35,7 @@ export async function POST(req: Request) {
     const body = testSchema.parse(await req.json());
     await connectDB();
     await validateTestQuestions(body.sections, admin);
+    await validateGeneralRefs(body);
     body.shuffleQuestions = body.shuffleQuestions && !body.shuffleWithinParts;
     const t = await Test.create(body);
     await AuditLog.create({ actorId: admin._id, action: "test.create", target: String(t._id) });

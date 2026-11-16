@@ -1,4 +1,5 @@
 import { gradeOne } from "./grading";
+import { withAttemptSections } from "@/lib/attempt-sections";
 import { isValidObjectId } from "mongoose";
 import { connectDB } from "./db";
 import { HttpError } from "./rbac";
@@ -21,8 +22,9 @@ export async function buildActivity(attemptId: string) {
   await connectDB();
   const a = await Attempt.findById(attemptId).lean();
   if (!a) throw new HttpError(404, "Attempt not found");
-  const test = await Test.findById(a.testId).lean();
-  if (!test) throw new HttpError(404, "Test not found");
+  const test0 = await Test.findById(a.testId).lean();
+  if (!test0) throw new HttpError(404, "Test not found");
+  const test = withAttemptSections(test0, a);
   const snap = await AttemptSnapshot.findOne({ attemptId: a._id }).lean();
   const ids = test.sections.flatMap((s) => s.questionIds);
   const qs = snap?.items?.length

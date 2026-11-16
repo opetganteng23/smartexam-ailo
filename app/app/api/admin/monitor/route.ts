@@ -13,7 +13,7 @@ export async function GET(req: Request) {
     await requireRole(["admin"]);
     await connectDB();
     const ids = await Attempt.aggregate<{ _id: Types.ObjectId; last: Date; live: number }>([
-      { $match: { status: { $in: ["in_progress", "submitted"] }, kind: { $in: ["placement", "sim", "simulation", "final"] } } },
+      { $match: { status: { $in: ["in_progress", "submitted"] }, kind: { $in: ["placement", "sim", "simulation", "final", "general"] } } },
       { $group: { _id: "$testId", last: { $max: "$startedAt" }, live: { $sum: { $cond: [{ $eq: ["$status", "in_progress"] }, 1, 0] } } } },
       { $sort: { last: -1 } }, { $limit: 30 },
     ]);

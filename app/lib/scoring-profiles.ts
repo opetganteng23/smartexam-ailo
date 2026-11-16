@@ -37,13 +37,25 @@ export async function ensureDefaultProfile() {
 }
 
 /** Profil untuk sebuah tes: profil pilihan tes (bila aktif), selain itu profil bawaan. */
-export async function profileForTest(test: { scoringProfileId?: Types.ObjectId | null }) {
+export async function profileForTest(test: { scoringProfileId?: Types.ObjectId | null; kind?: string | null }) {
   await connectDB();
   if (test.scoringProfileId) {
     const p = await ScoringProfile.findOne({ _id: test.scoringProfileId, status: "active" });
     if (p) return p;
   }
-  return ensureDefaultProfile();
+  return test.kind === "general" ? ensurePercentProfile() : ensureDefaultProfile();
+}
+
+export const PERCENT_NAME = "Percent (general tests)";
+/** Profil bawaan tes umum: skala persen 0-100, lulus 60. Dibuat saat pertama dipakai (tanpa migrasi). */
+export async function ensurePercentProfile() {
+  await connectDB();
+  const doc = await ScoringProfile.findOneAndUpdate(
+    { name: PERCENT_NAME },
+    { $setOnInsert: { name: PERCENT_NAME, description: "Percentage of points earned. Pass mark 60.", mode: "linear", scale: "percent", passMark: 60, scaledMin: 0, scaledMax: 100, verified: true, source: "Built-in" } },
+    { upsert: true, returnDocument: "after" }
+  );
+  return doc!;
 }
 
 /** Validasi tabel konversi: nilai dalam rentang, tidak menurun saat raw naik, dan tanpa lubang dari 0 sampai raw tertinggi. */

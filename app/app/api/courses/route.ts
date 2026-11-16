@@ -6,6 +6,7 @@ import { connectDB } from "@/lib/db";
 import { requireRole, handleError } from "@/lib/rbac";
 import { Course, CourseModule, CourseProgress, Unit, UnitProgress } from "@/models/Course";
 import { Attempt, Test } from "@/models/Test";
+import { generalTestStates } from "@/lib/course-tests";
 import { visibleTestFilter } from "@/lib/test-access";
 import { participantCourseFilter, trackOf } from "@/lib/course-scope";
 import { featuresFor } from "@/lib/features";
@@ -42,6 +43,9 @@ export async function GET() {
       tIds.length ? Attempt.find({ userId: me._id, testId: { $in: tIds }, status: "in_progress" }).select("testId").lean() : [],
     ]);
     // Awal belajar per course dalam satu query (bukan satu per course).
+    // Tes umum yang berdiri sendiri di course (kuis harian, pre/post-test, UTS): satu query untuk semua course.
+    const cTests = await Test.find({ kind: "general", courseId: { $in: courses.map((c) => c._id) }, ...visibleTestFilter(me) }).sort({ createdAt: 1 }).lean();
+    const tState = await generalTestStates(me, cTests);
     const started = new Map<string, Date>();
     for (const p of await UnitProgress.find({ userId: me._id, courseId: { $in: courses.map((c) => c._id) } }).select("courseId createdAt").sort({ createdAt: 1 }).lean()) {
       const k = String(p.courseId);
@@ -70,8 +74,9 @@ export async function GET() {
           locked: !!lock?.locked, missing: lock?.missing ?? [],
           modules: mods.filter((m) => String(m.courseId) === String(c._id)).map((m) => ({ id: String(m._id), title: m.title, description: m.description ?? "" })),
           units: us, completed: us.filter((u) => u.status === "completed").length,
+          tests: cTests.filter((t) => String(t.courseId) === String(c._id)).map((t) => tState.get(String(t._id))).filter((x): x is NonNullable<typeof x> => !!x).map((t) => ({ ...t, unlocked: t.unlocked && !lock?.locked, reason: lock?.locked ? `Finish ${lock.missing.join(", ")} first to open this course.` : t.reason })),
         };
-      }).filter((c) => c.units.length > 0), // course tanpa unit tidak ditampilkan ke peserta
+      }).filter((c) => c.units.length > 0 || c.tests.length > 0), // course tanpa unit dan tanpa tes tidak ditampilkan ke peserta
     });
   } catch (e) {
     return handleError(e);

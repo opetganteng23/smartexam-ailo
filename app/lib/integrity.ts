@@ -29,7 +29,7 @@ export async function checkIntegrity(attemptId: string) {
 /** Tiap jam: periksa tes yang selesai (≥10 menit lalu, 14 hari terakhir) dan belum diperiksa. */
 export async function scanIntegrity(limit = 300) {
   await connectDB();
-  const list = await Attempt.find({ status: "submitted", "integrity.checkedAt": { $exists: false }, kind: { $in: ["placement", "sim", "final"] }, finishedAt: { $gte: new Date(Date.now() - 14 * 86_400_000), $lte: new Date(Date.now() - 10 * 60_000) } }).select("_id").limit(limit).lean();
+  const list = await Attempt.find({ status: "submitted", "integrity.checkedAt": { $exists: false }, kind: { $in: ["placement", "sim", "final", "general"] }, finishedAt: { $gte: new Date(Date.now() - 14 * 86_400_000), $lte: new Date(Date.now() - 10 * 60_000) } }).select("_id").limit(limit).lean();
   let found = 0;
   for (const a of list) { const w = await checkIntegrity(String(a._id)).catch(() => null); if (w?.length) found++; }
   return { checked: list.length, found };

@@ -2,7 +2,9 @@ import mongoose, { Schema, InferSchemaType, Model } from "mongoose";
 import { SECTION_KEY_RE } from "@/lib/exam-format";
 
 // Jenis tes (MTS §11): placement (sekali), sim (simulasi berkala), practice (latihan bebas ulang), quiz (penilaian unit, dinilai server).
-export const TEST_KINDS = ["placement", "sim", "final", "practice", "quiz", "section"] as const; // section = ujian per bagian di akhir course (quiz = per unit)
+export const TEST_KINDS = ["placement", "sim", "final", "practice", "quiz", "section", "general"] as const;
+// Tujuan tes umum (kind "general"): kuis harian, pre/post-test, UTS, UAS.
+export const TEST_PURPOSES = ["daily", "pretest", "posttest", "midterm", "final"] as const; // section = ujian per bagian di akhir course (quiz = per unit)
 
 const testSchema = new Schema(
   {
@@ -16,8 +18,16 @@ const testSchema = new Schema(
         name: { type: String, match: SECTION_KEY_RE, required: true },
         durationSec: { type: Number, required: true },
         questionIds: [{ type: Schema.Types.ObjectId, ref: "Question" }],
+        // Soal diambil acak dari koleksi bank soal tiap percobaan (questionIds kosong). Soal terpilih disimpan di Attempt.sections.
+        draw: { _id: false, collectionId: { type: Schema.Types.ObjectId, ref: "QuestionCollection" }, count: Number, topics: [String], difficulties: [String] },
       },
     ],
+    purpose: { type: String, enum: TEST_PURPOSES }, // hanya untuk kind "general"
+    courseId: { type: Schema.Types.ObjectId, ref: "Course", index: true }, // tes berdiri sendiri di course (kind "general")
+    categoryId: { type: Schema.Types.ObjectId, ref: "Category", index: true },
+    pairedTestId: { type: Schema.Types.ObjectId, ref: "Test" }, // post-test menunjuk pre-test pasangannya (laporan selisih)
+    // Kuis harian: jendela buka-tutup tiap hari (WIB, "HH:mm") dan batas percobaan per hari (0 = tanpa batas).
+    daily: { _id: false, start: String, end: String, maxPerDay: { type: Number, min: 0, max: 50, default: 0 } },
     active: { type: Boolean, default: true },
     archived: { type: Boolean, default: false }, // disingkirkan dari daftar Tests (draft lama / tes selesai); tidak dihapus
     resultDelayMin: { type: Number, default: 0, min: 0, max: 1440 }, // hasil baru keluar sekian menit setelah peserta MULAI tes (0 = langsung); admin dan QA tester dikecualikan
@@ -47,6 +57,8 @@ const attemptSchema = new Schema(
     courseId: { type: Schema.Types.ObjectId, ref: "Course" }, // ujian per bagian: course pemiliknya
     programCycleId: { type: Schema.Types.ObjectId, ref: "ProgramCycle", index: true }, // periode saat attempt dimulai
     kind: String, // salinan Test.kind
+    // Tes dengan soal acak dari koleksi: soal yang ditarik untuk percobaan ini (menggantikan Test.sections saat dipakai).
+    sections: { type: [{ _id: false, name: String, durationSec: Number, questionIds: [{ type: Schema.Types.ObjectId, ref: "Question" }] }], default: undefined },
     startedAt: { type: Date, required: true },
     releaseAt: Date, // hasil ditahan sampai waktu ini; kosong = langsung. Disalin dari Test.resultDelayMin saat tes dimulai
     heldByOrg: Boolean, // ditahan karena institusi menahan hasil placement (releaseAt = HOLD_UNTIL sampai dilepas admin)

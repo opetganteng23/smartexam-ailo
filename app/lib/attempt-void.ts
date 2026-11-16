@@ -15,7 +15,7 @@ export const VoidedAttempt: Model<VoidDoc> = (mongoose.models.VoidedAttempt as M
 /** Efek hasil (level, kuota, email, analisis) belum dijalankan: percobaan masih aman dibatalkan tanpa memutar balik apa pun. */
 // Ujian umum (final/practice) tidak mengubah level atau kuota, jadi boleh dibatalkan walau hasilnya sudah rilis (mis. peserta perlu mengulang).
 export const isVoidable = (a: { status: string; kind?: string | null; releaseAt?: Date | null; releasedAt?: Date | null }) =>
-  a.status === "in_progress" || (a.status === "submitted" && ((!!a.releaseAt && !a.releasedAt) || a.kind === "final" || a.kind === "practice"));
+  a.status === "in_progress" || (a.status === "submitted" && ((!!a.releaseAt && !a.releasedAt) || a.kind === "final" || a.kind === "practice" || a.kind === "general"));
 
 /**
  * Batalkan satu percobaan: arsipkan, keluarkan dari hasil, lepas kelas yang terbentuk dari skor tertahan,

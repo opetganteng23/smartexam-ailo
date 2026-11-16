@@ -9,6 +9,12 @@ import { Institution } from "@/models/Institution";
 import { Test, Attempt } from "@/models/Test";
 import { seatsFor } from "@/lib/schedule-db";
 import { scheduleGate } from "@/lib/schedule";
+import { Types } from "mongoose";
+import { Course } from "@/models/Course";
+import { LIVE, isPreviewer } from "@/lib/course-access";
+import { participantCourseFilter } from "@/lib/course-scope";
+import { dailyGate, wibDayStart } from "@/lib/daily-window";
+import { drawSections, hasDraw } from "@/lib/attempt-sections";
 
 export async function POST(_req: Request, { params }: { params: { id: string } }) {
   try {
@@ -29,6 +35,17 @@ export async function POST(_req: Request, { params }: { params: { id: string } }
     if (!sched.visible) throw new HttpError(404, "Test not found");
     if (!sched.ok) throw new HttpError(403, sched.reason ?? "This test is not open for you right now");
 
+    // Tes umum di dalam course: hanya peserta yang berhak atas course itu (jangan membuka tes course lain dengan menebak ID).
+    if (test.kind === "general" && test.courseId && !isPreviewer(user) && !(await Course.exists({ _id: test.courseId, ...LIVE, ...(await participantCourseFilter(user)) }))) throw new HttpError(404, "Test not found");
+    // Kuis harian: jendela buka-tutup tiap hari (WIB) dan batas percobaan per hari.
+    if (test.daily && !isPreviewer(user)) {
+      const g = dailyGate(test.daily, new Date());
+      if (!g.ok) throw new HttpError(403, g.reason ?? "This quiz is closed right now");
+      if ((test.daily.maxPerDay ?? 0) > 0) {
+        const today = await Attempt.countDocuments({ userId: user._id, testId: test._id, startedAt: { $gte: wibDayStart(new Date()) } });
+        if (today >= test.daily.maxPerDay!) throw new HttpError(403, `You have used today's ${test.daily.maxPerDay} attempt${test.daily.maxPerDay === 1 ? "" : "s"} for this quiz. Come back tomorrow.`);
+      }
+    }
     if ((test.maxAttempts ?? 0) > 0 && !user.qaTester) {
       const taken = await Attempt.countDocuments({ userId: user._id, testId: test._id });
       if (taken >= test.maxAttempts!) throw new HttpError(403, `You have used all ${test.maxAttempts} attempt${test.maxAttempts === 1 ? "" : "s"} for this test.`);
@@ -40,7 +57,10 @@ export async function POST(_req: Request, { params }: { params: { id: string } }
 
     const now = new Date();
     const orgHold = test.kind === "placement" && !exemptFromDelay(user) && !!user.institutionId && !!(await Institution.exists({ _id: user.institutionId, holdPlacementResults: true }));
-    const attempt = await Attempt.create({ userId: user._id, institutionId: user.institutionId, testId: test._id, kind: test.kind, programCycleId: cs.active?._id, startedAt: now, sectionStartedAt: now, releaseAt: orgHold ? HOLD_UNTIL : releaseAtFor(test, user, now), ...(orgHold ? { heldByOrg: true } : {}) });
+    // Soal acak dari koleksi: ditarik sekali saat dimulai dan disimpan di percobaan (tetap sama bila halaman dimuat ulang).
+    const _id = new Types.ObjectId();
+    const drawn = hasDraw(test) ? await drawSections(test, String(_id)) : undefined;
+    const attempt = await Attempt.create({ _id, ...(drawn ? { sections: drawn } : {}), userId: user._id, institutionId: user.institutionId, testId: test._id, kind: test.kind, programCycleId: cs.active?._id, startedAt: now, sectionStartedAt: now, releaseAt: orgHold ? HOLD_UNTIL : releaseAtFor(test, user, now), ...(orgHold ? { heldByOrg: true } : {}) });
     return NextResponse.json({ attemptId: String(attempt._id) }, { status: 201 });
   } catch (e) {
     return handleError(e);
