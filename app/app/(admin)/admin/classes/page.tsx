@@ -7,7 +7,7 @@ import { api, tgl } from "@/lib/client";
 import { Modal } from "@/components/Modal";
 import { Loading, ErrorNote } from "@/components/Charts";
 
-type Cls = { id: string; name: string; levelId: string; capacity: number; isActive: boolean; institutionId: string | null; institution: string | null; programCycleId: string | null; cycle: string | null; coachId: string | null; coach: string | null; students: number; active: number; avgScore: number | null };
+type Cls = { id: string; name: string; levelId: string | null; capacity: number; isActive: boolean; institutionId: string | null; institution: string | null; programCycleId: string | null; cycle: string | null; coachId: string | null; coach: string | null; students: number; active: number; avgScore: number | null };
 type Data = { levels: { id: string; name: string; scoreMin: number; scoreMax: number; waiting: number }[]; institutions: { id: string; name: string }[]; cycles: { id: string; name: string; institution: string; status: string }[]; coaches: { id: string; name: string }[]; classes: Cls[] };
 type Member = { userId: string; name: string; email: string; score: number | null; source: string | null; method: string; joinedAt: string; lastLoginAt: string | null; active: boolean };
 const label = "flex flex-col gap-1.5 text-sm font-semibold text-navy";
@@ -20,6 +20,8 @@ export default function Classes() {
   const [msg, setMsg] = useState(""); const [err, setErr] = useState(""); const [busy, setBusy] = useState(false);
   const run = async (fn: () => Promise<unknown>, ok = "") => { setErr(""); setMsg(""); setBusy(true); try { const r = await fn(); setMsg(typeof r === "string" ? r : ok); reload(); } catch (e) { setErr((e as Error).message); } finally { setBusy(false); } };
   const waitingTotal = data?.levels.reduce((n, l) => n + l.waiting, 0) ?? 0;
+  // Kelas tanpa level (mata pelajaran umum) dikelompokkan terpisah.
+  const groups: Data["levels"] = data ? [...data.levels, ...(data.classes.some((c) => !c.levelId) ? [{ id: "", name: "General classes (no level)", scoreMin: 0, scoreMax: 0, waiting: 0 }] : [])] : [];
 
   if (loading && !data) return <Loading />;
   return (
@@ -33,13 +35,13 @@ export default function Classes() {
       </div>
       <ErrorNote text={error || err} />
       {msg && <p role="status" className="rounded-lg bg-success-tint p-3 text-sm text-success">{msg}</p>}
-      {data?.levels.map((l) => {
-        const cs = data.classes.filter((c) => c.levelId === l.id);
+      {data && groups.map((l) => {
+        const cs = data.classes.filter((c) => (c.levelId ?? "") === l.id);
         const seats = cs.filter((c) => c.isActive).reduce((n, c) => n + c.capacity, 0), filled = cs.filter((c) => c.isActive).reduce((n, c) => n + c.students, 0);
         return (
           <section key={l.id} className="flex flex-col gap-3" aria-label={`${l.name} classes`}>
             <div className="flex flex-wrap items-baseline justify-between gap-2">
-              <h2 className="font-display text-xl font-extrabold text-navy">{l.name} <span className="text-sm font-semibold text-ink-soft">{l.scoreMin} to {l.scoreMax}</span></h2>
+              <h2 className="font-display text-xl font-extrabold text-navy">{l.name} {l.id && <span className="text-sm font-semibold text-ink-soft">{l.scoreMin} to {l.scoreMax}</span>}</h2>
               <p className="text-sm text-ink-soft">{filled}/{seats} seats filled{l.waiting > 0 && <> · <button className="font-semibold text-accent-dark underline" onClick={() => setWaitLevel(l.id)}>{l.waiting} waiting for a class</button></>}</p>
             </div>
             {cs.length === 0 && <p className="card text-sm text-ink-soft">No classes for this level yet. Classes are created automatically from placement results.</p>}
@@ -64,7 +66,7 @@ export default function Classes() {
         );
       })}
       {edit && data && <ClassEditor init={edit} data={data} onClose={() => setEdit(null)} onSaved={() => { setEdit(null); reload(); }} />}
-      {open && data && <MembersDialog cls={open} classes={data.classes.filter((c) => c.levelId === open.levelId && c.isActive)} onClose={() => { setOpen(null); reload(); }} />}
+      {open && data && <MembersDialog cls={open} classes={data.classes.filter((c) => (c.levelId ?? "") === (open.levelId ?? "") && c.isActive)} onClose={() => { setOpen(null); reload(); }} />}
       {waitLevel && data && <WaitingDialog levelId={waitLevel} classes={data.classes.filter((c) => c.levelId === waitLevel && c.isActive)} onClose={() => { setWaitLevel(null); reload(); }} />}
     </div>
   );
@@ -75,14 +77,14 @@ function ClassEditor({ init, data, onClose, onSaved }: { init: Partial<Cls>; dat
   const [v, setV] = useState({ name: init.name ?? (lv ? `${lv.name} ${String.fromCharCode(65 + data.classes.filter((c) => c.levelId === lv.id).length)}` : ""), levelId: init.levelId ?? "", capacity: init.capacity ?? 25, coachId: init.coachId ?? "", institutionId: init.institutionId ?? "", programCycleId: init.programCycleId ?? "", active: init.isActive ?? true });
   const [err, setErr] = useState("");
   async function save() {
-    try { await api(init.id ? `/api/admin/classes/${init.id}` : "/api/admin/classes", { method: init.id ? "PATCH" : "POST", json: { ...v, capacity: Number(v.capacity), coachId: v.coachId || null, institutionId: v.institutionId || null, programCycleId: v.programCycleId || null } }); onSaved(); }
+    try { await api(init.id ? `/api/admin/classes/${init.id}` : "/api/admin/classes", { method: init.id ? "PATCH" : "POST", json: { ...v, levelId: v.levelId || null, capacity: Number(v.capacity), coachId: v.coachId || null, institutionId: v.institutionId || null, programCycleId: v.programCycleId || null } }); onSaved(); }
     catch (e) { setErr((e as Error).message); }
   }
   return (
     <Modal title={init.id ? "Edit class" : "New class"} onClose={onClose}>
       <div className="flex flex-col gap-4">
         <div className="grid gap-4 sm:grid-cols-2">
-          <label className={label}>Level<select className="field font-normal" value={v.levelId} onChange={(e) => setV({ ...v, levelId: e.target.value })}>{data.levels.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}</select></label>
+          <label className={label}>Level<select className="field font-normal" value={v.levelId} onChange={(e) => setV({ ...v, levelId: e.target.value })}><option value="">No level (general subject class)</option>{data.levels.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}</select></label>
           <label className={label}>Class name<input className="field font-normal" value={v.name} onChange={(e) => setV({ ...v, name: e.target.value })} /></label>
           <label className={label}>Seats<input className="field font-normal" type="number" min={1} max={500} value={v.capacity} onChange={(e) => setV({ ...v, capacity: Number(e.target.value) })} /></label>
           <label className={label}>Coach<select className="field font-normal" value={v.coachId} onChange={(e) => setV({ ...v, coachId: e.target.value })}><option value="">No coach yet</option>{data.coaches.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select></label>
@@ -91,7 +93,7 @@ function ClassEditor({ init, data, onClose, onSaved }: { init: Partial<Cls>; dat
         </div>
         <label className="flex min-h-[44px] items-center gap-2 text-sm"><input type="checkbox" className="h-5 w-5" checked={v.active} onChange={(e) => setV({ ...v, active: e.target.checked })} />Active (receives new students)</label>
         <ErrorNote text={err} />
-        <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end"><button className="btn-outline" onClick={onClose}>Cancel</button><button className="btn-solid" disabled={!v.name.trim() || !v.levelId} onClick={save}>Save</button></div>
+        <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end"><button className="btn-outline" onClick={onClose}>Cancel</button><button className="btn-solid" disabled={!v.name.trim()} onClick={save}>Save</button></div>
       </div>
     </Modal>
   );

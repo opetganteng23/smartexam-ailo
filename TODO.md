@@ -41,13 +41,13 @@ Rencana dan keputusan K1-K6: [docs/perencanaan/RENCANA-SMARTEXAM-UMUM.md](docs/p
 Legenda sama: ✅ selesai dan teruji · 🔄 sebagian · ⬜ belum · ⏭️ ditunda dengan alasan tertulis. Centang hanya bila tes yang membuktikannya sudah hijau.
 
 ### Tahap 1 - Fondasi course umum
-- ⬜ U1.1 Entitas Kategori (model, API admin, pemilih di form)
-- ⬜ U1.2 `Course`: `levelId` opsional; tambah `track`, `categoryId`, `institutionIds`, `classIds`, `accessMode`; bila `track` kosong dianggap `itp` (tanpa migrasi wajib)
-- ⬜ U1.3 `ClassGroup.levelId` dan skema kelas opsional
-- ⬜ U1.4 `GET /api/courses` menggabungkan track umum (institusi + kelas) dan ITP; `needsPlacement` hanya untuk ITP; ikut saklar modul Learning per institusi
-- ⬜ U1.5 Akses dicek di sisi server pada course, unit, materi, kuis, dan ujian per bagian (bukan hanya daftar)
-- ⬜ U1.6 Form admin course: sembunyikan "Exam part" dan tombol template TOEFL di track umum
-- ⬜ U1.7 Tes: peserta lintas institusi atau kelas tidak bisa membuka course lain lewat ID; alur ITP lama tidak berubah
+- 🔄 U1.1 Entitas Kategori (model, API admin, pemilih di form) — model, API, dan tes hijau; panel dan pemilih di form belum diuji visual
+- ✅ U1.2 `Course`: `levelId` opsional; tambah `track`, `categoryId`, `institutionIds`, `classIds`, `accessMode`; bila `track` kosong dianggap `itp` (tanpa migrasi wajib)
+- ✅ U1.3 `ClassGroup.levelId` dan skema kelas opsional
+- ✅ U1.4 `GET /api/courses` menggabungkan track umum (institusi + kelas) dan ITP; `needsPlacement` hanya untuk ITP; ikut saklar modul Learning per institusi
+- ✅ U1.5 Akses dicek di sisi server pada course, unit, materi, kuis, dan ujian per bagian (bukan hanya daftar)
+- 🔄 U1.6 Form admin course: sembunyikan "Exam part" dan tombol template TOEFL di track umum — kode selesai (tombol template hanya di bagian level ITP); belum diuji visual
+- ✅ U1.7 Tes: peserta lintas institusi atau kelas tidak bisa membuka course lain lewat ID; alur ITP lama tidak berubah
 
 ### Tahap 2 - Bank soal
 - ⬜ U2.1 Impor CSV/Excel/DOCX menerima kategori bebas (hapus pembatasan listening/structure/reading)
@@ -104,7 +104,7 @@ Legenda sama: ✅ selesai dan teruji · 🔄 sebagian · ⬜ belum · ⏭️ dit
 - ⬜ D.1 `docs/panduan/PANDUAN-ADMIN.txt` diperbarui (kategori, course umum, koleksi, impor XML, tes umum, video, akses)
 - ⬜ D.2 `docs/panduan/QA_Panduan_Uji_Umum.md` (format seperti QA_Panduan_Uji_T01.md)
 - ⬜ D.3 `docs/perencanaan/CATATAN-RILIS-UMUM.md` (perubahan, env baru, langkah server, rollback)
-- ⬜ D.4 `.gitignore` menutup `Bank_Soal_*.xml` dan `UTS *.docx`
+- ✅ D.4 `.gitignore` menutup `Bank_Soal_*.xml` dan `UTS *.docx`
 - ⬜ G.1 Gerbang akhir: typecheck, lint, test, build produksi, smoke, regresi ITP, audit, panduan lengkap
 - ⬜ G.2 Merge ke `main`, push, tag `umum-v1` (hanya bila G.1 lulus)
 - ⬜ V.1 Verifikasi pasca-deploy oleh banyak agent (PROMPT-VERIFIKASI-PASCA-DEPLOY.md) dan laporan konsolidasi
