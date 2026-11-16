@@ -34,7 +34,7 @@ export function CourseCard({ c, on, preview, onPick }: { c: CourseItem; on: bool
           <span className="text-xs font-semibold text-ink-soft">{c.completed}/{c.units.length}</span>
         </span>
       </button>
-      <Link href={`/learn/course/${c.id}`} className="mt-1 self-start px-1 text-xs font-semibold text-brand">Details</Link>
+      <Link href={`/learn/course/${c.id}`} aria-label={`Details of ${c.title}`} className="mt-1 inline-flex min-h-[44px] items-center self-start px-1 text-sm font-semibold text-brand">Details</Link>
     </li>
   );
 }

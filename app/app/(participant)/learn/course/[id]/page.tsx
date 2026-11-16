@@ -6,6 +6,9 @@ import { useApi } from "@/lib/useApi";
 import { Loading, ErrorNote, Empty } from "@/components/Charts";
 import type { CourseItem } from "@/components/CourseCard";
 
+// Video pengantar hanya dari embed YouTube (nocookie) atau Vimeo; server sudah menormalkannya, ini lapis kedua di klien.
+const PREVIEW_RE = /^https:\/\/(www\.youtube-nocookie\.com\/embed\/[\w-]{11}|player\.vimeo\.com\/video\/\d{5,12})$/;
+
 /** Halaman rincian course: tentang course, apa yang dipelajari, prasyarat pengetahuan, untuk siapa, video pengantar, dan kurikulum. */
 export default function CourseDetail() {
   const { id } = useParams<{ id: string }>();
@@ -25,7 +28,7 @@ export default function CourseDetail() {
             {c.description && <p className="max-w-3xl text-ink-soft">{c.description}</p>}
             {(c.tags?.length ?? 0) > 0 && <p className="flex flex-wrap gap-1.5 text-xs">{c.tags!.map((t) => <span key={t} className="badge-muted">{t}</span>)}</p>}
           </header>
-          {c.previewVideo && <iframe src={c.previewVideo} title={`${c.title} preview`} className="aspect-video w-full max-w-3xl rounded-2xl" sandbox="allow-scripts allow-same-origin allow-presentation" referrerPolicy="strict-origin-when-cross-origin" allow="fullscreen; picture-in-picture" allowFullScreen />}
+          {c.previewVideo && PREVIEW_RE.test(c.previewVideo) && <iframe src={c.previewVideo} title={`${c.title} preview`} className="aspect-video w-full max-w-3xl rounded-2xl" sandbox="allow-scripts allow-same-origin allow-presentation" referrerPolicy="strict-origin-when-cross-origin" allow="fullscreen; picture-in-picture" allowFullScreen />}
           <div className="grid gap-4 md:grid-cols-2">
             {(c.whatYouLearn?.length ?? 0) > 0 && <section className="card" aria-label="What you will learn"><h2 className="mb-2 font-display text-lg font-extrabold text-navy">What you will learn</h2><ul className="list-disc space-y-1 pl-5 text-sm">{c.whatYouLearn!.map((x, i) => <li key={i}>{x}</li>)}</ul></section>}
             {(c.requirements?.length ?? 0) > 0 && <section className="card" aria-label="Requirements"><h2 className="mb-2 font-display text-lg font-extrabold text-navy">Before you start</h2><ul className="list-disc space-y-1 pl-5 text-sm">{c.requirements!.map((x, i) => <li key={i}>{x}</li>)}</ul></section>}

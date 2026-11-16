@@ -85,7 +85,7 @@ document.getElementById('rs').onclick=function(){clearInterval(iv);iv=null;set()
     key: "steps", name: "Step-by-step explanation", desc: "Reveal an explanation one step at a time, with Back and Next.",
     doc: {
       css: BASE_CSS + `.cur{border-color:#00809C;box-shadow:0 0 0 3px rgba(0,128,156,.12)}.bar{height:8px;border-radius:99px;background:#E7F0F2;margin:8px 0}.bar span{display:block;height:8px;border-radius:99px;background:#00809C}pre{background:#0f172a;color:#e2e8f0;padding:10px 12px;border-radius:10px;overflow:auto}`,
-      html: `<h2>How a stack works</h2><div class="bar"><span id="bar"></span></div><div id="app"></div><p><button class="btn alt" id="bk">Back</button> <button class="btn" id="nx">Next step</button></p>`,
+      html: `<h2>How a stack works</h2><div class="bar"><span id="bar"></span></div><div id="app" aria-live="polite"></div><p><button class="btn alt" id="bk">Back</button> <button class="btn" id="nx">Next step</button></p>`,
       js: `// EDIT DATA HERE: t = step title, b = explanation (plain text), c = optional code shown under the step
 var DATA=[
  {t:"Step 1: An empty stack",b:"A stack starts empty. We only ever touch the top.",c:"top = -1"},

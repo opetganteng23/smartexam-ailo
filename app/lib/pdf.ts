@@ -25,11 +25,24 @@ function brand(doc: PDFKit.PDFDocument) {
 }
 
 export async function certificatePdf(c: {
-  type: "itp" | "sim_report"; number: string; issuedAt: Date; name: string; verifyUrl: string;
+  type: "itp" | "sim_report" | "course_completion"; number: string; issuedAt: Date; name: string; verifyUrl: string;
   scores: { listening?: number | null; structure?: number | null; reading?: number | null; total?: number | null };
   title?: string; note?: string;
 }) {
   const qr = await QRCode.toBuffer(c.verifyUrl, { margin: 1, width: 220 });
+  if (c.type === "course_completion") return render((doc) => {
+    doc.rect(24, 24, 547, 794).lineWidth(2).strokeColor(BLUE).stroke();
+    brand(doc);
+    doc.fillColor(BLUE).font("Bold").fontSize(10).text("CERTIFICATE OF COMPLETION", 48, 140, { characterSpacing: 2 });
+    doc.fillColor(GRAY).font("Regular").fontSize(11).text("This certifies that", 48, 190);
+    doc.fillColor(NAVY).font("Bold").fontSize(26).text(c.name.toUpperCase(), 48, 210, { width: 499 });
+    doc.fillColor(GRAY).font("Regular").fontSize(11).text("has completed the course", 48, 280);
+    doc.fillColor(NAVY).font("Bold").fontSize(24).text(c.title ?? "Course", 48, 300, { width: 499 });
+    doc.image(qr, 400, 560, { width: 140 });
+    doc.fillColor(GRAY).font("Regular").fontSize(9).text("Scan to verify", 400, 704, { width: 140, align: "center" });
+    doc.fontSize(10).text(`Number: ${c.number}`, 48, 580).text(`Issued on: ${fmt(c.issuedAt)}`, 48, 596);
+    doc.fontSize(8.5).text(c.note ?? "Certificate of course completion issued by Smartexam. Verify authenticity via the link or QR code.", 48, 640, { width: 320 });
+  });
   return render((doc) => {
     doc.rect(24, 24, 547, 794).lineWidth(2).strokeColor(BLUE).stroke();
     brand(doc);

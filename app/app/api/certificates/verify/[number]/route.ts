@@ -12,15 +12,16 @@ export const dynamic = "force-dynamic";
 export async function GET(req: Request, { params }: { params: { number: string } }) {
   try {
     await limit("verifyIp", clientIp(req));
-    if (!/^SMX-(OFC|RPT)-\d{4}-\d{4,6}$/.test(params.number)) return NextResponse.json({ valid: false }, { status: 404 });
+    if (!/^SMX-(OFC|RPT|CRS)-\d{4}-\d{4,6}$/.test(params.number)) return NextResponse.json({ valid: false }, { status: 404 });
     await connectDB();
     const c = await Certificate.findOne({ number: params.number }).lean();
     if (!c) return NextResponse.json({ valid: false }, { status: 404 });
-    const d = (c.data ?? {}) as { name?: string; scores?: { total?: number } };
+    const d = (c.data ?? {}) as { name?: string; scores?: { total?: number }; courseTitle?: string };
     const name = d.name ?? (await User.findById(c.userId).select("name").lean())?.name ?? "";
     return NextResponse.json({
       valid: true, type: c.type, number: c.number, issuedAt: c.issuedAt, holder: name ? maskName(name) : null, total: d.scores?.total ?? null,
-      official: false, note: "A result report issued by Smartexam. It confirms that the report exists; it is not an official certificate.",
+      ...(c.type === "course_completion" ? { course: d.courseTitle ?? null } : {}),
+      official: false, note: c.type === "course_completion" ? "A course completion certificate issued by Smartexam. It confirms that the certificate exists." : "A result report issued by Smartexam. It confirms that the report exists; it is not an official certificate.",
     });
   } catch (e) {
     return handleError(e);

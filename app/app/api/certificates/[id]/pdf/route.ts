@@ -15,11 +15,11 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
     const c = await Certificate.findById(params.id).lean();
     if (!c || (String(c.userId) !== String(user._id) && user.role !== "admin")) throw new HttpError(404, "Document not found");
     const owner = await User.findById(c.userId).select("name email").lean();
-    const d = (c.data ?? {}) as { name?: string; testName?: string; scores?: { listening?: number; structure?: number; reading?: number; total?: number } };
+    const d = (c.data ?? {}) as { name?: string; courseTitle?: string; testName?: string; scores?: { listening?: number; structure?: number; reading?: number; total?: number } };
     const origin = process.env.APP_URL ?? new URL(req.url).origin;
     const pdf = await certificatePdf({
       type: c.type, number: c.number, issuedAt: c.issuedAt, name: d.name ?? owner?.name ?? owner?.email ?? "-", verifyUrl: `${origin}/verify/${c.number}`,
-      scores: d.scores ?? {}, title: d.testName,
+      scores: d.scores ?? {}, title: c.type === "course_completion" ? d.courseTitle : d.testName,
     });
     return new Response(new Uint8Array(pdf), { headers: { "Content-Type": "application/pdf", "Content-Disposition": `inline; filename="${c.number}.pdf"`, "Cache-Control": "private, no-store" } });
   } catch (e) {

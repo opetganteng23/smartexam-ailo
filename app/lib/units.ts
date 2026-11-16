@@ -5,6 +5,7 @@ import { Course, CourseProgress, RemedialMap, Unit, UnitProgress } from "@/model
 import { LIVE, PREVIEW_VISIBLE, unitAccess } from "./course-access";
 import { cycleState } from "./cycles";
 import { participantCourseFilter } from "./course-scope";
+import { ensureCourseCertificate } from "./course-certificate";
 import type { AttemptDoc } from "@/models/Test";
 
 /** Unit selesai bila semua materi wajib selesai dan (bila ada kuis) kuisnya lulus. */
@@ -24,9 +25,11 @@ async function recompute(userId: Types.ObjectId | string, unitId: Types.ObjectId
   const p = await UnitProgress.findOne({ userId, unitId });
   if (!p) return null;
   const complete = unitComplete(unit.materialIds.map(String), new Set(p.materialsDone.map(String)), !!unit.quizTestId, p.quizPassed);
-  if (complete && p.status !== "completed") { p.status = "completed"; p.completedAt = new Date(); }
+  const justDone = complete && p.status !== "completed";
+  if (justDone) { p.status = "completed"; p.completedAt = new Date(); }
   else if (!complete && p.status === "completed") { p.status = "in_progress"; p.completedAt = undefined; }
   await p.save();
+  if (justDone) { try { await ensureCourseCertificate(userId, unit.courseId); } catch (e) { console.error("[units] course certificate failed", e); } } // course umum selesai: sertifikat penyelesaian
   return p;
 }
 
@@ -100,6 +103,7 @@ export async function recordSectionTestResult(attempt: HydratedDocument<AttemptD
     { $set: { sectionTestBest: Math.max(cur?.sectionTestBest ?? 0, pct), sectionTestPassed: (cur?.sectionTestPassed ?? false) || pct >= pass, ...(attempt.institutionId ? { institutionId: attempt.institutionId } : {}) }, $inc: { sectionTestAttempts: 1 } },
     { upsert: true }
   );
+  try { await ensureCourseCertificate(attempt.userId, attempt.courseId); } catch (e) { console.error("[units] course certificate failed", e); }
   return { percent: pct, passed: pct >= pass };
 }
 

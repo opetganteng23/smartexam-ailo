@@ -85,6 +85,9 @@ export default function Kursus() {
         <button className="btn-solid" onClick={() => setCourse(ws === "itp" ? { track: "itp", active: true, previewMode: true, order: 0, levelId: data?.levels[0]?.id } : { track: "general", active: true, previewMode: true, order: 0 })}>+ New course</button></div>
       </div>
       <ErrorNote text={error || err} />
+      {data && ws === "general" && data.courses.some((c) => c.track !== "general") && (
+        <p role="note" className="rounded-xl border border-accent bg-accent-tint p-3 text-sm text-navy">{data.courses.filter((c) => c.track !== "general").length} TOEFL ITP course(s) are kept in the TOEFL ITP workspace. <button className="font-semibold underline" onClick={() => { document.cookie = "ws=itp; path=/; max-age=31536000; SameSite=Lax"; window.location.reload(); }}>Open the TOEFL ITP workspace</button></p>
+      )}
       {data && <CategoriesPanel categories={data.categories} onChanged={reload} />}
       {data && ws === "general" && (() => {
         const gs = data.courses.filter((c) => c.track === "general" && (showArchived || !c.archived));

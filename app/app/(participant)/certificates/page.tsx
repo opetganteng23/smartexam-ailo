@@ -6,14 +6,14 @@ import { useApi } from "@/lib/useApi";
 import { tgl } from "@/lib/client";
 import { Loading, ErrorNote } from "@/components/Charts";
 
-type C = { id: string; type: "itp" | "sim_report"; officialFile?: { name: string; mime: string; size: number } | null; number: string; issuedAt: string; data: { name?: string; testName?: string; scores?: { listening?: number; structure?: number; reading?: number; total?: number } }; verifyUrl: string };
+type C = { id: string; type: "itp" | "sim_report" | "course_completion"; officialFile?: { name: string; mime: string; size: number } | null; number: string; issuedAt: string; data: { name?: string; testName?: string; scores?: { listening?: number; structure?: number; reading?: number; total?: number } }; verifyUrl: string };
 
 export default function Sertifikat() {
   const { data, loading, error } = useApi<{ certificates: C[] }>("/api/certificates");
   const [copied, setCopied] = useState("");
   if (loading) return <Loading />;
   const list = data?.certificates ?? [];
-  const itp = list.filter((c) => c.type === "itp"), reports = list.filter((c) => c.type === "sim_report");
+  const itp = list.filter((c) => c.type === "itp"), reports = list.filter((c) => c.type === "sim_report"), courses = list.filter((c) => c.type === "course_completion");
 
   async function copy(c: C) {
     try { await navigator.clipboard.writeText(`${location.origin}${c.verifyUrl}`); setCopied(c.id); setTimeout(() => setCopied(""), 2500); } catch { /* clipboard tidak tersedia */ }
@@ -39,6 +39,19 @@ export default function Sertifikat() {
     <div className="flex flex-col gap-6">
       <div><h1 className="page-title">Certificates</h1><p className="mt-1 text-ink-soft">Official certificates and simulation test result reports.</p></div>
       <ErrorNote text={error} />
+      {courses.length > 0 && (
+        <section className="flex flex-col gap-3" aria-label="Course completion certificates">
+          <h2 className="font-display text-xl font-extrabold text-navy">Course completion</h2>
+          <div className="grid gap-4 md:grid-cols-2">{courses.map((c) => (
+            <div key={c.id} className="card flex flex-col gap-2">
+              <div className="flex flex-wrap items-center gap-2"><span className="badge-ok">Course completed</span><span className="text-xs text-ink-soft">{c.number}</span></div>
+              <h3 className="font-display text-lg font-extrabold text-navy">{(c.data as { courseTitle?: string }).courseTitle ?? "Course"}</h3>
+              <p className="text-sm text-ink-soft">Issued {tgl(c.issuedAt)}</p>
+              <div className="flex flex-col gap-2 sm:flex-row"><a className="btn-outline" href={`/api/certificates/${c.id}/pdf`} target="_blank" rel="noreferrer">Download PDF</a><button className="btn-outline" onClick={() => copy(c)}>{copied === c.id ? "Link copied" : "Copy verification link"}</button></div>
+            </div>
+          ))}</div>
+        </section>
+      )}
       <section className="flex flex-col gap-3">
         <h2 className="font-display text-xl font-extrabold text-navy">Official certificates</h2>
         {itp.length ? <div className="grid gap-4 md:grid-cols-2">{itp.map((c) => <Card key={c.id} c={c} />)}</div> : (
