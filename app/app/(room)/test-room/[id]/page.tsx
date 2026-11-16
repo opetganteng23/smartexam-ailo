@@ -17,7 +17,7 @@ type Q = { id: string; groupId: string | null; stem: string; stemFormat?: string
 type Resp = number[] | string;
 /** Jawaban bebas bentuk yang terisi: teks tidak kosong, atau larik pasangan dengan minimal satu pilihan. */
 const filled = (v: unknown) => (typeof v === "string" ? v.trim().length > 0 : Array.isArray(v) && v.some((x) => typeof x === "number" && x >= 0));
-type G = { id: string; instruction?: string; passageTitle?: string; passageHtml?: string; audio: { id: string; finished: boolean } | null };
+type G = { id: string; instruction?: string; passageTitle?: string; passageHtml?: string; video?: { kind: "upload" | "embed"; title: string; src: string } | null; audio: { id: string; finished: boolean } | null };
 type State = {
   status: "in_progress" | "submitted"; testName: string;
   section: { index: number; total: number; name: string };
@@ -395,6 +395,13 @@ export default function Ruang({ params }: { params: { id: string } }) {
       <div ref={scrollArea} className="min-h-0 flex-1 overflow-y-auto overscroll-contain"><div className="mx-auto grid w-full max-w-6xl gap-4 p-3 sm:p-5 lg:grid-cols-[1fr_280px] lg:items-start">
         <main className="flex min-w-0 flex-col gap-4">
           {group && <GroupAudio kind={st.kind} attemptId={params.id} group={group} />}
+          {group?.video && (
+            <div className="card mt-3 !p-3" aria-label="Video">
+              {group.video.kind === "upload"
+                ? <video controls controlsList="nodownload" preload="metadata" src={group.video.src} className="w-full rounded-lg" onContextMenu={(e) => e.preventDefault()} />
+                : <iframe src={group.video.src} title={group.video.title} className="aspect-video w-full rounded-lg" sandbox="allow-scripts allow-same-origin allow-presentation" referrerPolicy="strict-origin-when-cross-origin" allow="fullscreen; picture-in-picture" allowFullScreen />}
+            </div>
+          )}
           {group?.passageHtml && (
             <article ref={passageBox} className="card max-h-[40dvh] overflow-y-auto lg:max-h-[60dvh]">
               <h3 className="mb-2 font-display font-extrabold text-navy">{group.passageTitle}</h3>

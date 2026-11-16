@@ -40,6 +40,7 @@ export const groupSchema = z.object({
   audioId: z.string().regex(/^[0-9a-f]{24}$/).nullable().optional(),
   passageTitle: z.string().max(200).optional(),
   passageHtml: z.string().max(100_000).optional(),
+  videoId: z.string().regex(/^[0-9a-f]{24}$/).nullable().optional(),
   assetIds: z.array(z.string().regex(/^[0-9a-f]{24}$/)).max(10).default([]),
 });
 

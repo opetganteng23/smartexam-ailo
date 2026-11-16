@@ -19,6 +19,15 @@ import CharacterCount from "@tiptap/extension-character-count";
 import { uploadImage } from "@/lib/compress-image";
 import { BLOCK_TYPES, SCORED, TOPIC_RE, blockSchemas, blockSummary, type BlockType } from "@/lib/blocks";
 import { RichViewer } from "./RichViewer";
+import { VideoLibrary } from "./VideoLibrary";
+
+/** Video unggahan (klip MP4 dari perpustakaan video): hanya menyimpan URL /api/video/<id>; otorisasi dicek server saat diputar. */
+const VideoBlock = Node.create({
+  name: "videoBlock", group: "block", atom: true, draggable: true,
+  addAttributes() { return { src: { default: null } }; },
+  parseHTML() { return [{ tag: "video[src]" }]; },
+  renderHTML({ HTMLAttributes }) { return ["video", mergeAttributes({ controls: "controls", preload: "metadata", controlslist: "nodownload", class: "max-w-full rounded-lg" }, { src: HTMLAttributes.src })]; },
+});
 
 /** Blok pemutar audio: hanya menyimpan id audio (+ opsi transkrip); URL bertanda tangan disisipkan server saat materi ditampilkan. */
 const AudioBlock = Node.create({
@@ -58,13 +67,16 @@ export function RichEditor({ initial, onChange, audios }: { initial?: unknown; o
   const [phone, setPhone] = useState(false);
   const [html, setHtml] = useState("");
   const [blockDlg, setBlockDlg] = useState(false);
+  const [videoDlg, setVideoDlg] = useState(false);
+  const [videos, setVideos] = useState<{ id: string; title: string; kind: string; provider: string | null; src: string }[]>([]);
+  useEffect(() => { if (videoDlg) return; fetch("/api/admin/videos").then((r) => (r.ok ? r.json() : { videos: [] })).then((d) => setVideos(d.videos ?? [])).catch(() => {}); }, [videoDlg]);
   const file = useRef<HTMLInputElement>(null);
   const pdf = useRef<HTMLInputElement>(null);
   const editor = useEditor({
     immediatelyRender: false,
     extensions: [
       StarterKit.configure({ link: { openOnClick: false } }), Image, TextAlign.configure({ types: ["heading", "paragraph"] }), Highlight, TextStyle, Color, FontFamily, FontSize, Subscript, Superscript,
-      TaskList, TaskItem.configure({ nested: true }), Table.configure({ resizable: false }), TableRow, TableCell, TableHeader, Youtube.configure({ width: 560, height: 315, nocookie: true }), CharacterCount, AudioBlock, InteractiveNode,
+      TaskList, TaskItem.configure({ nested: true }), Table.configure({ resizable: false }), TableRow, TableCell, TableHeader, Youtube.configure({ width: 560, height: 315, nocookie: true }), CharacterCount, AudioBlock, VideoBlock, InteractiveNode,
     ],
     content: (initial as object) || "",
     editorProps: { attributes: { class: "prose-ei min-h-[280px] rounded-b-xl border border-line-strong bg-white p-4 outline-none focus:border-brand", "aria-label": "Material content" } },
@@ -95,6 +107,12 @@ export function RichEditor({ initial, onChange, audios }: { initial?: unknown; o
     if (url === "") editor!.chain().focus().unsetLink().run(); else editor!.chain().focus().setLink({ href: url }).run();
   }
   function addYoutube() { const url = window.prompt("URL video YouTube"); if (url) editor!.commands.setYoutubeVideo({ src: url }); }
+  function addVideo(id: string) {
+    const v = videos.find((x) => x.id === id);
+    if (!v) return;
+    if (v.kind === "upload") editor!.chain().focus().insertContent({ type: "videoBlock", attrs: { src: `/api/video/${v.id}` } }).run();
+    else if (v.provider === "youtube") editor!.commands.setYoutubeVideo({ src: v.src.replace("www.youtube-nocookie.com/embed/", "www.youtube.com/watch?v=") });
+  }
   async function addAudio(id: string) {
     if (!id) return;
     const transcript = await askConfirm("Show this audio's transcript below the player?", { title: "Audio transcript", confirmLabel: "Show transcript", cancelLabel: "No transcript", danger: false });
@@ -103,11 +121,12 @@ export function RichEditor({ initial, onChange, audios }: { initial?: unknown; o
 
   return (
     <div className={full ? "fixed inset-0 z-50 overflow-y-auto bg-white p-3 sm:p-6" : ""}>
-      <Toolbar editor={editor} onImage={() => file.current?.click()} onPdf={() => pdf.current?.click()} onLink={addLink} onYoutube={addYoutube} onAudio={addAudio} onBlock={() => setBlockDlg(true)} audios={audios}
+      <Toolbar editor={editor} onImage={() => file.current?.click()} onPdf={() => pdf.current?.click()} onLink={addLink} onYoutube={addYoutube} onAudio={addAudio} onVideo={addVideo} onVideoLibrary={() => setVideoDlg(true)} videos={videos.filter((v) => v.kind === "upload" || v.provider === "youtube")} onBlock={() => setBlockDlg(true)} audios={audios}
         full={full} onFull={() => setFull(!full)} phone={phone} onPhone={() => setPhone(!phone)} />
       <input ref={file} type="file" accept="image/jpeg,image/png,image/webp,image/gif" className="hidden" onChange={(e) => { addImage(e.target.files?.[0]); e.target.value = ""; }} />
       <input ref={pdf} type="file" accept="application/pdf,.pdf" className="hidden" onChange={(e) => { addPdf(e.target.files?.[0]); e.target.value = ""; }} />
       {err && <p role="alert" className="mt-1 text-sm text-red-700">{err}</p>}
+      {videoDlg && <VideoLibrary onClose={() => setVideoDlg(false)} />}
       <EditorContent editor={editor} />
       <p className="mt-1 text-right text-xs text-ink-soft">{editor.storage.characterCount.words()} words</p>
       {phone && (
@@ -121,8 +140,8 @@ export function RichEditor({ initial, onChange, audios }: { initial?: unknown; o
   );
 }
 
-function Toolbar({ editor: e, onImage, onPdf, onLink, onYoutube, onAudio, onBlock, audios, full, onFull, phone, onPhone }: {
-  editor: Editor; onImage: () => void; onPdf: () => void; onLink: () => void; onYoutube: () => void; onAudio: (id: string) => void; onBlock: () => void; audios: AudioItem[];
+function Toolbar({ editor: e, onImage, onPdf, onLink, onYoutube, onAudio, onVideo, onVideoLibrary, videos, onBlock, audios, full, onFull, phone, onPhone }: {
+  editor: Editor; onImage: () => void; onPdf: () => void; onLink: () => void; onYoutube: () => void; onAudio: (id: string) => void; onVideo: (id: string) => void; onVideoLibrary: () => void; videos: { id: string; title: string }[]; onBlock: () => void; audios: AudioItem[];
   full: boolean; onFull: () => void; phone: boolean; onPhone: () => void;
 }) {
   const B = ({ on, active, label, children }: { on: () => void; active?: boolean; label: string; children: React.ReactNode }) => (
@@ -159,6 +178,8 @@ function Toolbar({ editor: e, onImage, onPdf, onLink, onYoutube, onAudio, onBloc
       <B label="Insert YouTube video" on={onYoutube}>▶</B>
       <B label="Attach PDF" on={onPdf}>📎</B>
       <B label="Insert table" on={() => e.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run()}>▦</B>
+      <select aria-label="Insert video from library" className={`${sel} max-w-[160px]`} value="" onChange={(ev) => onVideo(ev.target.value)}><option value="">🎞 Insert video</option>{videos.map((v) => <option key={v.id} value={v.id}>{v.title}</option>)}</select>
+      <B label="Manage videos (add a link or upload a clip)" on={onVideoLibrary}>🎞+</B>
       <select aria-label="Insert audio" className={`${sel} max-w-[160px]`} value="" onChange={(ev) => onAudio(ev.target.value)}><option value="">🔊 Insert audio</option>{audios.map((a) => <option key={a.id} value={a.id}>{a.title} ({a.durationSec}s)</option>)}</select>
       <button type="button" onClick={onBlock} className="h-9 rounded-md bg-brand px-3 text-sm font-semibold text-white">🧩 Interactive block</button>
       {inTable && (

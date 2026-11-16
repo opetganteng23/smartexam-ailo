@@ -7,6 +7,7 @@ import { requireRole, handleError, HttpError } from "@/lib/rbac";
 import { sanitizePassage } from "@/lib/sanitize";
 import { QuestionGroup, Question } from "@/models/Question";
 import { groupSchema } from "@/lib/admin-schemas";
+import { Video } from "@/models/Video";
 
 async function find(id: string) {
   if (!isValidObjectId(id)) throw new HttpError(404, "Group not found");
@@ -30,7 +31,8 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
     await requireRole(["admin"]);
     const g = await find(params.id);
     const b = groupSchema.parse(await req.json());
-    g.set({ ...b, audioId: b.audioId ?? undefined, passageHtml: b.passageHtml ? sanitizePassage(b.passageHtml) : undefined });
+    if (b.videoId && !(await Video.exists({ _id: b.videoId }))) return NextResponse.json({ error: "Video not found" }, { status: 400 });
+    g.set({ ...b, audioId: b.audioId ?? undefined, videoId: b.videoId ?? undefined, passageHtml: b.passageHtml ? sanitizePassage(b.passageHtml) : undefined });
     await g.save();
     return NextResponse.json({ ok: true });
   } catch (e) {

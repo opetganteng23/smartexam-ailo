@@ -7,6 +7,7 @@ import { sanitizePassage } from "@/lib/sanitize";
 import { Audio } from "@/models/Audio";
 import { QuestionGroup, Question } from "@/models/Question";
 import { groupSchema } from "@/lib/admin-schemas";
+import { Video } from "@/models/Video";
 
 
 export async function GET(req: Request) {
@@ -31,7 +32,8 @@ export async function POST(req: Request) {
     const b = groupSchema.parse(await req.json());
     await connectDB();
     if (b.audioId && !(await Audio.exists({ _id: b.audioId }))) return NextResponse.json({ error: "Audio not found" }, { status: 400 });
-    const g = await QuestionGroup.create({ ...b, audioId: b.audioId ?? undefined, passageHtml: b.passageHtml ? sanitizePassage(b.passageHtml) : undefined });
+    if (b.videoId && !(await Video.exists({ _id: b.videoId }))) return NextResponse.json({ error: "Video not found" }, { status: 400 });
+    const g = await QuestionGroup.create({ ...b, audioId: b.audioId ?? undefined, videoId: b.videoId ?? undefined, passageHtml: b.passageHtml ? sanitizePassage(b.passageHtml) : undefined });
     return NextResponse.json({ id: String(g._id) }, { status: 201 });
   } catch (e) {
     if (e instanceof z.ZodError) return NextResponse.json({ error: zodMessage(e) }, { status: 400 });

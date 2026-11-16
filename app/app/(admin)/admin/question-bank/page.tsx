@@ -11,6 +11,7 @@ import { QuestionTypesDialog, type QType } from "@/components/QuestionTypesDialo
 import { AiQuestionDialog } from "@/components/AiQuestionDialog";
 import { uploadImage } from "@/lib/compress-image";
 import { CollectionsDialog, ImportDialog, type Cat, type Coll } from "@/components/QuestionCollections";
+import { VideoLibrary } from "@/components/VideoLibrary";
 
 type Row = { _id: string; section: string; type: string; stem: string; status: string; difficulty: string; issues?: string[] };
 type Group = { id: string; section: string; instruction?: string; passageTitle?: string; audioId: string | null; questions: number };
@@ -42,6 +43,7 @@ export default function BankSoal() {
   const [cats, setCats] = useState<Cat[]>([]);
   const [colls, setColls] = useState<Coll[]>([]);
   const [collDlg, setCollDlg] = useState(false);
+  const [videoDlg, setVideoDlg] = useState(false);
   const [types, setTypes] = useState<QType[]>([]);
   const [secCounts, setSecCounts] = useState<Record<string, number>>({});
   const [typesDlg, setTypesDlg] = useState(false);
@@ -103,6 +105,7 @@ export default function BankSoal() {
           <button onClick={() => setAiDlg(true)} className="rounded-xl border border-line-strong px-4 py-2.5 text-sm font-semibold text-navy">Draft with AI</button>
           <button onClick={() => setImportDlg(true)} className="rounded-xl border border-line-strong px-4 py-2.5 text-sm font-semibold text-navy">Import questions</button>
           <button onClick={() => setCollDlg(true)} className="rounded-xl border border-line-strong px-4 py-2.5 text-sm font-semibold text-navy">Collections</button>
+          <button onClick={() => setVideoDlg(true)} className="rounded-xl border border-line-strong px-4 py-2.5 text-sm font-semibold text-navy">Videos</button>
           <button onClick={() => setGroupDlg(true)} className="rounded-xl border border-line-strong px-4 py-2.5 text-sm font-semibold text-navy">+ Audio/passage group</button>
           <button onClick={() => setForm({ ...empty(f.section || ""), categoryId: f.categoryId, collectionId: f.collectionId })} className="rounded-xl bg-brand px-4 py-2.5 text-sm font-semibold text-white">+ New question</button>
         </div>
@@ -177,6 +180,7 @@ export default function BankSoal() {
       {groupDlg && <GroupDialog onClose={() => setGroupDlg(false)} />}
       {aiDlg && <AiQuestionDialog types={types} onClose={() => setAiDlg(false)} onSaved={() => { setAiDlg(false); load(); }} />}
       {importDlg && <ImportDialog cats={cats} colls={colls} defaults={{ categoryId: f.categoryId, collectionId: f.collectionId }} onClose={() => { setImportDlg(false); load(); loadMeta(); loadTypes(); }} />}
+      {videoDlg && <VideoLibrary onClose={() => setVideoDlg(false)} />}
       {collDlg && <CollectionsDialog cats={cats} colls={colls} onClose={() => setCollDlg(false)} onChanged={() => { loadMeta(); load(); }} />}
     </div>
   );
@@ -369,6 +373,9 @@ function GroupDialog({ onClose }: { onClose: () => void }) {
   const [passageTitle, setPassageTitle] = useState("");
   const [passageHtml, setPassageHtml] = useState("");
   const [audios, setAudios] = useState<AudioRow[]>([]);
+  const [videoId, setVideoId] = useState("");
+  const [videos, setVideos] = useState<{ id: string; title: string; kind: string }[]>([]);
+  useEffect(() => { api("/api/admin/videos").then((d) => setVideos(d.videos)).catch(() => {}); }, []);
   const [msg, setMsg] = useState("");
   const [err, setErr] = useState("");
   const [busy, setBusy] = useState(false);
@@ -387,7 +394,7 @@ function GroupDialog({ onClose }: { onClose: () => void }) {
   async function save() {
     setBusy(true); setErr("");
     try {
-      await api("/api/admin/groups", { method: "POST", ...json({ section, instruction: instruction || undefined, audioId: audioId || null, passageTitle: passageTitle || undefined, passageHtml: passageHtml || undefined }) });
+      await api("/api/admin/groups", { method: "POST", ...json({ section, instruction: instruction || undefined, audioId: audioId || null, videoId: videoId || null, passageTitle: passageTitle || undefined, passageHtml: passageHtml || undefined }) });
       onClose();
     } catch (e) { setErr((e as Error).message); setBusy(false); }
   }
@@ -419,6 +426,12 @@ function GroupDialog({ onClose }: { onClose: () => void }) {
             <Label t="Passage content (simple HTML: p, b, i, u, ul, ol, table; sanitized on the server)"><textarea className="field h-40 py-2 font-mono text-sm font-normal" value={passageHtml} onChange={(e) => setPassageHtml(e.target.value)} /></Label>
           </>
         )}
+        <Label t="Video (optional)">
+          <select className="field font-normal" value={videoId} onChange={(e) => setVideoId(e.target.value)}>
+            <option value="">No video</option>{videos.map((v) => <option key={v.id} value={v.id}>{v.title} ({v.kind === "upload" ? "uploaded clip" : "link"})</option>)}
+          </select>
+          <span className="text-xs font-normal text-ink-soft">Participants watch the video above the questions. Add videos under Videos.</span>
+        </Label>
         {err && <p role="alert" className="text-sm text-red-700">{err}</p>}
         <div className="flex justify-end gap-3">
           <button onClick={onClose} className="rounded-lg border border-line-strong px-4 py-2 text-sm font-semibold">Cancel</button>

@@ -68,11 +68,11 @@ Legenda sama: ✅ selesai dan teruji · 🔄 sebagian · ⬜ belum · ⏭️ dit
 - ✅ U3.6 Regresi: placement, simulasi, final, hasil ditahan, sertifikat ITP tetap sama
 
 ### Tahap 4 - Video
-- ⬜ U4.1 `<video>` diizinkan di sanitizer; perpustakaan video: embed YouTube/Vimeo dan unggah MP4 (maks 100 MB, GridFS bucket `video`, Range request, otorisasi sama dengan course)
-- ⬜ U4.2 Grup soal berbasis video
-- ⬜ U4.3 Video di materi HTML dari server sendiri; YouTube di iframe tersandbox hanya bila lolos uji (bila tidak, dicatat)
-- ⬜ U4.4 Dump harian mengecualikan bucket `video`; catatan perubahan Caddy `max_size` dan timeout untuk operator
-- ⬜ U4.5 Tes unggah: tipe berkas palsu, ukuran berlebih, Range tidak sah, akses tanpa izin
+- 🔄 U4.1 `<video>` diizinkan di sanitizer; perpustakaan video: embed YouTube/Vimeo dan unggah MP4 (maks 100 MB, GridFS bucket `video`, Range request, otorisasi sama dengan course) — API dan tes hijau; dialog perpustakaan dan tombol di editor belum diuji visual
+- 🔄 U4.2 Grup soal berbasis video — API, otorisasi, dan tes hijau; pemutar di ruang tes dan dialog grup belum diuji visual
+- 🔄 U4.3 Video di materi HTML dari server sendiri (tautan bertanda tangan, teruji); ⏭️ YouTube di iframe tersandbox pada materi HTML tidak dikerjakan: tidak bisa diuji di browser dan CSP materi tidak boleh dilonggarkan tanpa bukti (lihat CATATAN-IMPLEMENTASI)
+- ✅ U4.4 Dump harian mengecualikan bucket `video`; catatan perubahan Caddy `max_size` dan timeout untuk operator
+- ✅ U4.5 Tes unggah: tipe berkas palsu, ukuran berlebih, Range tidak sah, akses tanpa izin
 
 ### Tahap 5 - UI course
 - ⬜ U5.1 `CourseCard` dan grid di `/learn`

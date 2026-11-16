@@ -47,12 +47,12 @@ export async function POST(req: Request) {
     }
 
     if (!ct.startsWith("video/mp4")) throw new HttpError(415, "Upload an MP4 video (video/mp4), or send a YouTube or Vimeo link");
-    try { await uploads.consume(String(admin._id)); } catch (e) { if (e instanceof RateLimiterRes) throw new HttpError(429, "Too many uploads. Try again in an hour."); throw e; }
     const title = titleSchema.parse(new URL(req.url).searchParams.get("title") ?? "");
     const limit = videoLimit();
     const declared = Number(req.headers.get("content-length"));
     if (Number.isFinite(declared) && declared > limit) throw new HttpError(413, `The video is larger than ${Math.round(limit / 1048576)} MB`);
     if (!req.body) throw new HttpError(400, "The video file is empty");
+    try { await uploads.consume(String(admin._id)); } catch (e) { if (e instanceof RateLimiterRes) throw new HttpError(429, "Too many uploads. Try again in an hour."); throw e; }
 
     const bucket = await videoBucket();
     const up = bucket.openUploadStream(title.slice(0, 120), { metadata: { ownerId: String(admin._id) } });
@@ -69,7 +69,8 @@ export async function POST(req: Request) {
         hash.update(value);
         if (!up.write(value)) await once(up, "drain");
       }
-      if (!isMp4(head)) throw new HttpError(415, head.length ? "This is not an MP4 video file" : "The video file is empty");
+      if (!head.length) throw new HttpError(400, "The video file is empty");
+      if (!isMp4(head)) throw new HttpError(415, "This is not an MP4 video file");
       await new Promise<void>((res, rej) => up.end((err?: Error) => (err ? rej(err) : res())));
     } catch (e) {
       await up.abort().catch(() => {}); // buang potongan yang sudah tertulis

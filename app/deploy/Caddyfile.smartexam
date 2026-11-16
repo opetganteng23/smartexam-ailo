@@ -1,8 +1,14 @@
 # Blok untuk Caddyfile di server ailolabs (/home/ailolabs/ailabs-deploy/Caddyfile). DNS A record harus sudah mengarah ke server.
 smartexam.ailo.ai.id {
-    # Unggahan audio dan gambar soal sampai 15 MB
+    # Unggahan klip video sampai 100 MB (batas aplikasi) ditambah ruang untuk header; audio dan gambar soal jauh lebih kecil.
     request_body {
-        max_size 20MB
+        max_size 110MB
     }
-    reverse_proxy 172.19.0.1:4100
+    reverse_proxy 172.19.0.1:4100 {
+        # Unggahan dan pemutaran klip bisa berlangsung beberapa menit pada koneksi lambat.
+        transport http {
+            read_timeout 10m
+            write_timeout 10m
+        }
+    }
 }

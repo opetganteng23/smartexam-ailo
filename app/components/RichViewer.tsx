@@ -8,15 +8,16 @@ import { BLOCK_TYPES, TOPIC_RE, type BlockType } from "@/lib/blocks";
 
 // Pertahanan klien (MTS §10.2): sanitasi ulang dengan DOMPurify sebelum HTML materi dimasukkan ke DOM.
 // Daftar mengikuti whitelist server (lib/sanitize.ts); iframe hanya YouTube.
-const TAGS = ["h1", "h2", "h3", "h4", "p", "br", "hr", "b", "strong", "i", "em", "u", "s", "sub", "sup", "mark", "code", "pre", "blockquote", "ul", "ol", "li", "a", "img", "table", "thead", "tbody", "tr", "th", "td", "span", "div", "audio", "iframe", "input", "label", "details", "summary"];
-const ATTRS = ["href", "target", "rel", "src", "alt", "width", "height", "style", "colspan", "rowspan", "controls", "controlslist", "allowfullscreen", "title", "type", "checked", "disabled", "data-audio-id", "data-transcript", "data-checked", "data-type", "data-ei-block", "data-config", "data-topic", "data-bid"];
+const TAGS = ["h1", "h2", "h3", "h4", "p", "br", "hr", "b", "strong", "i", "em", "u", "s", "sub", "sup", "mark", "code", "pre", "blockquote", "ul", "ol", "li", "a", "img", "video", "table", "thead", "tbody", "tr", "th", "td", "span", "div", "audio", "iframe", "input", "label", "details", "summary"];
+const ATTRS = ["href", "target", "rel", "src", "alt", "width", "height", "style", "colspan", "rowspan", "controls", "controlslist", "preload", "allowfullscreen", "title", "type", "checked", "disabled", "data-audio-id", "data-transcript", "data-checked", "data-type", "data-ei-block", "data-config", "data-topic", "data-bid"];
 
 let hooked = false;
 export function sanitizeClient(html: string) {
   if (!hooked) {
     hooked = true;
     DOMPurify.addHook("afterSanitizeAttributes", (node) => {
-      if (node.nodeName === "IFRAME" && !/^https:\/\/www\.youtube(-nocookie)?\.com\/embed\//.test(node.getAttribute("src") ?? "")) node.parentNode?.removeChild(node);
+      if (node.nodeName === "IFRAME" && !/^https:\/\/(www\.youtube(-nocookie)?\.com\/embed\/|player\.vimeo\.com\/video\/)/.test(node.getAttribute("src") ?? "")) node.parentNode?.removeChild(node);
+      if (node.nodeName === "VIDEO" && !/^\/api\/video\/[0-9a-f]{24}$/.test(node.getAttribute("src") ?? "")) node.parentNode?.removeChild(node);
       if (node.nodeName === "A") { node.setAttribute("target", "_blank"); node.setAttribute("rel", "noopener noreferrer nofollow"); }
     });
   }

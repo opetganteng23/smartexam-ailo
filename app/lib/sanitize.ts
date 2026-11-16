@@ -23,22 +23,25 @@ export function sanitizePassage(html: string) {
 // iframe hanya untuk embed YouTube.
 export function sanitizeRich(html: string) {
   return sanitizeHtml(html, {
-    allowedTags: ["h1", "h2", "h3", "h4", "p", "br", "hr", "b", "strong", "i", "em", "u", "s", "sub", "sup", "mark", "code", "pre", "blockquote", "ul", "ol", "li", "a", "img", "table", "thead", "tbody", "tr", "th", "td", "span", "div", "audio", "iframe", "input", "label"],
+    allowedTags: ["h1", "h2", "h3", "h4", "p", "br", "hr", "b", "strong", "i", "em", "u", "s", "sub", "sup", "mark", "code", "pre", "blockquote", "ul", "ol", "li", "a", "img", "table", "thead", "tbody", "tr", "th", "td", "span", "div", "audio", "video", "iframe", "input", "label"],
     allowedAttributes: {
       a: ["href", "target", "rel"],
       img: ["src", "alt", "width", "height"],
       span: ["style"], div: ["style", "data-ei-block", "data-config", "data-topic", "data-bid", "data-ei-invalid"], p: ["style"], td: ["style", "colspan", "rowspan"], th: ["style", "colspan", "rowspan"],
       audio: ["data-audio-id", "controls", "data-transcript"],
+      video: ["src", "controls", "preload", "controlslist", "width", "height"],
       iframe: ["src", "width", "height", "allowfullscreen", "title"],
       input: ["type", "checked", "disabled"], li: ["data-checked", "data-type"], ul: ["data-type"],
     },
     allowedStyles: { "*": { color: [/^#[0-9a-f]{3,8}$/i, /^rgb\(/], "background-color": [/^#[0-9a-f]{3,8}$/i, /^rgb\(/], "text-align": [/^(left|right|center|justify)$/], "font-size": [/^\d{1,2}(\.\d+)?(px|pt|em|rem)$/], "font-family": [/^[\w\s,-]{1,80}$/] } },
     allowedSchemes: ["http", "https", "mailto"],
-    allowedIframeHostnames: ["www.youtube.com", "www.youtube-nocookie.com"],
+    allowedIframeHostnames: ["www.youtube.com", "www.youtube-nocookie.com", "player.vimeo.com"],
     transformTags: {
       a: (tag, a) => ({ tagName: "a", attribs: { ...a, target: "_blank", rel: "noopener noreferrer nofollow" } }),
       img: (tag, a) => ({ tagName: "img", attribs: /^\/api\/assets\/[0-9a-f]{24}$/.test(a.src ?? "") ? a : {} }),
       input: (tag, a) => ({ tagName: "input", attribs: { type: "checkbox", disabled: "disabled", ...(a.checked !== undefined ? { checked: "checked" } : {}) } }),
+      // Video: hanya klip dari perpustakaan (/api/video/<id>); atribut lain dibuang, pemutar selalu bermenu kendali tanpa unduh.
+      video: (_t, a) => ({ tagName: "video", attribs: /^\/api\/video\/[0-9a-f]{24}$/.test(a.src ?? "") ? { src: a.src, controls: "controls", preload: "metadata", controlslist: "nodownload", ...(/^\d{1,4}$/.test(a.width ?? "") ? { width: a.width } : {}), ...(/^\d{1,4}$/.test(a.height ?? "") ? { height: a.height } : {}) } : {} }),
       audio: (tag, a) => { const attribs: Record<string, string> = /^[0-9a-f]{24}$/.test(a["data-audio-id"] ?? "") ? { "data-audio-id": a["data-audio-id"], controls: "controls", ...(a["data-transcript"] === "1" ? { "data-transcript": "1" } : {}) } : {}; return { tagName: "audio", attribs }; },
       // Blok interaktif: konfigurasi JSON divalidasi; yang tidak sah ditandai lalu dibuang oleh exclusiveFilter.
       div: (tag, a) => {
@@ -47,6 +50,6 @@ export function sanitizeRich(html: string) {
         return { tagName: "div", attribs: { "data-ei-block": a["data-ei-block"], "data-config": a["data-config"], ...(a["data-topic"] ? { "data-topic": a["data-topic"] } : {}), ...(/^[a-z0-9]{6,24}$/i.test(a["data-bid"] ?? "") ? { "data-bid": a["data-bid"] } : {}) } };
       },
     },
-    exclusiveFilter: (f) => (f.tag === "img" && !f.attribs.src) || (f.tag === "audio" && !f.attribs["data-audio-id"]) || (f.tag === "div" && f.attribs["data-ei-invalid"] === "1"),
+    exclusiveFilter: (f) => (f.tag === "img" && !f.attribs.src) || (f.tag === "video" && !f.attribs.src) || (f.tag === "audio" && !f.attribs["data-audio-id"]) || (f.tag === "div" && f.attribs["data-ei-invalid"] === "1"),
   });
 }

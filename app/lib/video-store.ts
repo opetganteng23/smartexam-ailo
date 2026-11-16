@@ -52,3 +52,14 @@ export async function verifyVideoToken(token: string | null | undefined, videoId
     return payload.p === "video" && payload.vid === videoId && payload.sub ? String(payload.sub) : null;
   } catch { return null; }
 }
+
+/**
+ * Materi HTML tampil di iframe tersandbox tanpa cookie, jadi klip unggahan diminta dengan tautan bertanda tangan
+ * (terikat ke satu klip dan satu pengguna, berlaku 3 jam). Dipanggil hanya setelah akses ke materi lolos.
+ */
+export async function injectVideoTokens(html: string, userId: string) {
+  const ids = [...new Set([...html.matchAll(/\/api\/video\/([0-9a-f]{24})(?![0-9a-f])/g)].map((m) => m[1]))];
+  let out = html;
+  for (const id of ids) out = out.split(`/api/video/${id}`).join(`/api/video/${id}?t=${await signVideoToken(id, userId)}`);
+  return out;
+}

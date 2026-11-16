@@ -3,6 +3,7 @@ import { connectDB } from "@/lib/db";
 import { requireRole, handleError, HttpError } from "@/lib/rbac";
 import { visibleTo } from "@/lib/material-authz";
 import { injectAudio } from "@/lib/materials";
+import { injectVideoTokens } from "@/lib/video-store";
 import { sanitizeRich } from "@/lib/sanitize";
 import { Material, MaterialProgress } from "@/models/Material";
 import { Course, Unit } from "@/models/Course";
@@ -27,7 +28,7 @@ export async function GET(_req: Request, { params }: { params: { slug: string } 
     const base = { secure: user.role !== "admin" && secure, id, title: m.title, summary: m.summary, kind: m.kind, tags: m.tags, version: m.version, progress: progress ? { score: progress.score ?? null, completed: !!progress.completedAt, attempts: progress.attempts } : null };
     if (m.kind === "html") {
       const d = m.htmlDoc ?? {};
-      return NextResponse.json({ ...base, htmlDoc: { html: await injectAudio(d.html ?? "", id), css: d.css ?? "", js: await injectAudio(d.js ?? "", id) } });
+      return NextResponse.json({ ...base, htmlDoc: { html: await injectVideoTokens(await injectAudio(d.html ?? "", id), String(user._id)), css: d.css ?? "", js: await injectVideoTokens(await injectAudio(d.js ?? "", id), String(user._id)) } });
     }
     // Sanitasi ulang saat tampil (pertahanan berlapis); audio diberi URL bertanda tangan.
     return NextResponse.json({ ...base, contentHtml: await injectAudio(sanitizeRich(m.contentHtml ?? ""), id) });

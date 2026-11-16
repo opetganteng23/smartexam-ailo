@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import { sanitizeQuestionHtml } from "@/lib/question-html";
+import { Video } from "@/models/Video";
+import { embedSrc } from "@/lib/video-store";
 import { z } from "zod";
 import { connectDB } from "@/lib/db";
 import { requireRole, handleError, HttpError } from "@/lib/rbac";
@@ -36,6 +38,7 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
 
     const groups = await QuestionGroup.find({ _id: { $in: qs.map((q) => q.groupId).filter((g): g is NonNullable<typeof g> => !!g) } }).lean();
     const played = new Map(attempt.audioPlays.map((p) => [String(p.audioId), p]));
+    const videos = new Map((await Video.find({ _id: { $in: groups.map((g) => g.videoId).filter((x): x is NonNullable<typeof x> => !!x) } }).select("kind provider externalId title").lean()).map((v) => [String(v._id), v]));
 
     return NextResponse.json({
       status: "in_progress",
@@ -48,6 +51,7 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
       groups: groups.map((g) => ({
         id: String(g._id), instruction: g.instruction, passageTitle: g.passageTitle, passageHtml: g.passageHtml,
         audio: g.audioId ? { id: String(g.audioId), finished: !!played.get(String(g.audioId))?.done } : null,
+        video: g.videoId && videos.get(String(g.videoId)) ? (() => { const v = videos.get(String(g.videoId))!; return v.kind === "upload" ? { kind: "upload" as const, title: v.title, src: `/api/video/${v._id}` } : { kind: "embed" as const, title: v.title, src: embedSrc(v) }; })() : null,
       })),
       questions: ordered.map((q) => {
         const kind = kindOf(q), pairs = kind === "matching" ? (q.key as MatchingKey).pairs : [];
