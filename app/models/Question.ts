@@ -45,6 +45,7 @@ const groupSchema = new Schema(
     audioId: { type: Schema.Types.ObjectId, ref: "Audio" },
     passageTitle: String,
     passageHtml: String, // sudah disanitasi
+    videoId: { type: Schema.Types.ObjectId, ref: "Video" }, // grup soal berbasis video (klip unggahan atau embed)
     assetIds: [{ type: Schema.Types.ObjectId, ref: "Asset" }],
   },
   { timestamps: true }

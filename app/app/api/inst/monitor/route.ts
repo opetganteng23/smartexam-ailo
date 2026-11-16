@@ -14,7 +14,7 @@ export async function GET(req: Request) {
     const { inst, full } = await instContext(req);
     const users = await User.distinct("_id", { institutionId: inst._id, role: "participant" });
     const ids = await Attempt.aggregate<{ _id: Types.ObjectId; last: Date; live: number }>([
-      { $match: { userId: { $in: users }, status: { $in: ["in_progress", "submitted"] }, kind: { $in: ["placement", "sim", "simulation", "final"] } } },
+      { $match: { userId: { $in: users }, status: { $in: ["in_progress", "submitted"] }, kind: { $in: ["placement", "sim", "simulation", "final", "general"] } } },
       { $group: { _id: "$testId", last: { $max: "$startedAt" }, live: { $sum: { $cond: [{ $eq: ["$status", "in_progress"] }, 1, 0] } } } },
       { $sort: { last: -1 } }, { $limit: 30 },
     ]);

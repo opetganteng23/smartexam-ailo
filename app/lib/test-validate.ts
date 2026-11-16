@@ -19,9 +19,8 @@ export async function validateTestQuestions(sections: Sec[], user: Parameters<ty
     if (!col) throw new HttpError(400, `The collection for "${s.name}" was not found`);
     const pool = await Question.find({ collectionId: d.collectionId, status: "published" }).select("_id groupId difficulty tags").lean();
     const { picked } = drawQuestions(pool, { count: d.count, topics: d.topics, difficulties: d.difficulties as never }, "validate");
-    const avail = drawQuestions(pool, { count: 100_000, topics: d.topics, difficulties: d.difficulties as never }, "validate").picked.length;
-    if (avail < d.count) throw new HttpError(400, `Collection "${col.name}" has only ${avail} matching published question${avail === 1 ? "" : "s"}, but "${s.name}" draws ${d.count}.`);
-    void picked;
+    // Soal satu passage atau audio ditarik sebagai satu blok, jadi yang diuji adalah penarikan sebenarnya.
+    if (picked.length < d.count) throw new HttpError(400, `Collection "${col.name}" can supply only ${picked.length} matching published question${picked.length === 1 ? "" : "s"} for "${s.name}" (questions that share a passage or audio are drawn together), but ${d.count} are requested.`);
   }
   const all = sections.flatMap((s) => s.questionIds);
   if (new Set(all).size !== all.length) throw new HttpError(400, "A question is used more than once");

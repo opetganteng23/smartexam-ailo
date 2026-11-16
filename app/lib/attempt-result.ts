@@ -69,7 +69,7 @@ export async function attemptResult(attempt: AttemptHydrated, test: Awaited<Retu
     const partial = isPartialKind(attempt.kind); // quiz unit dan ujian per bagian: persen benar, bukan skor
     const passScore = partial ? await getParam("unit_pass_score") : null;
     const percent = partial ? percentOf(attempt.sectionScores ?? []) : null;
-    const prev = partial ? null : await Attempt.findOne({ userId: attempt.userId, status: "submitted", kind: { $nin: ["trial", "quiz", "section"] }, finishedAt: { $lt: attempt.finishedAt }, _id: { $ne: attempt._id } })
+    const prev = partial ? null : await Attempt.findOne({ userId: attempt.userId, status: "submitted", ...(attempt.kind === "general" ? { kind: "general", testId: attempt.testId } : { kind: { $nin: ["trial", "quiz", "section", "general"] } }), finishedAt: { $lt: attempt.finishedAt }, _id: { $ne: attempt._id } })
       .sort({ finishedAt: -1 }).select("testId scoreEst sectionScores topicScores").lean();
     const prevTest = prev ? await Test.findById(prev.testId).select("name").lean() : null;
     const sp = attempt.scoringProfileId ? await ScoringProfile.findById(attempt.scoringProfileId).select("name").lean() : null;

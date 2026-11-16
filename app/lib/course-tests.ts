@@ -4,6 +4,8 @@ import { seatsFor } from "./schedule-db";
 import { scheduleGate, fmtWindow } from "./schedule";
 import { dailyGate, wibDayStart } from "./daily-window";
 import { testSize } from "./attempt-sections";
+import { Course } from "@/models/Course";
+import { courseLocks } from "./course-access";
 
 type TestLean = {
   _id: Types.ObjectId; name: string; purpose?: string | null; scheduled?: boolean; maxAttempts?: number | null; resultDelayMin?: number | null;
@@ -25,14 +27,19 @@ export async function generalTestStates(me: Me, tests: TestLean[], now = new Dat
     seatsFor(me._id, tests.filter((t) => t.scheduled).map((t) => t._id)),
   ]);
   const dayStart = wibDayStart(now);
+  // Prasyarat course: tes umum di course yang masih terkunci tidak bisa dimulai dari daftar mana pun.
+  const cIds = [...new Set(tests.map((t) => (t as { courseId?: Types.ObjectId | null }).courseId).filter((x): x is Types.ObjectId => !!x).map(String))];
+  const locks = cIds.length && me.role !== "admin" && !me.qaTester ? await courseLocks(me._id, await Course.find({ _id: { $in: cIds } }).select("prerequisiteCourseIds").lean()) : new Map();
   for (const t of tests) {
     const mine = attempts.filter((a) => String(a.testId) === String(t._id));
     const running = mine.find((a) => a.status === "in_progress");
     const today = mine.filter((a) => a.startedAt >= dayStart).length;
     const sched = scheduleGate(t as never, me as never, seats.get(String(t._id)) ?? null, now);
     let reason: string | null = null;
+    const lock = locks.get(String((t as { courseId?: unknown }).courseId ?? ""));
     if (!running && !me.qaTester && me.role !== "admin") {
-      if (!sched.ok) reason = sched.reason ?? "This test is not open for you right now";
+      if (lock?.locked) reason = `Finish ${lock.missing.join(", ")} first to open this course.`;
+      else if (!sched.ok) reason = sched.reason ?? "This test is not open for you right now";
       else if ((t.maxAttempts ?? 0) > 0 && mine.length >= t.maxAttempts!) reason = `You have used all ${t.maxAttempts} attempt${t.maxAttempts === 1 ? "" : "s"}.`;
       else if (t.daily) {
         const g = dailyGate(t.daily, now);

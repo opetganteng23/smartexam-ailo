@@ -274,6 +274,7 @@ function GeneralFields({ v, setV, locked }: { v: Draft; setV: (d: Draft) => void
 /** Bagian yang soalnya ditarik acak dari koleksi bank soal tiap percobaan. */
 function DrawEditor({ draw, locked, onChange }: { draw: Draw; locked: boolean; onChange: (d: Draw) => void }) {
   const [colls, setColls] = useState<{ id: string; name: string; questions: number }[]>([]);
+  const [topicsText, setTopicsText] = useState(draw.topics.join(", ")); // teks mentah: koma yang baru diketik tidak boleh hilang
   useEffect(() => { api("/api/admin/collections").then((d) => setColls(d.collections)).catch(() => {}); }, []);
   return (
     <div className="mt-3 rounded-xl bg-brand-tint/50 p-3 text-sm">
@@ -281,7 +282,7 @@ function DrawEditor({ draw, locked, onChange }: { draw: Draw; locked: boolean; o
       <div className="mt-2 flex flex-wrap items-end gap-3">
         <label className="flex flex-col gap-1 text-xs font-semibold text-navy">Collection<select disabled={locked} className="field !h-10 w-auto" value={draw.collectionId} onChange={(e) => onChange({ ...draw, collectionId: e.target.value })}><option value="">Choose a collection</option>{colls.map((c) => <option key={c.id} value={c.id}>{c.name} ({c.questions})</option>)}</select></label>
         <label className="flex flex-col gap-1 text-xs font-semibold text-navy">How many<input disabled={locked} type="number" min={1} max={200} className="field !h-10 w-20" value={draw.count} onChange={(e) => onChange({ ...draw, count: Math.max(1, Number(e.target.value) || 1) })} /></label>
-        <label className="flex flex-col gap-1 text-xs font-semibold text-navy">Topics (comma separated, optional)<input disabled={locked} className="field !h-10 w-56 font-normal" value={draw.topics.join(", ")} onChange={(e) => onChange({ ...draw, topics: e.target.value.split(",").map((t) => t.trim()).filter(Boolean) })} /></label>
+        <label className="flex flex-col gap-1 text-xs font-semibold text-navy">Topics (comma separated, optional)<input disabled={locked} className="field !h-10 w-56 font-normal" value={topicsText} onChange={(e) => { setTopicsText(e.target.value); onChange({ ...draw, topics: e.target.value.split(",").map((t) => t.trim()).filter(Boolean) }); }} /></label>
         <fieldset className="flex items-center gap-3 text-xs font-semibold text-navy"><legend className="sr-only">Difficulty</legend>{(["easy", "medium", "hard"] as const).map((k) => <label key={k} className="flex items-center gap-1"><input disabled={locked} type="checkbox" checked={draw.difficulties.includes(k)} onChange={() => onChange({ ...draw, difficulties: draw.difficulties.includes(k) ? draw.difficulties.filter((x) => x !== k) : [...draw.difficulties, k] })} />{k}</label>)}</fieldset>
       </div>
       <p className="mt-2 text-xs text-ink-soft">Only published questions are drawn. The number asked cannot exceed what matches; leave topics and difficulty empty to draw from the whole collection.</p>

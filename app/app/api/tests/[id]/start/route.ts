@@ -11,7 +11,7 @@ import { seatsFor } from "@/lib/schedule-db";
 import { scheduleGate } from "@/lib/schedule";
 import { Types } from "mongoose";
 import { Course } from "@/models/Course";
-import { LIVE, isPreviewer } from "@/lib/course-access";
+import { LIVE, isPreviewer, courseLocks } from "@/lib/course-access";
 import { participantCourseFilter } from "@/lib/course-scope";
 import { dailyGate, wibDayStart } from "@/lib/daily-window";
 import { drawSections, hasDraw } from "@/lib/attempt-sections";
@@ -37,6 +37,11 @@ export async function POST(_req: Request, { params }: { params: { id: string } }
 
     // Tes umum di dalam course: hanya peserta yang berhak atas course itu (jangan membuka tes course lain dengan menebak ID).
     if (test.kind === "general" && test.courseId && !isPreviewer(user) && !(await Course.exists({ _id: test.courseId, ...LIVE, ...(await participantCourseFilter(user)) }))) throw new HttpError(404, "Test not found");
+    if (test.kind === "general" && test.courseId && !isPreviewer(user)) {
+      const c = await Course.findById(test.courseId).select("prerequisiteCourseIds").lean();
+      const lock = c ? (await courseLocks(user._id, [c])).get(String(c._id)) : null;
+      if (lock?.locked) throw new HttpError(403, `Finish ${lock.missing.join(", ")} first to open this course.`);
+    }
     // Kuis harian: jendela buka-tutup tiap hari (WIB) dan batas percobaan per hari.
     if (test.daily && !isPreviewer(user)) {
       const g = dailyGate(test.daily, new Date());
@@ -61,6 +66,14 @@ export async function POST(_req: Request, { params }: { params: { id: string } }
     const _id = new Types.ObjectId();
     const drawn = hasDraw(test) ? await drawSections(test, String(_id)) : undefined;
     const attempt = await Attempt.create({ _id, ...(drawn ? { sections: drawn } : {}), userId: user._id, institutionId: user.institutionId, testId: test._id, kind: test.kind, programCycleId: cs.active?._id, startedAt: now, sectionStartedAt: now, releaseAt: orgHold ? HOLD_UNTIL : releaseAtFor(test, user, now), ...(orgHold ? { heldByOrg: true } : {}) });
+    // Dua permintaan bersamaan (klik ganda) bisa lolos pemeriksaan di atas. Periksa ulang: yang paling awal menang, yang lain dibatalkan.
+    const mine = await Attempt.find({ userId: user._id, testId: test._id }).sort({ _id: 1 }).select("_id status startedAt").lean();
+    const runningNow = mine.filter((a) => a.status === "in_progress");
+    const over = (test.maxAttempts ?? 0) > 0 && !user.qaTester && mine.length > test.maxAttempts! && mine.findIndex((a) => String(a._id) === String(attempt._id)) >= test.maxAttempts!;
+    const today = test.daily && (test.daily.maxPerDay ?? 0) > 0 && !isPreviewer(user) ? mine.filter((a) => a.startedAt >= wibDayStart(new Date())) : [];
+    const overDay = today.length > (test.daily?.maxPerDay ?? 0) && today.findIndex((a) => String(a._id) === String(attempt._id)) >= (test.daily?.maxPerDay ?? 0);
+    if (runningNow.length > 1 && String(runningNow[0]._id) !== String(attempt._id)) { await Attempt.deleteOne({ _id: attempt._id }); return NextResponse.json({ attemptId: String(runningNow[0]._id), resumed: true }); }
+    if (over || overDay) { await Attempt.deleteOne({ _id: attempt._id }); throw new HttpError(403, "You have used all your attempts for this test."); }
     return NextResponse.json({ attemptId: String(attempt._id) }, { status: 201 });
   } catch (e) {
     return handleError(e);

@@ -7,7 +7,7 @@ import { isValidObjectId } from "mongoose";
 import { connectDB } from "@/lib/db";
 import { requireRole, handleError, HttpError, CONTENT_ROLES, ACADEMIC_ROLES } from "@/lib/rbac";
 import { Question } from "@/models/Question";
-import { Test } from "@/models/Test";
+import { Test, Attempt } from "@/models/Test";
 import { AuditLog } from "@/models/AuditLog";
 import { questionSchema } from "@/lib/admin-schemas";
 import { assertQuestionWritable, checkQuestionRefs, collectionVisible } from "@/lib/collections";
@@ -65,6 +65,7 @@ export async function DELETE(_req: Request, { params }: { params: { id: string }
     const admin = await requireRole(ACADEMIC_ROLES);
     const q = await find(params.id, admin);
     if (await Test.exists({ "sections.questionIds": q._id })) throw new HttpError(409, "The question is used by a test. Remove it from the test first or change its status to draft.");
+    if (await Attempt.exists({ "sections.questionIds": q._id })) throw new HttpError(409, "This question was drawn into a participant's test attempt and cannot be deleted. Change its status to archived instead.");
     await q.deleteOne();
     await AuditLog.create({ actorId: admin._id, action: "question.delete", target: params.id });
     return NextResponse.json({ ok: true });
