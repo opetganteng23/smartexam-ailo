@@ -17,6 +17,8 @@ import { QUESTION_TEMPLATE_HEADER } from "./import-questions";
  * Soal dimulai dari baris bernomor ("1." atau "1)"). Baris lanjutan menyambung stem, pilihan, atau pembahasan terakhir.
  */
 const META: Record<string, number> = { section: 0, type: 1, difficulty: 9, tags: 10, status: 11 }; // indeks kolom templat
+// Jenis soal lain ditulis di bawah soal: "Kind: short", "Points: 2", "Pairs: kiri=kanan; kiri=kanan", "Accepted: a|b", "Rubric: kriteria:poin; ...", "Guide: ...".
+const DIRECTIVE: Record<string, string> = { kind: "kind", jenis: "kind", points: "points", poin: "points", pairs: "pairs", pasangan: "pairs", accepted: "accepted", rubric: "rubric", rubrik: "rubric", guide: "guide", panduan: "guide" };
 const IDX = Object.fromEntries(QUESTION_TEMPLATE_HEADER.map((h, i) => [h.toLowerCase(), i]));
 
 export function docxTextToTable(text: string): string[][] {
@@ -43,6 +45,8 @@ export function docxTextToTable(text: string): string[][] {
     if (q) { flush(); cur = header.map(() => ""); cur[IDX.stem] = q[2]; last = IDX.stem; continue; }
     if (!cur) continue;
 
+    const dir = /^(kind|jenis|points|poin|pairs|pasangan|accepted|rubric|rubrik|guide|panduan)\s*[:=]\s*(.*)$/i.exec(line);
+    if (dir) { last = IDX[DIRECTIVE[dir[1].toLowerCase()]]; cur[last] = dir[2].trim(); continue; }
     const opt = /^\(?([A-Fa-f])[.)]\s+(.+)$/.exec(line);
     if (opt) { last = IDX[opt[1].toLowerCase()] ?? IDX[opt[1].toUpperCase().toLowerCase()]; cur[last] = opt[2]; continue; }
     const ans = /^(answer|jawaban|kunci)\s*[:=]\s*\(?([A-Fa-f1-6])\)?\b/i.exec(line);

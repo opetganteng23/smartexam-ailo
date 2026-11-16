@@ -112,7 +112,7 @@ const snapshotSchema = new Schema(
     attemptId: { type: Schema.Types.ObjectId, ref: "Attempt", required: true, unique: true },
     items: [{
       _id: false, qid: Schema.Types.ObjectId, section: String, type: { type: String }, groupId: Schema.Types.ObjectId,
-      stem: String, options: [String], answerKey: Number, explanation: String, kind: String, points: Number, key: Schema.Types.Mixed,
+      stem: String, stemFormat: String, options: [String], answerKey: Number, explanation: String, kind: String, points: Number, key: Schema.Types.Mixed,
       tags: [{ _id: false, skill: String, topic: String }],
     }],
   },

@@ -1,13 +1,17 @@
 import { z } from "zod";
 import { SECTION_KEY_RE } from "@/lib/exam-format";
 import { QUESTION_KINDS, validateKey, normalizeKey } from "@/lib/question-kinds";
+import { sanitizeQuestionHtml } from "@/lib/question-html";
 
 export const questionSchema = z
   .object({
     section: z.string().regex(SECTION_KEY_RE, "Invalid section name"),
     type: z.string().trim().min(1).max(60),
     groupId: z.string().regex(/^[0-9a-f]{24}$/).nullable().optional(),
-    stem: z.string().trim().min(1).max(4000),
+    stem: z.string().trim().min(1).max(20_000),
+    stemFormat: z.enum(["text", "html"]).default("text"),
+    categoryId: z.string().regex(/^[0-9a-f]{24}$/).nullable().optional(),
+    collectionId: z.string().regex(/^[0-9a-f]{24}$/).nullable().optional(),
     kind: z.enum(QUESTION_KINDS).default("mcq"),
     points: z.number().min(0).max(100).default(1),
     options: z.array(z.string().trim().min(1).max(500)).max(6).default([]),
@@ -21,9 +25,12 @@ export const questionSchema = z
     source: z.string().trim().max(200).optional(),
   })
   .superRefine((q, ctx) => {
+    if (q.stemFormat === "text" && q.stem.length > 4000) ctx.addIssue({ code: "custom", message: "Question text is too long (max 4000 characters)", path: ["stem"] });
+    if (q.stemFormat === "html" && !sanitizeQuestionHtml(q.stem).replace(/<[^>]+>/g, "").trim() && !/<img/i.test(sanitizeQuestionHtml(q.stem))) ctx.addIssue({ code: "custom", message: "Question text is empty", path: ["stem"] });
     const msg = validateKey(q.kind, q.kind === "mcq" ? undefined : normalizeKey(q.kind, q.key), q.points, { options: q.options, answerKey: q.answerKey ?? undefined });
     if (msg) ctx.addIssue({ code: "custom", message: msg, path: [q.kind === "mcq" ? "answerKey" : "key"] });
   })
+  .transform((q) => (q.stemFormat === "html" ? { ...q, stem: sanitizeQuestionHtml(q.stem) } : q))
   .transform((q) => (q.kind === "mcq" ? { ...q, key: undefined } : { ...q, options: [], answerKey: undefined, key: normalizeKey(q.kind, q.key) }))
   .refine((q) => q.status !== "published" || q.tags.length >= 1, { message: "Published questions must have a skill + topic tag", path: ["tags"] });
 

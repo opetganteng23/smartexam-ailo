@@ -2,6 +2,7 @@ import mongoose, { Schema, InferSchemaType, Model } from "mongoose";
 
 import { SECTIONS, SECTION_KEY_RE, type Section } from "@/lib/exam-format";
 import { QUESTION_KINDS } from "@/lib/question-kinds";
+import { questionHash } from "@/lib/question-hash";
 export { SECTIONS };
 export type { Section };
 
@@ -11,6 +12,10 @@ const questionSchema = new Schema(
     type: { type: String, required: true }, // mis. subject-verb, inference, detail
     groupId: { type: Schema.Types.ObjectId, ref: "QuestionGroup", index: true }, // audio/passage bersama
     stem: { type: String, required: true },
+    stemFormat: { type: String, enum: ["text", "html"], default: "text" }, // html: stem sudah disanitasi (lib/question-html.ts)
+    categoryId: { type: Schema.Types.ObjectId, ref: "Category", index: true },
+    collectionId: { type: Schema.Types.ObjectId, ref: "QuestionCollection", index: true },
+    contentHash: { type: String, index: true }, // sidik isi untuk deteksi duplikat (lib/question-hash.ts)
     kind: { type: String, enum: QUESTION_KINDS, default: "mcq" }, // soal lama tanpa kind = pilihan ganda
     points: { type: Number, default: 1, min: 0, max: 100 },
     // Pilihan ganda: options + answerKey. Jenis lain: options kosong dan kunci di `key` (lihat lib/question-kinds.ts).
@@ -27,6 +32,10 @@ const questionSchema = new Schema(
   },
   { timestamps: true }
 );
+
+questionSchema.pre("validate", function () {
+  this.contentHash = questionHash({ kind: this.kind, stem: this.stem, options: this.options, answerKey: this.answerKey, key: this.key });
+});
 
 // Satu audio/passage dipakai beberapa soal.
 const groupSchema = new Schema(
@@ -47,6 +56,23 @@ export const Question: Model<QuestionDoc> =
   (mongoose.models.Question as Model<QuestionDoc>) || mongoose.model<QuestionDoc>("Question", questionSchema);
 export const QuestionGroup: Model<GroupDoc> =
   (mongoose.models.QuestionGroup as Model<GroupDoc>) || mongoose.model<GroupDoc>("QuestionGroup", groupSchema);
+
+// Koleksi bank soal: kelompok soal dalam satu kategori (mata pelajaran) dengan pemilik dan visibilitas.
+// private: pemilik dan admin; institution: staf institusi itu dan admin; global: semua staf konten.
+const collectionSchema = new Schema(
+  {
+    name: { type: String, required: true, trim: true, maxlength: 120 },
+    categoryId: { type: Schema.Types.ObjectId, ref: "Category", index: true },
+    description: { type: String, trim: true, maxlength: 500 },
+    ownerId: { type: Schema.Types.ObjectId, ref: "User", required: true, index: true },
+    visibility: { type: String, enum: ["private", "institution", "global"], default: "private" },
+    institutionId: { type: Schema.Types.ObjectId, ref: "Institution", index: true },
+  },
+  { timestamps: true }
+);
+export type CollectionDoc = InferSchemaType<typeof collectionSchema> & { _id: mongoose.Types.ObjectId };
+export const QuestionCollection: Model<CollectionDoc> =
+  (mongoose.models.QuestionCollection as Model<CollectionDoc>) || mongoose.model<CollectionDoc>("QuestionCollection", collectionSchema);
 
 // Jenis soal yang dikelola admin per kategori (section), mis. "Short conversations (Part A)" atau "Inference".
 // Soal menyimpan nama jenis di `type`; mengganti nama jenis ikut mengubah soalnya.

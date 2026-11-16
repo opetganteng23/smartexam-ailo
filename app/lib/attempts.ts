@@ -124,7 +124,7 @@ export async function finalize(attempt: AttemptHydrated, test: Parameters<typeof
   try {
     const byId = new Map(qs.map((q) => [String(q._id), q]));
     const items = ids.map((id) => byId.get(id)).filter((q): q is NonNullable<typeof q> => !!q).map((q) => ({
-      qid: q._id, section: q.section, type: q.type, groupId: q.groupId, stem: q.stem, options: q.options, answerKey: q.answerKey, explanation: q.explanation,
+      qid: q._id, section: q.section, type: q.type, groupId: q.groupId, stem: q.stem, stemFormat: q.stemFormat ?? "text", options: q.options, answerKey: q.answerKey, explanation: q.explanation,
       kind: q.kind ?? "mcq", points: q.points ?? 1, key: q.key,
       tags: (q.tags ?? []).map((t) => ({ skill: t.skill, topic: t.topic })),
     }));
