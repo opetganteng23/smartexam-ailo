@@ -8,6 +8,7 @@ import { useApi } from "@/lib/useApi";
 import { api } from "@/lib/client";
 import { useActiveTime } from "@/lib/use-active-time";
 import { Loading, ErrorNote } from "@/components/Charts";
+import { Discussion } from "@/components/Discussion";
 
 type U = {
   secure?: boolean;
@@ -66,6 +67,7 @@ export default function UnitPage({ params }: { params: { id: string } }) {
           </div>
         </section>
       )}
+      <Discussion unitId={data.id} />
     </div>
     </SecureZone>
   );

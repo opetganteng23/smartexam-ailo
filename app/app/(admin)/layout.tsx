@@ -21,6 +21,7 @@ const nav: NavGroup[] = [
     { href: "/admin/question-bank", label: "Question Bank", also: ["/admin/audio", "/admin/media"] },
     { href: "/admin/courses", label: "Courses & Units", feature: "learning" },
     { href: "/admin/materials", label: "Materials", feature: "learning" },
+    { href: "/admin/comments", label: "Discussions", feature: "learning" },
   ] },
   { label: "Monitoring", items: [
     { href: "/admin/proctoring", label: "Monitoring" },
