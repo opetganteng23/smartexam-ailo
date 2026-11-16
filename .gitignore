@@ -34,3 +34,7 @@ data/
 # Data klien dan dokumen komersial (jangan di-commit)
 docs/laporan/
 docs/penawaran/
+
+# Bank soal dan naskah ujian asli (data klien)
+Bank_Soal_*.xml
+UTS *.docx
