@@ -4,6 +4,7 @@ import { maskName } from "@/lib/crypto";
 import { limit, clientIp } from "@/lib/ratelimit";
 import { handleError } from "@/lib/rbac";
 import { Certificate } from "@/models/Certificate";
+import { CERT_NUMBER_RE } from "@/lib/certificates";
 import { User } from "@/models/User";
 
 export const dynamic = "force-dynamic";
@@ -12,7 +13,7 @@ export const dynamic = "force-dynamic";
 export async function GET(req: Request, { params }: { params: { number: string } }) {
   try {
     await limit("verifyIp", clientIp(req));
-    if (!/^SMX-(OFC|RPT|CRS)-\d{4}-\d{4,6}$/.test(params.number)) return NextResponse.json({ valid: false }, { status: 404 });
+    if (!CERT_NUMBER_RE.test(params.number)) return NextResponse.json({ valid: false }, { status: 404 });
     await connectDB();
     const c = await Certificate.findOne({ number: params.number }).lean();
     if (!c) return NextResponse.json({ valid: false }, { status: 404 });

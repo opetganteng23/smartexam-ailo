@@ -6,6 +6,7 @@ import { zodMessage } from "@/lib/zod-message";
 import { audit } from "@/lib/audit";
 import { scaffoldLevel } from "@/lib/course-scaffold";
 import { Level } from "@/models/Config";
+import { getFeatures } from "@/lib/features";
 
 /** Buat kerangka course baku (6 bagian TOEFL ITP) untuk satu level. Course dibuat Preview only. */
 export async function POST(req: Request) {
@@ -14,6 +15,7 @@ export async function POST(req: Request) {
     const p = z.object({ levelId: z.string().regex(/^[0-9a-f]{24}$/) }).safeParse(await req.json());
     if (!p.success) throw new HttpError(422, zodMessage(p.error));
     await connectDB();
+    if (!(await getFeatures()).itpPack) throw new HttpError(404, "This feature is not available"); // paket TOEFL ITP di balik saklar
     if (!(await Level.exists({ _id: p.data.levelId }))) throw new HttpError(404, "Level not found");
     const r = await scaffoldLevel(p.data.levelId);
     await audit(admin._id, "course.scaffold", p.data.levelId, r);

@@ -6,6 +6,7 @@ import { requireRole, handleError, HttpError, ACADEMIC_ROLES } from "@/lib/rbac"
 import { audit } from "@/lib/audit";
 import { TEMPLATES, createFromTemplate, scaffoldLevel } from "@/lib/course-templates";
 import { Level } from "@/models/Config";
+import { getFeatures } from "@/lib/features";
 
 export const dynamic = "force-dynamic";
 
@@ -22,7 +23,8 @@ const input = z.object({
 export async function GET() {
   try {
     await requireRole(ACADEMIC_ROLES);
-    return NextResponse.json({ templates: TEMPLATES.map((t) => ({ key: t.key, name: t.name, description: t.description, track: t.track, modules: t.modules.map((m) => ({ title: m.title, units: m.units.length })) })) });
+    const itp = (await getFeatures()).itpPack; // paket TOEFL ITP di balik saklar
+    return NextResponse.json({ templates: TEMPLATES.filter((t) => t.track === "general" || itp).map((t) => ({ key: t.key, name: t.name, description: t.description, track: t.track, modules: t.modules.map((m) => ({ title: m.title, units: m.units.length })) })) });
   } catch (e) {
     return handleError(e);
   }
@@ -35,6 +37,7 @@ export async function POST(req: Request) {
     const b = input.parse(await req.json());
     await connectDB();
     if (b.templateKey === "toefl-itp") {
+      if (!(await getFeatures()).itpPack) throw new HttpError(404, "This feature is not available");
       if (!b.levelId) throw new HttpError(400, "Choose a level for the TOEFL ITP preset");
       if (!(await Level.exists({ _id: b.levelId }))) throw new HttpError(404, "Level not found");
       const r = await scaffoldLevel(b.levelId);

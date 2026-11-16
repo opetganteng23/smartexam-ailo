@@ -16,6 +16,7 @@ const FEATURES: [string, string, string][] = [
   ["certificates", "Certificates", "Certificates from official scores."],
   ["externalResults", "Class / external results", "Upload class or external test results and match them to participants."],
   ["programCycles", "Program cycles", "Program periods that open and close learning and placement."],
+  ["itpPack", "TOEFL ITP package", "Shows the TOEFL ITP workspace, the TOEFL ITP course preset, and level-based course tools in Admin. Leave off if you only use general subjects."],
   ["aiSupport", "AI help before a ticket", "Before a help request is sent, matching FAQ answers are shown and, if needed, the AI suggests fixes from the FAQ only (no access to scores). The conversation is attached to the ticket."],
 ];
 

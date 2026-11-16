@@ -6,7 +6,7 @@ import { requireRole, handleError, HttpError } from "@/lib/rbac";
 import { audit } from "@/lib/audit";
 import { Assignment, Submission } from "@/models/Assignment";
 import { MAX_ASSIGNMENT_BYTES, assignmentBucket, courseForAssignments, safeFileName, sniffAssignmentFile } from "@/lib/assignment-store";
-import { cleanComment } from "@/lib/comments";
+import { cleanComment, unitForDiscussion } from "@/lib/comments";
 
 export const dynamic = "force-dynamic";
 
@@ -24,9 +24,12 @@ export async function POST(req: Request, { params }: { params: { id: string } })
     const a = await Assignment.findOne({ _id: params.id, active: true }).lean();
     if (!a) throw new HttpError(404, "Assignment not found");
     await courseForAssignments(me, String(a.courseId));
+    if (a.unitId) await unitForDiscussion(me, String(a.unitId)); // prasyarat course dan drip unit berlaku juga untuk tugasnya
     if (a.kind !== "file") throw new HttpError(409, "This assignment is completed in its test, not by submitting a file");
     const declared = Number(req.headers.get("content-length"));
-    if (Number.isFinite(declared) && declared > MAX_ASSIGNMENT_BYTES + 200_000) throw new HttpError(413, "The file is larger than 10 MB");
+    // Panjang badan wajib diketahui: membatasi memori yang dipakai formData() (permintaan chunked tanpa Content-Length ditolak).
+    if (!Number.isFinite(declared) || declared <= 0) throw new HttpError(411, "The request must declare its size");
+    if (declared > MAX_ASSIGNMENT_BYTES + 200_000) throw new HttpError(413, "The file is larger than 10 MB");
     try { await limiter.consume(String(me._id)); } catch { throw new HttpError(429, "Too many submissions. Try again later."); }
 
     const now = new Date();

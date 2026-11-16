@@ -135,6 +135,14 @@ describe.skipIf(!safe)("diskusi per unit (database in-memory)", () => {
     const mine = await post(a3, uOpen._id, { body: "punya saya" });
     as(a3); expect((await one.DELETE(req(undefined, "DELETE"), ctx((await mine.json()).id))).status).toBe(200);
 
+    // Komentar moderator terlihat semua peserta unit itu, dari institusi mana pun, sebagai "Moderator".
+    const mod = await post(admin, uOpen._id, { body: "Pengumuman dari dosen" });
+    expect(mod.status).toBe(201);
+    for (const u of [a2, b1]) {
+      const seenMod = (await (await get(u, uOpen._id)).json()).comments.find((c: { body: string }) => c.body === "Pengumuman dari dosen");
+      expect(seenMod).toMatchObject({ author: "Moderator" });
+    }
+
     // Batas kecepatan: 10 komentar per menit per akun.
     let last = 201;
     for (let i = 0; i < 12; i++) last = (await post(a3, uOpen._id, { body: `komentar ${i}` })).status;

@@ -35,7 +35,7 @@ describe.skipIf(!safe)("templat dan jalur berbayar (database in-memory)", () => 
     const adminCourses = await import("@/app/api/admin/courses/route");
     const mine = await import("@/app/api/courses/route");
 
-    await Setting.create({ key: "features", value: { ...FEATURE_DEFAULTS, learning: true } });
+    await Setting.create({ key: "features", value: { ...FEATURE_DEFAULTS, learning: true } }); // paket TOEFL ITP mati (bawaan)
     const I = await Institution.create({ name: "I", code: "III", modules: { learning: true } });
     const admin = await User.create({ email: "a@t.id", role: "admin", status: "active" });
     const stu = await User.create({ email: "s@t.id", role: "participant", status: "active", institutionId: I._id });
@@ -45,6 +45,12 @@ describe.skipIf(!safe)("templat dan jalur berbayar (database in-memory)", () => 
     current = stu as never; expect((await tpl.GET()).status).toBe(403);
     expect((await tpl.POST(post({ templateKey: "general-basic", title: "x" }))).status).toBe(403);
     current = admin as never;
+    // Paket TOEFL ITP di balik saklar: mati, preset ITP tidak ditawarkan dan tidak bisa dibuat.
+    const off = (await (await tpl.GET()).json()).templates as { key: string }[];
+    expect(off.map((t) => t.key)).toEqual(expect.arrayContaining(["general-basic", "general-weekly"]));
+    expect(off.map((t) => t.key)).not.toContain("toefl-itp");
+    expect((await tpl.POST(post({ templateKey: "toefl-itp", levelId: String(new Types.ObjectId()) }))).status).toBe(404);
+    await Setting.updateOne({ key: "features" }, { value: { ...FEATURE_DEFAULTS, learning: true, itpPack: true } });
     const list = (await (await tpl.GET()).json()).templates as { key: string }[];
     expect(list.map((t) => t.key)).toEqual(expect.arrayContaining(["general-basic", "general-weekly", "toefl-itp"]));
 

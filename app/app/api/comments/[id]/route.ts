@@ -6,7 +6,7 @@ import { connectDB } from "@/lib/db";
 import { requireRole, handleError, HttpError } from "@/lib/rbac";
 import { audit } from "@/lib/audit";
 import { Comment } from "@/models/Comment";
-import { isModerator, unitForDiscussion } from "@/lib/comments";
+import { isModerator } from "@/lib/comments";
 
 const ROLES = ["participant", "admin", "academic_admin"] as const;
 const moderate = z.object({ hidden: z.boolean(), reason: z.string().trim().max(200).optional() });
@@ -44,7 +44,6 @@ export async function DELETE(_req: Request, { params }: { params: { id: string }
     const c = await load(params.id);
     if (!isModerator(me)) {
       if (String(c.userId) !== String(me._id)) throw new HttpError(404, "Comment not found");
-      await unitForDiscussion(me, String(c.unitId)); // akses ke unitnya masih berlaku
     }
     await Comment.deleteMany({ $or: [{ _id: c._id }, { parentId: c._id }] });
     await audit(me._id, isModerator(me) && String(c.userId) !== String(me._id) ? "comment.delete" : "comment.delete_own", params.id);

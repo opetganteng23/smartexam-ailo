@@ -8,6 +8,7 @@ const commentSchema = new Schema(
     courseId: { type: Schema.Types.ObjectId, ref: "Course", required: true, index: true },
     userId: { type: Schema.Types.ObjectId, ref: "User", required: true, index: true },
     institutionId: { type: Schema.Types.ObjectId, ref: "Institution", index: true },
+    staff: { type: Boolean, default: false }, // ditulis moderator: terlihat semua peserta unit itu
     parentId: { type: Schema.Types.ObjectId, ref: "Comment", index: true }, // satu tingkat balasan
     body: { type: String, required: true, maxlength: 2000 },
     hidden: { type: Boolean, default: false },

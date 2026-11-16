@@ -19,6 +19,8 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
     if (!a) throw new HttpError(404, "Assignment not found");
     if (String(a.courseId) !== b.courseId && (await Submission.exists({ assignmentId: a._id }))) throw new HttpError(409, "This assignment already has submissions. Its course cannot change.");
     await checkAssignmentRefs(b);
+    const top = await Submission.findOne({ assignmentId: a._id, status: "graded" }).sort({ points: -1 }).select("points").lean();
+    if (top?.points != null && b.maxPoints < top.points) throw new HttpError(409, `Points cannot go below ${top.points}, the highest grade already given.`);
     a.set({ ...b, unitId: b.unitId ?? undefined, testId: b.kind === "test" ? b.testId ?? undefined : undefined, dueAt: b.dueAt ?? undefined });
     await a.save();
     await audit(admin._id, "assignment.update", params.id);

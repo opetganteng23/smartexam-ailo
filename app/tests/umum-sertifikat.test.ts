@@ -86,3 +86,11 @@ describe.skipIf(!safe)("sertifikat penyelesaian course (database in-memory)", ()
     expect((await verify.GET(new Request("http://x"), { params: { number: "../etc/passwd" } })).status).toBe(404);
   });
 });
+
+describe("nomor sertifikat", () => {
+  it("halaman dan API verifikasi memakai pola yang sama dan menerima tipe course", async () => {
+    const { CERT_NUMBER_RE } = await import("@/lib/certificates");
+    for (const ok of ["SMX-CRS-2026-000001", "SMX-RPT-2026-1234", "SMX-OFC-2025-99999"]) expect(CERT_NUMBER_RE.test(ok), ok).toBe(true);
+    for (const bad of ["SMX-XXX-2026-000001", "SMX-CRS-26-000001", "SMX-CRS-2026-12", "SMX-CRS-2026-1234567", "../SMX-CRS-2026-000001", "smx-crs-2026-000001"]) expect(CERT_NUMBER_RE.test(bad), bad).toBe(false);
+  });
+});

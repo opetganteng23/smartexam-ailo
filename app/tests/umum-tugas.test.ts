@@ -100,8 +100,13 @@ describe.skipIf(!safe)("tugas di course umum (database in-memory)", () => {
     const tOne = await mk({ title: "Satu", maxSubmissions: 1, dueAt: null });
     const tTest = await mk({ title: "Berbasis soal", kind: "test", testId: String(gtest._id), dueAt: null });
 
-    const form = (fields: Record<string, string | File>) => { const fd = new FormData(); for (const [k, v] of Object.entries(fields)) fd.set(k, v); return new Request("http://x", { method: "POST", body: fd }); };
-    const send = async (u: unknown, id: string, fields: Record<string, string | File>) => { as(u); const r = await submit.POST(form(fields), ctx(id)); return { status: r.status, body: await r.json() }; };
+    // Seperti klien sungguhan: badan multipart sudah diserialisasi dan Content-Length dikirim.
+    const form = async (fields: Record<string, string | File>, withLength = true) => {
+      const fd = new FormData(); for (const [k, v] of Object.entries(fields)) fd.set(k, v);
+      const res = new Response(fd); const buf = new Uint8Array(await res.arrayBuffer());
+      return new Request("http://x", { method: "POST", body: buf, headers: { "content-type": res.headers.get("content-type")!, ...(withLength ? { "content-length": String(buf.length) } : {}) } });
+    };
+    const send = async (u: unknown, id: string, fields: Record<string, string | File>) => { as(u); const r = await submit.POST(await form(fields), ctx(id)); return { status: r.status, body: await r.json() }; };
     const file = (data: Buffer | string, name: string) => new File([data as BlobPart], name);
 
     // Institusi lain: tidak melihat, tidak mengumpulkan, tidak mengunduh.
@@ -124,6 +129,9 @@ describe.skipIf(!safe)("tugas di course umum (database in-memory)", () => {
     expect((await send(a2, tTest, { text: "tes" })).status).toBe(409); // tugas berbasis soal dikerjakan di tesnya
     const ok2 = await send(a2, tMany, { file: file(ZIP, "laporan.docx") });
     expect(ok2.status).toBe(201);
+
+    // Tanpa Content-Length (chunked): ditolak agar memori terbatas. Tugas terikat unit mengikuti akses unit.
+    as(a2); expect((await submit.POST(await form({ text: "x" }, false), ctx(tMany))).status).toBe(411);
 
     // Tenggat: lewat ditolak; lewat tetapi diizinkan ditandai terlambat.
     expect((await send(a1, tLate, { text: "telat" })).status).toBe(403);

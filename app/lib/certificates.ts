@@ -4,6 +4,9 @@ import { Attempt, Test } from "@/models/Test";
 import { nextSeq } from "@/models/Settings";
 import type { Types } from "mongoose";
 
+/** Format nomor sertifikat atau laporan yang bisa diverifikasi publik (OFC resmi, RPT laporan tes, CRS penyelesaian course). */
+export const CERT_NUMBER_RE = /^SMX-(OFC|RPT|CRS)-\d{4}-\d{4,6}$/;
+
 export async function certificateNumber() {
   const y = new Date().getFullYear();
   const seq = await nextSeq(`cert-sim_report-${y}`);
