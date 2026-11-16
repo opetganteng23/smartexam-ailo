@@ -1,13 +1,14 @@
 "use client";
 
 import { useState } from "react";
+import { QuestionStem } from "@/components/QuestionStem";
 import { api, tgl } from "@/lib/client";
 import { useApi } from "@/lib/useApi";
 import { Loading, ErrorNote } from "@/components/Charts";
 
 type Row = { id: string; code: string; test: string; finishedAt: string; essayPending: number };
 type Item = {
-  qid: string; stem: string; rubric: { criterion: string; points: number }[]; guide: string | null; max: number; maxWords: number | null;
+  qid: string; stem: string; stemFormat?: string; rubric: { criterion: string; points: number }[]; guide: string | null; max: number; maxWords: number | null;
   answer: string; points: number | null; feedback: string | null; aiDraft: { points: number; rationale: string } | null;
 };
 type Detail = { code: string; status: string; pending: number; items: Item[] };
@@ -37,7 +38,7 @@ function EssayCard({ attemptId, it, onSaved }: { attemptId: string; it: Item; on
     <section className="card flex flex-col gap-4">
       <div>
         <p className="text-xs font-semibold tracking-wider text-brand">QUESTION · {it.max} POINTS</p>
-        <h2 className="mt-1 whitespace-pre-line text-lg font-semibold text-navy">{it.stem}</h2>
+        <QuestionStem stem={it.stem} format={it.stemFormat} className="mt-1 text-lg font-semibold text-navy" />
       </div>
       <div className="grid gap-4 lg:grid-cols-[1.4fr_1fr]">
         <div>

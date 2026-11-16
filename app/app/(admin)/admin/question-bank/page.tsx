@@ -18,7 +18,7 @@ type AudioRow = { id: string; title: string; durationSec: number; inUse: boolean
 type Form = {
   id?: string; section: string; type: string; groupId: string; stem: string; options: string[]; answerKey: number;
   explanation: string; tags: { skill: string; topic: string }[]; difficulty: string; status: string; assetIds: string[]; source: string;
-  kind: QuestionKind; points: number; key?: unknown;
+  kind: QuestionKind; points: number; key?: unknown; stemFormat?: "text" | "html";
 };
 
 const SECTION = SECTION_SHORT;
@@ -64,13 +64,13 @@ export default function BankSoal() {
   async function edit(id: string) {
     try {
       const q = await api(`/api/admin/questions/${id}`);
-      setForm({ id, section: q.section, type: q.type, groupId: q.groupId ?? "", stem: q.stem, options: q.options, answerKey: q.answerKey, explanation: q.explanation ?? "", tags: (q.tags ?? []).map((t: { skill: string; topic: string }) => ({ skill: t.skill, topic: t.topic })), difficulty: q.difficulty, status: q.status, source: q.source ?? "", assetIds: q.assetIds ?? [], kind: q.kind ?? "mcq", points: q.points ?? 1, key: q.key });
+      setForm({ id, section: q.section, type: q.type, groupId: q.groupId ?? "", stem: q.stem, options: q.options, answerKey: q.answerKey, explanation: q.explanation ?? "", tags: (q.tags ?? []).map((t: { skill: string; topic: string }) => ({ skill: t.skill, topic: t.topic })), difficulty: q.difficulty, status: q.status, source: q.source ?? "", assetIds: q.assetIds ?? [], kind: q.kind ?? "mcq", points: q.points ?? 1, key: q.key, stemFormat: q.stemFormat ?? "text" });
     } catch (e) { setErr((e as Error).message); }
   }
   async function setStatus(id: string, status: "published" | "draft") {
     try {
       const q = await api(`/api/admin/questions/${id}`);
-      await api(`/api/admin/questions/${id}`, { method: "PATCH", ...json({ section: q.section, type: q.type, groupId: q.groupId ?? null, stem: q.stem, options: q.options, answerKey: q.answerKey, kind: q.kind ?? "mcq", points: q.points ?? 1, key: q.key, explanation: q.explanation || undefined, tags: q.tags ?? [], difficulty: q.difficulty, status, assetIds: q.assetIds ?? [], source: q.source || undefined }) });
+      await api(`/api/admin/questions/${id}`, { method: "PATCH", ...json({ section: q.section, type: q.type, groupId: q.groupId ?? null, stem: q.stem, options: q.options, answerKey: q.answerKey, kind: q.kind ?? "mcq", points: q.points ?? 1, key: q.key, stemFormat: q.stemFormat ?? "text", explanation: q.explanation || undefined, tags: q.tags ?? [], difficulty: q.difficulty, status, assetIds: q.assetIds ?? [], source: q.source || undefined }) });
       load();
     } catch (e) { setErr((e as Error).message); }
   }
@@ -185,7 +185,7 @@ function Editor({ form, types, onTypesChanged, onClose, onSaved, onNewGroup }: {
     setBusy(true); setErr("");
     try {
       const body = {
-        section: v.section, type: v.type, groupId: v.groupId || null, stem: v.stem, kind: v.kind, points: v.points,
+        section: v.section, type: v.type, groupId: v.groupId || null, stem: v.stem, stemFormat: v.stemFormat ?? "text", kind: v.kind, points: v.points,
         ...(v.kind === "mcq" ? { options: v.options, answerKey: v.answerKey } : { key: v.key }),
         explanation: v.explanation || undefined, tags: v.tags.filter((t) => t.skill.trim() && t.topic.trim()), difficulty: v.difficulty, status: v.status, assetIds: v.assetIds, source: v.source || undefined,
       };
@@ -219,7 +219,8 @@ function Editor({ form, types, onTypesChanged, onClose, onSaved, onNewGroup }: {
             <button type="button" onClick={onNewGroup} className="shrink-0 rounded-lg border border-line-strong px-3 text-sm">+ New</button>
           </div>
         </Label>
-        <Label t="Question text"><textarea className="field h-24 py-2 font-normal" value={v.stem} onChange={(e) => set("stem", e.target.value)} /></Label>
+        <Label t="Question text"><textarea className={`field py-2 font-normal ${v.stemFormat === "html" ? "h-40 font-mono text-sm" : "h-24"}`} value={v.stem} onChange={(e) => set("stem", e.target.value)} />
+          {v.stemFormat === "html" && <span className="text-xs font-normal text-ink-soft">This question keeps its formatting (code, images, tables), so the text above is HTML. Use Preview to see how participants will see it.</span>}</Label>
         {v.kind !== "mcq" && <QuestionKeyEditor kind={v.kind} value={v.key} points={v.points} onChange={(k) => set("key", k)} />}
         {v.kind === "mcq" && <fieldset className="flex flex-col gap-2">
           <legend className="mb-1 text-sm font-semibold text-navy">Answer options (select the correct one)</legend>
@@ -273,7 +274,7 @@ function Editor({ form, types, onTypesChanged, onClose, onSaved, onNewGroup }: {
           <button disabled={busy} onClick={save} className="rounded-lg bg-brand px-5 py-2 text-sm font-semibold text-white disabled:opacity-60">{busy ? "Saving…" : "Save"}</button>
         </div>
       </div>
-      {sub === "preview" && <QuestionPreviewDialog q={{ section: v.section, type: v.type, groupId: v.groupId, stem: v.stem, options: v.options, answerKey: v.answerKey, explanation: v.explanation, assetIds: v.assetIds }} onClose={() => setSub(null)} />}
+      {sub === "preview" && <QuestionPreviewDialog q={{ section: v.section, type: v.type, groupId: v.groupId, stem: v.stem, stemFormat: v.stemFormat, options: v.options, answerKey: v.answerKey, explanation: v.explanation, assetIds: v.assetIds }} onClose={() => setSub(null)} />}
       {sub === "history" && v.id && <QuestionHistoryDialog questionId={v.id} onClose={() => setSub(null)} onRestored={() => { setSub(null); onSaved(); }} />}
     </Modal>
   );

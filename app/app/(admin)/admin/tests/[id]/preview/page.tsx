@@ -1,12 +1,13 @@
 "use client";
 
 import { SECTION_SHORT } from "@/lib/exam-format";
+import { QuestionStem } from "@/components/QuestionStem";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useApi } from "@/lib/useApi";
 import { Loading, ErrorNote } from "@/components/Charts";
 
-type Q = { id: string; type: string; groupId: string | null; stem: string; options: string[]; answerKey: number; explanation: string; assetIds: string[] };
+type Q = { id: string; type: string; groupId: string | null; stem: string; stemFormat?: string; options: string[]; answerKey: number; explanation: string; assetIds: string[] };
 type G = { instruction: string; audioId: string | null; passageTitle: string; passageHtml: string; assetIds: string[] };
 type Data = { name: string; sections: { name: string; durationSec: number; questions: Q[] }[]; groups: Record<string, G> };
 const SECTION = SECTION_SHORT;
@@ -90,7 +91,7 @@ export default function TestPreview({ params }: { params: { id: string } }) {
         </article>
       )}
       <div className="card !p-4">
-        <h2 className="whitespace-pre-line text-lg font-medium leading-relaxed">{q.stem}</h2>
+        <QuestionStem stem={q.stem} format={q.stemFormat} className="text-lg font-medium leading-relaxed" />
         {q.assetIds.map((a) => (
           // eslint-disable-next-line @next/next/no-img-element
           <img key={a} src={`/api/assets/${a}`} alt="Question image" className="mt-3 max-h-60 rounded-lg border border-line" />

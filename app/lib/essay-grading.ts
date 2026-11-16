@@ -1,4 +1,5 @@
 import { connectDB } from "./db";
+import { sanitizeQuestionHtml } from "./question-html";
 import { HttpError } from "./rbac";
 import { Attempt, Test } from "@/models/Test";
 import { Question } from "@/models/Question";
@@ -51,14 +52,14 @@ export async function essaysForGrading(attemptId: string) {
   await connectDB();
   const attempt = await Attempt.findById(attemptId).lean();
   if (!attempt || attempt.status !== "submitted") throw new HttpError(404, "Attempt not found");
-  const qs = await Question.find({ _id: { $in: attempt.answers.map((a) => a.qid) as never[] }, kind: "essay" }).select("stem points key").lean();
+  const qs = await Question.find({ _id: { $in: attempt.answers.map((a) => a.qid) as never[] }, kind: "essay" }).select("stem stemFormat points key").lean();
   const byId = new Map(qs.map((q) => [String(q._id), q]));
   const items = attempt.answers
     .filter((a) => byId.has(String(a.qid)) && typeof a.response === "string" && a.response.trim())
     .map((a) => {
       const q = byId.get(String(a.qid))!, key = (q.key ?? {}) as EssayKey;
       return {
-        qid: String(a.qid), stem: q.stem, rubric: key.rubric ?? [], guide: key.guide ?? null, max: essayMax(q), maxWords: key.maxWords ?? null,
+        qid: String(a.qid), stem: q.stemFormat === "html" ? sanitizeQuestionHtml(q.stem) : q.stem, stemFormat: q.stemFormat ?? "text", rubric: key.rubric ?? [], guide: key.guide ?? null, max: essayMax(q), maxWords: key.maxWords ?? null,
         answer: a.response as string, points: a.points ?? null, feedback: a.feedback ?? null, gradedAt: a.gradedAt ?? null,
         aiDraft: a.aiDraft?.points != null ? { points: a.aiDraft.points, rationale: a.aiDraft.rationale ?? "" } : null,
       };

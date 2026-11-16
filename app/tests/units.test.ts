@@ -470,9 +470,9 @@ describe("impor soal (Bank Soal)", () => {
     if (r.ok) { expect(r.data.answerKey).toBe(1); expect(r.data.difficulty).toBe("hard"); expect(r.data.tags).toEqual([{ skill: "structure", topic: "sv agreement" }, { skill: "structure", topic: "tense" }]); }
   });
   it("melaporkan alasan per baris, bukan menggagalkan semua", () => {
-    const rows = mapQuestionRows([head, ["xx", "t", "s", "a", "b", "", "", "A", "", "", "", ""], ["reading", "t", "s", "a", "b", "", "", "Z", "", "", "", ""], ["reading", "t", "s", "a", "b", "", "", "A", "", "", "", "published"], ["reading", "t", "s", "a", "b", "", "", "A", "", "", "", "draft"]]);
+    const rows = mapQuestionRows([head, ["1x", "t", "s", "a", "b", "", "", "A", "", "", "", ""], ["reading", "t", "s", "a", "b", "", "", "Z", "", "", "", ""], ["reading", "t", "s", "a", "b", "", "", "A", "", "", "", "published"], ["reading", "t", "s", "a", "b", "", "", "A", "", "", "", "draft"]]);
     expect(rows.map((r) => r.ok)).toEqual([false, false, false, true]);
-    expect(!rows[0].ok && rows[0].error).toMatch(/Unknown section/);
+    expect(!rows[0].ok && rows[0].error).toMatch(/Invalid category/); // kategori bebas (U2.1): hanya nama yang tidak sah ditolak, bukan yang di luar tiga bagian TOEFL
     expect(!rows[1].ok && rows[1].error).toMatch(/Invalid answer key/);
     expect(!rows[2].ok && rows[2].error).toMatch(/tag/i); // published tanpa tag
   });

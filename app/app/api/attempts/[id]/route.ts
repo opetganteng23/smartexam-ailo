@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { sanitizeQuestionHtml } from "@/lib/question-html";
 import { z } from "zod";
 import { connectDB } from "@/lib/db";
 import { requireRole, handleError, HttpError } from "@/lib/rbac";
@@ -51,7 +52,7 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
       questions: ordered.map((q) => {
         const kind = kindOf(q), pairs = kind === "matching" ? (q.key as MatchingKey).pairs : [];
         return {
-          id: String(q._id), groupId: q.groupId ? String(q.groupId) : null, stem: q.stem, options: perms.has(String(q._id)) ? perms.get(String(q._id))!.map((i) => q.options[i]) : q.options,
+          id: String(q._id), groupId: q.groupId ? String(q.groupId) : null, stem: q.stemFormat === "html" ? sanitizeQuestionHtml(q.stem) : q.stem, stemFormat: q.stemFormat ?? "text", options: perms.has(String(q._id)) ? perms.get(String(q._id))!.map((i) => q.options[i]) : q.options,
           assetIds: q.assetIds.map(String), kind, points: q.points ?? 1,
           // Mencocokkan: kolom kanan ditampilkan acak per peserta; indeks tampil diterjemahkan server ke indeks asli (kunci tidak pernah dikirim).
           ...(kind === "matching" ? { lefts: pairs.map((p) => p.left), rights: optionPermutation(`${sid}:m:${q._id}`, pairs.length).map((i) => pairs[i].right) } : {}),

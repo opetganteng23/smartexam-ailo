@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { htmlToText } from "@/lib/question-html";
 import { zodMessage } from "@/lib/zod-message";
 import { z } from "zod";
 import { connectDB } from "@/lib/db";
@@ -33,9 +34,11 @@ export async function GET(req: Request) {
     const page = Math.max(1, Number(sp.get("page")) || 1);
     const size = 20;
     const [items, total] = await Promise.all([
-      Question.find(filter).select("section type stem status difficulty groupId tags explanation updatedAt kind points").sort({ updatedAt: -1 }).skip((page - 1) * size).limit(size).lean(),
+      Question.find(filter).select("section type stem stemFormat status difficulty groupId tags explanation updatedAt kind points").sort({ updatedAt: -1 }).skip((page - 1) * size).limit(size).lean(),
       Question.countDocuments(filter),
     ]);
+    // Daftar menampilkan ringkasan teks: soal berformat HTML dikirim sebagai teks tanpa tag.
+    for (const it of items) if (it.stemFormat === "html") it.stem = htmlToText(it.stem).slice(0, 300);
     // Validasi kualitas: soal yang perlu dilengkapi (tanpa tag, tanpa pembahasan, Listening tanpa grup audio/passage).
     const gids = Array.from(new Set(items.map((i) => i.groupId).filter(Boolean).map(String)));
     const groups = gids.length ? await QuestionGroup.find({ _id: { $in: gids } }).select("audioId passageHtml").lean() : [];

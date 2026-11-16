@@ -1,6 +1,7 @@
 "use client";
 
 import { useT } from "@/components/LangProvider";
+import { QuestionStem } from "@/components/QuestionStem";
 import { MatchingInput, ShortInput, EssayInput } from "@/components/QuestionInputs";
 import { SECTION_NAME } from "@/lib/exam-format";
 import { ScreenGate } from "@/components/ScreenGate";
@@ -12,7 +13,7 @@ import { SecureZone } from "@/components/SecureZone";
 import { GroupAudio } from "@/components/TestAudio";
 import { TestRoomHelp } from "@/components/TestRoomHelp";
 
-type Q = { id: string; groupId: string | null; stem: string; options: string[]; assetIds?: string[]; kind?: string; points?: number; lefts?: string[]; rights?: string[]; maxWords?: number | null };
+type Q = { id: string; groupId: string | null; stem: string; stemFormat?: string; options: string[]; assetIds?: string[]; kind?: string; points?: number; lefts?: string[]; rights?: string[]; maxWords?: number | null };
 type Resp = number[] | string;
 /** Jawaban bebas bentuk yang terisi: teks tidak kosong, atau larik pasangan dengan minimal satu pilihan. */
 const filled = (v: unknown) => (typeof v === "string" ? v.trim().length > 0 : Array.isArray(v) && v.some((x) => typeof x === "number" && x >= 0));
@@ -403,7 +404,7 @@ export default function Ruang({ params }: { params: { id: string } }) {
           )}
           <section className="card">
             <p className="text-sm text-ink-soft">{t("Question {n} of {total}", { n: cur + 1, total: st.questions.length })}</p>
-            <h2 className="mt-2 whitespace-pre-line text-lg font-medium leading-relaxed">{q.stem}</h2>
+            <QuestionStem stem={q.stem} format={q.stemFormat} className="mt-2 text-lg font-medium leading-relaxed" />
             {q.assetIds?.map((a) => (
               // eslint-disable-next-line @next/next/no-img-element
               <img key={a} src={`/api/assets/${a}`} alt={t("Question image")} className="mt-3 max-h-72 rounded-lg border border-line" />

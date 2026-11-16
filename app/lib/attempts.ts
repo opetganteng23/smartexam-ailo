@@ -99,7 +99,7 @@ export async function advance(attempt: AttemptHydrated, test: Parameters<typeof 
  */
 export async function scoreAttempt(attempt: AttemptHydrated, test: Parameters<typeof syncTimer>[1], prof: Awaited<ReturnType<typeof profileForTest>>) {
   const ids = test.sections.flatMap((s) => s.questionIds.map(String));
-  const qs = await Question.find({ _id: { $in: ids } }).select("section type groupId stem options answerKey explanation tags kind points key").lean();
+  const qs = await Question.find({ _id: { $in: ids } }).select("section type groupId stem stemFormat options answerKey explanation tags kind points key").lean();
   const byAnswer = new Map(attempt.answers.map((a) => [String(a.qid), a]));
   const results = new Map(qs.map((q) => [String(q._id), gradeOne(q, byAnswer.get(String(q._id)))]));
   const pending = [...results.values()].filter((r) => r.pending).length;

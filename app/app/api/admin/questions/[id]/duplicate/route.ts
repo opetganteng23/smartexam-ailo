@@ -15,7 +15,7 @@ export async function POST(_req: Request, { params }: { params: { id: string } }
     const q = await Question.findById(params.id).lean();
     if (!q) throw new HttpError(404, "Question not found");
     const copy = await Question.create({
-      section: q.section, type: q.type, groupId: q.groupId, stem: q.stem, options: q.options, answerKey: q.answerKey, explanation: q.explanation,
+      section: q.section, type: q.type, groupId: q.groupId, stem: q.stem, stemFormat: q.stemFormat, kind: q.kind, points: q.points, key: q.key, categoryId: q.categoryId, collectionId: q.collectionId, options: q.options, answerKey: q.answerKey, explanation: q.explanation,
       tags: q.tags, assetIds: q.assetIds, difficulty: q.difficulty, source: q.source, status: "draft",
     });
     await recordQuestionVersion(copy._id, copy.toObject(), admin._id, `Duplicated from ${params.id}`);

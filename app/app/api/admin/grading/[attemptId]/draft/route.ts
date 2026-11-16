@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { htmlToText } from "@/lib/question-html";
 import { z } from "zod";
 import { connectDB } from "@/lib/db";
 import { requireRole, handleError, HttpError, ACADEMIC_ROLES } from "@/lib/rbac";
@@ -20,7 +21,7 @@ export async function POST(req: Request, { params }: { params: { attemptId: stri
     const it = items.find((x) => x.qid === qid);
     if (!it) throw new HttpError(404, "Essay answer not found");
     let draft;
-    try { draft = await draftEssayGrade({ stem: it.stem, rubric: it.rubric, guide: it.guide ?? undefined, answer: it.answer }); }
+    try { draft = await draftEssayGrade({ stem: it.stemFormat === "html" ? htmlToText(it.stem) : it.stem, rubric: it.rubric, guide: it.guide ?? undefined, answer: it.answer }); }
     catch (e) { throw new HttpError(502, (e as Error).message || "The AI could not draft a grade. Grade this answer manually."); }
     await connectDB();
     await Attempt.updateOne({ _id: params.attemptId, "answers.qid": qid }, { $set: { "answers.$.aiDraft": { points: draft.points, rationale: draft.rationale, at: new Date() } } });
