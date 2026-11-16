@@ -52,9 +52,9 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
     const b = classInput.parse(await req.json());
     const n = (await memberCounts([c._id])).get(String(c._id)) ?? 0;
     if (b.capacity < n) throw new HttpError(409, `Capacity cannot be below the current ${n} students. Move some students first.`);
-    if (String(b.levelId) !== String(c.levelId) && n > 0) throw new HttpError(409, "Move the students out before changing the level of this class");
+    if (String(b.levelId ?? "") !== String(c.levelId ?? "") && n > 0) throw new HttpError(409, "Move the students out before changing the level of this class");
     if (b.coachId && !(await User.exists({ _id: b.coachId, role: "coach" }))) throw new HttpError(400, "Coach not found");
-    c.set({ ...b, institutionId: b.institutionId ?? undefined, programCycleId: b.programCycleId ?? undefined, coachId: b.coachId ?? undefined });
+    c.set({ ...b, levelId: b.levelId ?? undefined, institutionId: b.institutionId ?? undefined, programCycleId: b.programCycleId ?? undefined, coachId: b.coachId ?? undefined });
     await c.save();
     await audit(admin._id, "class.update", params.id);
     return NextResponse.json({ ok: true });

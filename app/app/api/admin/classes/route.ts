@@ -42,7 +42,7 @@ export async function GET() {
       classes: classes.map((c) => {
         const s = stats.get(String(c._id)) ?? { students: 0, active: 0, avgScore: null };
         return {
-          id: String(c._id), name: c.name, levelId: String(c.levelId), capacity: c.capacity, isActive: c.active,
+          id: String(c._id), name: c.name, levelId: c.levelId ? String(c.levelId) : null, capacity: c.capacity, isActive: c.active,
           institutionId: c.institutionId ? String(c.institutionId) : null, institution: c.institutionId ? instName.get(String(c.institutionId)) ?? null : null,
           programCycleId: c.programCycleId ? String(c.programCycleId) : null, cycle: c.programCycleId ? cycles.find((x) => String(x._id) === String(c.programCycleId))?.name ?? null : null,
           coachId: c.coachId ? String(c.coachId) : null, coach: c.coachId ? coachName.get(String(c.coachId)) ?? null : null, ...s,
@@ -60,7 +60,7 @@ export async function POST(req: Request) {
     const b = classInput.parse(await req.json());
     await connectDB();
     if (b.coachId && !(await User.exists({ _id: b.coachId, role: "coach" }))) throw new HttpError(400, "Coach not found");
-    const c = await ClassGroup.create({ ...b, institutionId: b.institutionId ?? undefined, programCycleId: b.programCycleId ?? undefined, coachId: b.coachId ?? undefined });
+    const c = await ClassGroup.create({ ...b, levelId: b.levelId ?? undefined, institutionId: b.institutionId ?? undefined, programCycleId: b.programCycleId ?? undefined, coachId: b.coachId ?? undefined });
     await audit(admin._id, "class.create", String(c._id), { name: b.name });
     return NextResponse.json({ id: String(c._id) }, { status: 201 });
   } catch (e) {

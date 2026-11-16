@@ -6,7 +6,13 @@ export { COURSE_PARTS };
 // Level → Course → Unit (MTS §10.1). Course milik satu level; peserta hanya melihat course levelnya.
 const courseSchema = new Schema(
   {
-    levelId: { type: Schema.Types.ObjectId, ref: "Level", required: true, index: true },
+    levelId: { type: Schema.Types.ObjectId, ref: "Level", index: true }, // opsional: course umum tidak terikat level
+    track: { type: String, enum: ["general", "itp"] }, // kosong dibaca "itp" (course lama tanpa migrasi)
+    categoryId: { type: Schema.Types.ObjectId, ref: "Category", index: true },
+    institutionIds: [{ type: Schema.Types.ObjectId, ref: "Institution" }], // kosong = semua institusi
+    classIds: [{ type: Schema.Types.ObjectId, ref: "ClassGroup" }], // kosong = semua kelas di institusi itu
+    accessMode: { type: String, enum: ["assigned", "paid"] }, // kosong dibaca "assigned"; "paid" baru disiapkan di data
+    priceIdr: { type: Number, min: 0 },
     title: { type: String, required: true },
     description: String,
     order: { type: Number, default: 0 },

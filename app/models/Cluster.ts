@@ -4,7 +4,7 @@ import mongoose, { Schema, InferSchemaType, Model } from "mongoose";
 const classSchema = new Schema(
   {
     name: { type: String, required: true, trim: true },
-    levelId: { type: Schema.Types.ObjectId, ref: "Level", required: true, index: true },
+    levelId: { type: Schema.Types.ObjectId, ref: "Level", index: true }, // opsional: kelas mata pelajaran umum tanpa level
     institutionId: { type: Schema.Types.ObjectId, ref: "Institution", index: true }, // kosong = lintas institusi
     programCycleId: { type: Schema.Types.ObjectId, ref: "ProgramCycle", index: true }, // kosong = tanpa periode
     capacity: { type: Number, required: true, min: 1 },

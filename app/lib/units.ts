@@ -4,6 +4,7 @@ import { getParam } from "./config";
 import { Course, CourseProgress, RemedialMap, Unit, UnitProgress } from "@/models/Course";
 import { LIVE, PREVIEW_VISIBLE, unitAccess } from "./course-access";
 import { cycleState } from "./cycles";
+import { participantCourseFilter } from "./course-scope";
 import type { AttemptDoc } from "@/models/Test";
 
 /** Unit selesai bila semua materi wajib selesai dan (bila ada kuis) kuisnya lulus. */
@@ -45,9 +46,8 @@ export async function findRemedialUnit(levelId: Types.ObjectId | string | null |
 export async function markMaterialDone(user: { _id: Types.ObjectId; institutionId?: Types.ObjectId | null; currentLevelId?: Types.ObjectId | null; qaTester?: boolean | null }, materialId: Types.ObjectId | string) {
   await connectDB();
   const qa = !!user.qaTester; // QA tester menguji semua level dan course mode preview, tanpa prasyarat dan drip
-  if (!user.currentLevelId && !qa) return;
   if (!qa && (await cycleState(user.institutionId)).blockedReason) return; // periode ditutup: materi hanya dibaca, progres tidak berubah
-  const courses = await Course.find(qa ? { ...PREVIEW_VISIBLE } : { levelId: user.currentLevelId, ...LIVE }).select("_id prerequisiteCourseIds").lean();
+  const courses = await Course.find(qa ? { ...PREVIEW_VISIBLE } : { ...LIVE, ...(await participantCourseFilter(user)) }).select("_id prerequisiteCourseIds").lean();
   const units = await Unit.find({ courseId: { $in: courses.map((c) => c._id) }, materialIds: materialId, active: true }).lean();
   for (const u of units) {
     // Unit yang masih terkunci (prasyarat/drip) tidak mencatat progres.

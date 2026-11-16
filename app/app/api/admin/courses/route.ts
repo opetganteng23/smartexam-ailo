@@ -9,6 +9,9 @@ import { getLevels } from "@/lib/config";
 import { Course, CourseModule, Unit } from "@/models/Course";
 import { checkCourseRefs } from "@/lib/course-admin";
 import { Material } from "@/models/Material";
+import { Category } from "@/models/Category";
+import { Institution } from "@/models/Institution";
+import { ClassGroup } from "@/models/Cluster";
 import { Test } from "@/models/Test";
 
 export const dynamic = "force-dynamic";
@@ -18,20 +21,26 @@ export async function GET() {
   try {
     await requireRole(ACADEMIC_ROLES);
     await connectDB();
-    const [levels, courses, units, modules, materials, quizzes] = await Promise.all([
+    const [levels, courses, units, modules, materials, quizzes, categories, institutions, classes] = await Promise.all([
       getLevels(),
       Course.find().sort({ order: 1, createdAt: 1 }).lean(),
       Unit.find().sort({ order: 1, createdAt: 1 }).lean(),
       CourseModule.find().sort({ order: 1, createdAt: 1 }).lean(),
       Material.find().select("title status kind").sort({ title: 1 }).lean(),
       Test.find({ kind: { $in: ["quiz", "section"] } }).select("name kind levelId unitId courseId active").lean(),
+      Category.find().sort({ order: 1, name: 1 }).select("name active").lean(),
+      Institution.find().sort({ name: 1 }).select("name").lean(),
+      ClassGroup.find({ active: true }).sort({ name: 1 }).select("name institutionId").lean(),
     ]);
     return NextResponse.json({
+      categories: categories.map((c) => ({ id: String(c._id), name: c.name, active: c.active })),
+      institutions: institutions.map((i) => ({ id: String(i._id), name: i.name })),
+      classes: classes.map((c) => ({ id: String(c._id), name: c.name, institutionId: c.institutionId ? String(c.institutionId) : null })),
       levels: levels.map((l) => ({ id: String(l._id), name: l.name, order: l.order })),
       materials: materials.map((m) => ({ id: String(m._id), title: m.title, status: m.status, kind: m.kind })),
       quizzes: quizzes.map((q) => ({ id: String(q._id), kind: q.kind, name: q.name, unitId: q.unitId ? String(q.unitId) : null, active: q.active })),
       courses: courses.map((c) => ({
-        id: String(c._id), levelId: String(c.levelId), title: c.title, description: c.description ?? "", order: c.order, active: c.active,
+        id: String(c._id), levelId: c.levelId ? String(c.levelId) : null, track: c.track ?? "itp", categoryId: c.categoryId ? String(c.categoryId) : null, institutionIds: (c.institutionIds ?? []).map(String), classIds: (c.classIds ?? []).map(String), accessMode: c.accessMode ?? "assigned", priceIdr: c.priceIdr ?? null, title: c.title, description: c.description ?? "", order: c.order, active: c.active,
         archived: !!c.archived, previewMode: !!c.previewMode, part: c.part ?? null, sectionTestId: c.sectionTestId ? String(c.sectionTestId) : null, requireSectionTest: !!c.requireSectionTest, secureMode: !!c.secureMode, coverAssetId: c.coverAssetId ? String(c.coverAssetId) : null, prerequisiteCourseIds: (c.prerequisiteCourseIds ?? []).map(String),
         modules: modules.filter((m) => String(m.courseId) === String(c._id)).map((m) => ({ id: String(m._id), title: m.title, description: m.description ?? "", order: m.order, active: m.active })),
         units: units.filter((u) => String(u.courseId) === String(c._id)).map((u) => ({
@@ -52,7 +61,7 @@ export async function POST(req: Request) {
     const b = courseInput.parse(await req.json());
     await connectDB();
     await checkCourseRefs(b);
-    const c = await Course.create({ ...b, coverAssetId: b.coverAssetId ?? undefined, part: b.part ?? undefined, sectionTestId: b.sectionTestId ?? undefined });
+    const c = await Course.create({ ...b, levelId: b.levelId ?? undefined, categoryId: b.categoryId ?? undefined, priceIdr: b.priceIdr ?? undefined, coverAssetId: b.coverAssetId ?? undefined, part: b.part ?? undefined, sectionTestId: b.sectionTestId ?? undefined });
     await audit(admin._id, "course.create", String(c._id));
     return NextResponse.json({ id: String(c._id) }, { status: 201 });
   } catch (e) {
