@@ -376,3 +376,158 @@ Ulangi langkah 3 dengan jenis Simulation untuk tahap 5.
   waktu kejadian, dan tangkapan layar.
 
 ===============================================================================
+
+
+===============================================================================
+  BAGIAN TAMBAHAN: SMARTEXAM UMUM (course dan ujian di luar TOEFL ITP)
+  Versi: November 2026
+===============================================================================
+
+Smartexam Umum memungkinkan institusi membuat course dan ujian untuk mata
+kuliah atau pelatihan apa pun (misalnya Struktur Data), bukan hanya TOEFL ITP.
+Alur ITP/AirNav tidak berubah. Semua fitur di bawah bersifat tambahan.
+
+DAFTAR ISI BAGIAN INI
+  U1. Ruang kerja Umum dan saklar paket TOEFL ITP
+  U2. Kategori
+  U3. Course umum, akses institusi dan kelas
+  U4. Bank soal, koleksi, dan impor (Moodle XML, Word)
+  U5. Tes umum: kuis harian, pre/post-test, UTS
+  U6. Video
+  U7. Tugas, diskusi, sertifikat penyelesaian
+  U8. Templat course
+  U9. Statistik butir soal dan laporan
+  U10. Hal yang perlu diingat
+
+
+-------------------------------------------------------------------------------
+U1. RUANG KERJA UMUM DAN SAKLAR PAKET TOEFL ITP
+-------------------------------------------------------------------------------
+- Di menu admin ada pemilih ruang kerja: Umum atau TOEFL ITP. Pilihan disimpan
+  di browser (cookie "ws") dan hanya mengatur menu yang tampil, bukan hak akses.
+- Settings > "TOEFL ITP package" (bawaan MATI). Bila mati, templat dan scaffold
+  course TOEFL ITP disembunyikan dan ruang kerja dipaksa ke Umum. Course ITP
+  lama tetap tampil dan tetap berjalan. Nyalakan hanya bila memang dipakai.
+
+
+-------------------------------------------------------------------------------
+U2. KATEGORI
+-------------------------------------------------------------------------------
+- Menu Categories. Kategori menggantikan daftar bagian tetap (Listening,
+  Structure, Reading) untuk soal dan course umum. Nama bebas, misalnya
+  "Struktur Data" atau "Basis Data".
+- Kategori yang masih dipakai soal atau course tidak bisa dihapus. Pindahkan
+  isinya dulu.
+
+
+-------------------------------------------------------------------------------
+U3. COURSE UMUM, AKSES INSTITUSI DAN KELAS
+-------------------------------------------------------------------------------
+1. Courses & Units > New course, jenis Umum. Level tidak wajib.
+2. Editor course punya empat tab: Info (judul, kategori, ringkasan, apa yang
+   dipelajari, prasyarat, target peserta, tag, video pratinjau), Curriculum
+   (modul dan unit), Settings, dan Access.
+3. Access: pilih institusi dan/atau kelas yang boleh melihat course.
+   Mode akses "Assigned" = hanya yang ditugaskan. Mode "Paid" hanya menyimpan
+   data harga; pembayaran online BELUM ada.
+4. Peserta hanya melihat course milik institusi atau kelasnya. Course tanpa
+   institusi tidak terlihat peserta mana pun.
+5. Materi baru memakai akses "free" (terbuka bagi peserta course tersebut).
+   Ubah ke "paid" bila materi perlu dibatasi.
+- Menghapus institusi atau kelas otomatis melepaskannya dari course.
+
+
+-------------------------------------------------------------------------------
+U4. BANK SOAL, KOLEKSI, DAN IMPOR
+-------------------------------------------------------------------------------
+Jenis soal: pilihan ganda, menjodohkan (boleh nilai sebagian), isian singkat
+(beberapa jawaban diterima), dan essay (rubrik, dinilai manual).
+- Koleksi (Collections): pengelompokan soal dengan visibilitas Private
+  (pembuat), Institution, atau Global. Anda hanya bisa mengubah koleksi yang
+  boleh Anda tulis.
+- Impor Moodle XML: Question Bank > Import. Pilih kategori tujuan dan koleksi.
+  Ada pratinjau sebelum disimpan. Soal duplikat (isi sama) dilewati dan
+  dilaporkan. Berkas dibatasi ukuran dan tidak boleh memuat DOCTYPE/ENTITY.
+- Impor Word (.docx): ikuti templat. Direktif per soal: Kind, Points, Pairs,
+  Accepted, Rubric, Guide.
+- Soal berformat HTML ditampilkan lewat penyaring keamanan (skrip dibuang).
+
+
+-------------------------------------------------------------------------------
+U5. TES UMUM
+-------------------------------------------------------------------------------
+Tests > + New test > jenis Umum. Pengaturan penting:
+- Tujuan: kuis, pre-test, post-test, UTS, UAS, atau lainnya. Skor memakai skala
+  PERSEN (0 sampai 100), batas lulus bawaan 60. Tidak ada level ITP dan tidak
+  mengubah level atau skor placement peserta.
+- Course: kaitkan tes dengan course. Hanya peserta course itu yang bisa mulai.
+- Kuis harian: isi jendela harian (jam mulai dan selesai, WIB, 24 jam) dan
+  batas percobaan per hari. Di luar jendela, peserta melihat pesan jam buka.
+- Penarikan acak: per bagian, pilih koleksi dan jumlah soal. Tiap percobaan
+  mendapat soal berbeda. Soal yang tertarik disimpan sebagai snapshot.
+- Pre/post: Tests > (tes) > Prepost menautkan pre-test ke post-test. Post-test
+  bisa dikunci sampai pre-test selesai.
+- Essay: hasil ditahan sampai semua essay dinilai (Grading). Setelah dinilai,
+  skor persen muncul.
+
+
+-------------------------------------------------------------------------------
+U6. VIDEO
+-------------------------------------------------------------------------------
+- Menu Videos: unggah MP4 (maks 100 MB; batas bisa DITURUNKAN lewat
+  VIDEO_MAX_BYTES, tidak bisa dinaikkan melebihi 100 MB). Berkas diperiksa
+  isinya, bukan hanya ekstensi.
+- Sematan YouTube/Vimeo ditambahkan sebagai tautan sematan di editor materi.
+- Video hanya bisa diputar peserta yang berhak atas course atau materinya.
+  Tautan putar berlaku 1 jam dan terikat pada pengguna.
+- Video di dalam materi HTML interaktif (iframe) belum mendukung YouTube.
+
+
+-------------------------------------------------------------------------------
+U7. TUGAS, DISKUSI, SERTIFIKAT PENYELESAIAN
+-------------------------------------------------------------------------------
+Tugas (Assignments): berbasis berkas (PDF, gambar, Office, ZIP, maks 10 MB)
+atau berbasis tes. Atur tenggat, boleh terlambat atau tidak, jumlah kiriman
+maksimum, dan nilai maksimum. Penilaian memberi nilai dan umpan balik.
+Nilai maksimum tidak bisa diturunkan di bawah nilai tertinggi yang sudah ada.
+
+Diskusi per unit: peserta berkomentar dan membalas (teks polos). Lingkup per
+institusi. Peserta bisa melaporkan komentar. Moderasi di menu Comments:
+sembunyikan, pulihkan, hapus, dan balas sebagai Moderator.
+
+Sertifikat penyelesaian: terbit otomatis saat semua unit aktif course selesai (dan lulus ujian per bagian bila course mewajibkannya)
+Nomor berformat SMX-CRS-TAHUN-NOMOR, hanya terbit
+sekali per peserta per course. PDF bisa diunduh. Verifikasi publik di halaman
+verifikasi sertifikat (nama peserta disamarkan sebagian).
+
+
+-------------------------------------------------------------------------------
+U8. TEMPLAT COURSE
+-------------------------------------------------------------------------------
+Courses & Units > tombol templat: buat course dari kerangka siap pakai
+(modul dan unit kosong untuk diisi). Preset TOEFL ITP hanya muncul bila
+saklar "TOEFL ITP package" menyala.
+
+
+-------------------------------------------------------------------------------
+U9. STATISTIK BUTIR SOAL DAN LAPORAN
+-------------------------------------------------------------------------------
+- Tests > (tes) > Items: tabel per soal berisi jumlah pemakaian, tingkat
+  kesulitan nyata (p), daya beda, dan sebaran pilihan jawaban.
+- Penanda mutu hanya muncul bila datanya cukup: p dari 5 percobaan, daya beda
+  dari 10, penanda dari 30. Penanda: terlalu mudah (p di atas 0,9), terlalu sulit
+  (di bawah 0,2), daya beda lemah atau negatif, dan banyak kosong.
+- Akun admin dan QA tester tidak dihitung. Essay yang belum dinilai tidak ikut.
+- Laporan Excel/PPTX tes umum memakai skala persen dan tanpa nama level ITP.
+
+
+-------------------------------------------------------------------------------
+U10. HAL YANG PERLU DIINGAT (UMUM)
+-------------------------------------------------------------------------------
+- Layar admin baru masih berbahasa Inggris; layar peserta baru sudah ada
+  terjemahan Indonesia.
+- Pembayaran online belum ada. Mode "Paid" hanya data.
+- Selalu uji dengan akun QA tester, bukan peserta sungguhan.
+- Soal yang sudah dipakai tes tidak bisa dihapus; arsipkan saja.
+
+===============================================================================

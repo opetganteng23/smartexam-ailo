@@ -30,6 +30,19 @@ Diisi per tahap.
 | Validasi zod ketat (tahap 1) | `tests/umum-kategori.test.ts` (ObjectId, operator `$`, enum, batas daftar) |
 | CSRF | Pengecekan Origin global di `middleware.ts` berlaku untuk semua mutasi baru; tidak ada rute baru di luar `/api/` |
 | Audit log (tahap 1) | `category.create/update/delete` dan `course.*` memanggil `audit()` |
+| Otorisasi koleksi dan bank soal (tahap 2) | `tests/umum-koleksi.test.ts`, `tests/umum-koleksi2.test.ts` (koleksi private/institusi/global, IDOR ekspor, riwayat, duplikat, perakit tes, impor) |
+| Kebocoran kunci jawaban | `tests/umum-tes.test.ts`, `umum-tes2.test.ts`, `umum-stem.test.ts`, `umum-prepost.test.ts` (soal peserta tanpa `answerKey`, `accepted`, `rubric`); smoke `ONLY=umum` memeriksa JSON soal |
+| XSS (HTML soal, materi, komentar, tugas) | `tests/umum-stem.test.ts`, `import-umum.test.ts` (HTML soal disanitasi), `umum-diskusi.test.ts` (komentar teks polos), `umum-presets.test.ts` (preset materi) |
+| Impor XML (XXE, DOCTYPE, ukuran) | `tests/import-umum.test.ts` (DOCTYPE/ENTITY ditolak, batas ukuran, duplikat) |
+| Unggah video (sniff byte, ukuran, otorisasi, token) | `tests/umum-video.test.ts`, `umum-video2.test.ts` (bukan MP4 ditolak, Range, token 1 jam terikat pengguna, peserta tanpa hak ditolak) |
+| Unggah tugas (sniff, Content-Length, akses unit) | `tests/umum-tugas.test.ts` |
+| Akses tes umum (course, prasyarat, jendela harian, balapan start) | `tests/umum-tes.test.ts`, `umum-tes2.test.ts`, `umum-prepost.test.ts` |
+| Sertifikat course (idempoten, verifikasi publik, nama disamarkan) | `tests/umum-sertifikat.test.ts` |
+| Statistik butir (otorisasi, peserta uji dikecualikan, snapshot) | `tests/umum-butir.test.ts` |
+| Akses materi bawaan free, saklar itpPack | `tests/umum-materi-akses.test.ts`, `tests/umum-templat.test.ts` (gate server di course-templates dan scaffold) |
+| CSP | Tidak dilonggarkan; YouTube di iframe materi ditunda (lihat TODO) |
+| npm audit | `npm audit --omit=dev`: 12 temuan (baseline 13), `npm audit fix` tidak dijalankan |
+| Bukti belum ada | Ekspor Excel tes umum (perbaikan tinjauan tahap 7) belum punya tes otomatis; hanya diperiksa lewat typecheck dan tinjauan kode |
 
 ## Tinjauan independen tahap 1
 
@@ -67,3 +80,18 @@ Tidak ada celah berat. Diperbaiki (tes: `tests/umum-video.test.ts`, `tests/umum-
 Dicatat, tidak dikerjakan: `canWatchVideo` memakai `$regex` pada isi materi (tanpa indeks) tiap 60 detik per pengguna per klip; solusi lanjutan adalah kolom `Material.videoIds[]` terindeks yang diisi saat simpan. Rate limit unggahan hanya per proses (satu instance PM2 sesuai K1). Rentang ganda (`bytes=a-b,c-d`) dijawab 416. Pemilih video di editor materi hanya untuk peran penulis materi (admin, academic_admin); embed Vimeo bisa dipakai pada grup soal tetapi tidak disisipkan lewat editor rich text.
 
 Keputusan U4.3: YouTube pada materi HTML (iframe tersandbox) tidak dikerjakan. Tidak ada browser untuk membuktikan bahwa iframe tersandbox tanpa `allow-same-origin` memuat embed dengan aman, dan CSP tidak boleh dilonggarkan tanpa bukti; video dari server sendiri lewat `<video src>` dengan tautan bertanda tangan sudah tersedia. CSP aplikasi (`next.config.mjs`) hanya memuat `frame-ancestors`, `object-src`, dan `base-uri`; tidak diubah.
+
+## Tinjauan independen tahap 5-7
+
+Tahap 5 dan 6 ditinjau setelah masing-masing selesai (perbaikan sudah tercatat di riwayat komit: banner course ITP, regex pratinjau, halaman verifikasi publik CRS, komentar moderator lintas institusi, Content-Length unggahan tugas, akses unit untuk tugas, middleware academic_admin, batas penurunan maxPoints).
+
+Tahap 7, keamanan: tidak ada temuan berat atau sedang. Diperbaiki: kueri snapshot statistik butir kini memakai `select` dan `sort({_id:-1})` sebelum `limit(5000)`. Dicatat saja: saklar `itpPack` hanya menyembunyikan menu, templat, dan scaffold; rute ITP lama tetap dijaga saklar dan peran masing-masing (bukan niat membatasi URL langsung).
+
+Tahap 7, QA/regresi: dua temuan berat pada ekspor Excel tes umum, diperbaiki (komit 57bac68): kolom Level kini kosong untuk skala persen (sebelumnya skor persen dipetakan ke nama level ITP) dan data bar Total score memakai rentang 0-100 bila ada skor persen. Belum ada tes otomatis untuk ekspor Excel; ini dicatat sebagai bukti yang belum ada. Dicatat tanpa perbaikan: statistik butir tidak memberi tanda bila data terpotong 5000 percobaan; percobaan lama tanpa snapshot dan soal yang sudah dihapus tidak masuk statistik; smoke penuh hanya bermakna untuk `ONLY=umum`.
+
+## Gerbang Akhir (G.1): GAGAL, `main` tidak disentuh
+
+Hasil pada komit akhir `feat/umum`:
+- Lulus: `tsc --noEmit` bersih; `npm run lint` hanya peringatan lama (`TestAudio.tsx`); 288 tes hijau (49 berkas); build produksi sukses; `npm audit --omit=dev` 12 temuan (baseline 13); smoke `ONLY=umum` hijau (23 pemeriksaan); diff `main...feat/umum` tanpa rahasia dan tanpa berkas data (satu-satunya XML adalah fixture sintetis); `git status` hanya `Logo AILO Squared.png` tidak terlacak.
+- Gagal: kriteria "setiap item ✅ atau ⏭️ beralasan" tidak terpenuhi. Item berstatus 🔄 pada UI (antara lain U1.1, U1.6, U2.5, U2.6, U3.2, U3.5, U4.1-U4.3, U5.x, U6.1, U6.2, U6.4, U7.4, U7.6) belum diuji visual di browser, dan U7.2 (ekspor Excel) belum punya tes otomatis. Smoke penuh lama (placement/coaching ITP) tidak bisa dijalankan di lingkungan uji.
+- Akibat: tidak ada merge ke `main`, tidak ada tag `umum-v1`. Langkah berikutnya: jalankan `docs/panduan/QA_Panduan_Uji_Umum.md` di staging, tutup item 🔄, lalu ulangi G.1.

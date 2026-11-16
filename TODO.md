@@ -91,7 +91,7 @@ Legenda sama: ✅ selesai dan teruji · 🔄 sebagian · ⬜ belum · ⏭️ dit
 
 ### Tahap 7 - Isolasi paket ITP dan sisa
 - ✅ U7.1 Scaffold TOEFL menjadi preset; paket ITP di balik saklar — preset `toefl-itp` di daftar templat; saklar `itpPack` (Settings, bawaan mati) menyembunyikan preset, rute scaffold, dan ruang kerja ITP; course ITP lama tetap terjangkau
-- ✅ U7.2 PPTX dan laporan generik mengikuti bagian tes
+- 🔄 U7.2 PPTX dan laporan generik mengikuti bagian tes — PPTX teruji (`umum-laporan`); ekspor Excel diperbaiki setelah tinjauan (Level kosong dan data bar 0-100 untuk skala persen) tetapi belum punya tes otomatis
 - ✅ U7.3 `access: paid` bawaan materi ditinjau (bawaan tidak membingungkan kelas biasa)
 - 🔄 U7.4 Sisa dwibahasa EN/ID dan `i18n.test.ts` hijau — layar peserta baru (kartu dan rincian course, diskusi, tugas, sertifikat course) diterjemahkan dan tes hijau; layar admin baru masih berbahasa Inggris
 - ✅ U7.5 `scripts/smoke.mjs` diperbarui untuk jenis soal baru dan skor persen — bagian baru `ONLY=umum` (23 pemeriksaan) hijau pada server dev dengan DB in-memory; bagian lama (placement, coaching ITP) sudah usang sejak ITP dibuang dan gagal di bagian placement (bukan akibat program ini)
@@ -100,11 +100,11 @@ Legenda sama: ✅ selesai dan teruji · 🔄 sebagian · ⬜ belum · ⏭️ dit
 ### Lintas tahap, gerbang, dan dokumen
 - 🔄 Q.1 Tes keamanan per fitur (akses/IDOR, XSS, impor XML, unggah, CSRF, rate limit, audit log) tertulis dan hijau — lihat tabel bukti di CATATAN-IMPLEMENTASI; CSRF memakai pemeriksaan Origin global di middleware (tidak ada tes per rute baru)
 - ✅ Q.2 `npm audit --omit=dev` tidak menambah temuan high/critical — 12 temuan (baseline 13)
-- ⬜ Q.3 Tinjauan independen subagent (keamanan dan QA/regresi) di akhir tiap tahap; temuan berat diperbaiki
-- ⬜ D.1 `docs/panduan/PANDUAN-ADMIN.txt` diperbarui (kategori, course umum, koleksi, impor XML, tes umum, video, akses)
-- ⬜ D.2 `docs/panduan/QA_Panduan_Uji_Umum.md` (format seperti QA_Panduan_Uji_T01.md)
-- ⬜ D.3 `docs/perencanaan/CATATAN-RILIS-UMUM.md` (perubahan, env baru, langkah server, rollback)
+- ✅ Q.3 Tinjauan independen subagent (keamanan dan QA/regresi) di akhir tiap tahap; temuan berat diperbaiki — lihat CATATAN-IMPLEMENTASI
+- ✅ D.1 `docs/panduan/PANDUAN-ADMIN.txt` diperbarui (kategori, course umum, koleksi, impor XML, tes umum, video, akses)
+- ✅ D.2 `docs/panduan/QA_Panduan_Uji_Umum.md` (format seperti QA_Panduan_Uji_T01.md)
+- ✅ D.3 `docs/perencanaan/CATATAN-RILIS-UMUM.md` (perubahan, env baru, langkah server, rollback)
 - ✅ D.4 `.gitignore` menutup `Bank_Soal_*.xml` dan `UTS *.docx`
-- ⬜ G.1 Gerbang akhir: typecheck, lint, test, build produksi, smoke, regresi ITP, audit, panduan lengkap
-- ⬜ G.2 Merge ke `main`, push, tag `umum-v1` (hanya bila G.1 lulus)
-- ⬜ V.1 Verifikasi pasca-deploy oleh banyak agent (PROMPT-VERIFIKASI-PASCA-DEPLOY.md) dan laporan konsolidasi
+- ❌ G.1 Gerbang akhir (GAGAL: item 🔄 UI belum diuji visual, lihat CATATAN-IMPLEMENTASI): typecheck, lint, test, build produksi, smoke, regresi ITP, audit, panduan lengkap
+- ⏭️ G.2 Merge ke `main`, push, tag `umum-v1` (hanya bila G.1 lulus) — tidak dilakukan karena G.1 gagal; `main` tidak disentuh
+- ⏭️ V.1 Verifikasi pasca-deploy oleh banyak agent (PROMPT-VERIFIKASI-PASCA-DEPLOY.md) dan laporan konsolidasi — ditunda: butuh redeploy, yang dilarang dijalankan dalam sesi otonom ini
