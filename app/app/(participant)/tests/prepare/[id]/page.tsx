@@ -9,13 +9,14 @@ import { api } from "@/lib/client";
 import { Loading, ErrorNote } from "@/components/Charts";
 import { requestScreen, handOffScreen, screenSupported } from "@/components/ScreenGate";
 
-type T = { id: string; name: string; kind: string; totalQuestions: number; totalSec: number; unlocked: boolean; reason: string | null; inProgressAttemptId: string | null; secure?: boolean; screenWatch?: boolean };
+type T = { id: string; name: string; kind: string; totalQuestions: number; totalSec: number; unlocked: boolean; reason: string | null; inProgressAttemptId: string | null; secure?: boolean; screenWatch?: boolean; hasAudio?: boolean };
 
 export default function Persiapan({ params }: { params: { id: string } }) {
   const router = useRouter();
   const { data, loading, error } = useApi<{ tests: T[] }>("/api/tests");
   const t = data?.tests.find((x) => x.id === params.id);
   const [audioOk, setAudioOk] = useState(false);
+  const audioNeeded = t?.hasAudio !== false; // tes tanpa bagian Listening tidak butuh uji audio
   // Uji share layar SEBELUM timer mulai: masalah izin (macOS, kebijakan IT) dibereskan tanpa memakan waktu tes.
   // Stream yang berhasil diteruskan ke ruang tes, jadi peserta tidak memilih layar dua kali.
   const [scr, setScr] = useState<{ state: "none" | "asking" | "ok" | "wrong" | "denied" | "unsupported"; why?: string }>({ state: "none" });
@@ -77,14 +78,14 @@ export default function Persiapan({ params }: { params: { id: string } }) {
     <div className="page-cols">
       <div><p className="text-sm font-semibold text-brand">PREPARATION</p><h1 className="page-title">{t.name}</h1><p className="mt-1 text-ink-soft">Full format: {t.totalQuestions} questions · about {Math.round(t.totalSec / 60)} minutes · Listening, Structure & Written Expression, Reading</p></div>
 
-      <section className="card flex flex-col gap-3">
+      {audioNeeded && <section className="card flex flex-col gap-3">
         <h2 className="font-display text-lg font-extrabold text-navy">Device check</h2>
         <p className="text-sm text-ink-soft">Put on your headset, then play the test tone. Listening audio will only be played <b>once</b>.</p>
         <div className="flex flex-col gap-2 sm:flex-row">
           <button type="button" className="btn-outline" onClick={beep}>Play test tone</button>
           <label className="flex min-h-[44px] items-center gap-2 text-sm"><input type="checkbox" className="h-5 w-5" checked={audioOk} onChange={(e) => setAudioOk(e.target.checked)} />I can hear the tone</label>
         </div>
-      </section>
+      </section>}
 
       <section className={`card ${conn?.state === "poor" ? "border-red-300 bg-red-50" : ""}`}>
         <h2 className="font-display text-lg font-extrabold text-navy">Connection check</h2>
@@ -112,7 +113,7 @@ export default function Persiapan({ params }: { params: { id: string } }) {
       <section className="card">
         <h2 className="font-display text-lg font-extrabold text-navy">Rules during the test</h2>
         <ul className="mt-2 flex flex-col gap-1.5 text-sm text-ink-soft">
-          {["Stay in fullscreen; switching tabs or leaving fullscreen is recorded.", "Listening audio plays once, without pausing or replaying.", "You cannot go back to a previous section.", "The timer runs on the server: refreshing does not change the remaining time, and answers are saved automatically.", "Watch the connection badge next to the timer. If it shows Offline, the questions are hidden and the timer pauses until you reconnect.", "Sessions with unusual activity notes are reviewed by the admin. No camera or microphone recording."].map((r) => <li key={r}>• {r}</li>)}
+          {["Stay in fullscreen; switching tabs or leaving fullscreen is recorded.", ...(audioNeeded ? ["Listening audio plays once, without pausing or replaying."] : []), "You cannot go back to a previous section.", "The timer runs on the server: refreshing does not change the remaining time, and answers are saved automatically.", "Watch the connection badge next to the timer. If it shows Offline, the questions are hidden and the timer pauses until you reconnect.", "Sessions with unusual activity notes are reviewed by the admin. No camera or microphone recording."].map((r) => <li key={r}>• {r}</li>)}
         </ul>
         <label className="mt-4 flex items-start gap-2 text-sm"><input type="checkbox" className="mt-1 h-5 w-5" checked={ready} onChange={(e) => setReady(e.target.checked)} /><span>I understand the rules and am ready to finish the test. The test attempt is counted when the test starts.</span></label>
         {t.screenWatch && scr.state !== "unsupported" && (
@@ -127,12 +128,12 @@ export default function Persiapan({ params }: { params: { id: string } }) {
           </div>
         )}
         <ErrorNote text={err} />
-        {!busy && (!audioOk || !ready || !screenOk) && (
+        {!busy && ((audioNeeded && !audioOk) || !ready || !screenOk) && (
           <p className="mt-4 text-sm font-semibold text-red-700" role="status">
-            To start, complete: {[!audioOk && "tick \"I can hear the tone\" in the audio check above", !ready && "tick the rules checkbox", !screenOk && "share your entire screen"].filter(Boolean).join(" · ")}
+            To start, complete: {[audioNeeded && !audioOk && "tick \"I can hear the tone\" in the audio check above", !ready && "tick the rules checkbox", !screenOk && "share your entire screen"].filter(Boolean).join(" · ")}
           </p>
         )}
-        <button className="btn-primary mt-4" disabled={!audioOk || !ready || !screenOk || busy} onClick={begin}>{busy ? "Starting…" : `Start ${t.name}`}</button>
+        <button className="btn-primary mt-4" disabled={(audioNeeded && !audioOk) || !ready || !screenOk || busy} onClick={begin}>{busy ? "Starting…" : `Start ${t.name}`}</button>
         <Link href="/tests" className="mt-3 block text-center text-sm font-semibold text-brand">Cancel</Link>
       </section>
     </div>

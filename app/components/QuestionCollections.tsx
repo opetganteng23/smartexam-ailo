@@ -5,6 +5,7 @@ import { Modal } from "@/components/Modal";
 import { askConfirm } from "@/components/Feedback";
 import { api } from "@/lib/client";
 import { BankPicker } from "@/components/BankPicker";
+import { useT } from "@/components/LangProvider";
 
 export type Cat = { id: string; name: string; active: boolean };
 export type Coll = { id: string; name: string; categoryId: string | null; description: string; visibility: "private" | "institution" | "global"; institutionId: string | null; mine: boolean; questions: number };
@@ -12,7 +13,8 @@ const VIS: Record<Coll["visibility"], string> = { private: "Private (only me and
 const label = "flex flex-col gap-1.5 text-sm font-semibold text-navy";
 
 /** Kelola koleksi bank soal: buat, ganti nama atau visibilitas, hapus (hanya bila kosong). */
-export function CollectionsDialog({ cats, colls, onClose, onChanged }: { cats: Cat[]; colls: Coll[]; onClose: () => void; onChanged: () => void }) {
+export function CollectionsDialog({ cats, colls, umum, onClose, onChanged }: { cats: Cat[]; colls: Coll[]; umum?: boolean; onClose: () => void; onChanged: () => void }) {
+  const tr = useT();
   const [institutions, setInstitutions] = useState<{ id: string; name: string }[]>([]);
   const [v, setV] = useState({ id: "", name: "", categoryId: "", visibility: "private" as Coll["visibility"], institutionId: "", description: "" });
   const [err, setErr] = useState("");
@@ -31,9 +33,9 @@ export function CollectionsDialog({ cats, colls, onClose, onChanged }: { cats: C
     try { await api(`/api/admin/collections/${c.id}`, { method: "DELETE", silent: true }); onChanged(); } catch (e) { setErr((e as Error).message); }
   }
   return (
-    <Modal title="Question collections" onClose={onClose}>
+    <Modal title={umum ? tr("Question banks") : "Question collections"} onClose={onClose}>
       <div className="flex flex-col gap-4 text-sm">
-        <p className="text-ink-soft">A collection groups questions of one subject, for example &quot;UTS Data Structures&quot;. Tests can draw questions from a collection. Visibility decides who can see and use its questions.</p>
+        <p className="text-ink-soft">{umum ? tr("A question bank groups the questions of one subject, for example \"UTS Data Structures\". Tests choose questions from a bank. Visibility decides who can see and use its questions.") : <>A collection groups questions of one subject, for example &quot;UTS Data Structures&quot;. Tests can draw questions from a collection. Visibility decides who can see and use its questions.</>}</p>
         <ul className="max-h-56 overflow-y-auto rounded-lg border border-line" aria-label="Collections">
           {colls.map((c) => (
             <li key={c.id} className="flex flex-wrap items-center gap-2 border-b border-line px-3 py-2 last:border-0">
@@ -44,16 +46,16 @@ export function CollectionsDialog({ cats, colls, onClose, onChanged }: { cats: C
               </span>
             </li>
           ))}
-          {colls.length === 0 && <li className="p-3 text-ink-soft">No collections yet. Create the first one below.</li>}
+          {colls.length === 0 && <li className="p-3 text-ink-soft">{umum ? tr("No question banks yet. Create the first one below.") : "No collections yet. Create the first one below."}</li>}
         </ul>
         <div className="grid gap-3 sm:grid-cols-2">
           <label className={label}>Name<input className="field font-normal" maxLength={120} value={v.name} onChange={(e) => setV({ ...v, name: e.target.value })} /></label>
-          <label className={label}>Category<select className="field font-normal" value={v.categoryId} onChange={(e) => setV({ ...v, categoryId: e.target.value })}><option value="">No category</option>{cats.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select></label>
+          <label className={label}>{umum ? tr("Subject") : "Category"}<select className="field font-normal" value={v.categoryId} onChange={(e) => setV({ ...v, categoryId: e.target.value })}><option value="">{umum ? tr("Choose a subject") : "No category"}</option>{cats.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select></label>
           <label className={label}>Who can see it<select className="field font-normal" value={v.visibility} onChange={(e) => setV({ ...v, visibility: e.target.value as Coll["visibility"] })}>{Object.entries(VIS).map(([k, n]) => <option key={k} value={k}>{n}</option>)}</select></label>
           {v.visibility === "institution" && <label className={label}>Institution<select className="field font-normal" value={v.institutionId} onChange={(e) => setV({ ...v, institutionId: e.target.value })}><option value="">Choose</option>{institutions.map((i) => <option key={i.id} value={i.id}>{i.name}</option>)}</select></label>}
         </div>
         {err && <p role="alert" className="text-red-700">{err}</p>}
-        <div className="flex justify-end gap-2">{v.id && <button className="btn-outline" onClick={reset}>Cancel edit</button>}<button className="btn-solid" disabled={!v.name.trim() || (v.visibility === "institution" && !v.institutionId)} onClick={save}>{v.id ? "Save collection" : "Create collection"}</button></div>
+        <div className="flex justify-end gap-2">{v.id && <button className="btn-outline" onClick={reset}>Cancel edit</button>}<button className="btn-solid" disabled={!v.name.trim() || (!!umum && !v.categoryId) || (v.visibility === "institution" && !v.institutionId)} onClick={save}>{v.id ? "Save collection" : "Create collection"}</button></div>
       </div>
     </Modal>
   );

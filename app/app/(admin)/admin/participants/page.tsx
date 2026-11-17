@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Pager } from "@/components/Pager";
 import { useApi } from "@/lib/useApi";
+import { useFeatures } from "@/lib/useFeatures";
 import { tgl } from "@/lib/client";
 import { Loading, ErrorNote } from "@/components/Charts";
 import { DetailModal, STATUS } from "@/components/ParticipantAdminPanel";
@@ -17,6 +18,7 @@ const EMPTY: F = { q: "", status: "", placement: "", session: "", level: "", bra
 const SIZE_KEY = "ei-participants-size";
 
 export default function Peserta() {
+  const itp = !!useFeatures().itpPack; // placement, level, skor ITP, dan kuota coaching hanya bila paket TOEFL ITP menyala
   const initial = typeof window === "undefined" ? new URLSearchParams() : new URLSearchParams(window.location.search);
   const [inst, setInstState] = useState<string>(initial.get("institution") ?? "");
   const [f, setF] = useState<F>({ ...EMPTY, status: initial.get("status") ?? "" });
@@ -64,9 +66,9 @@ export default function Peserta() {
           <input className="field min-w-[240px] flex-1 sm:max-w-sm" type="search" placeholder={inst ? "Search name or email" : "Search everyone by name or email"} value={qInput} onChange={(e) => setQInput(e.target.value)} aria-label="Search" />
           <select className={sel_} aria-label="Status" value={f.status} onChange={(e) => set({ status: e.target.value })}><option value="">All statuses</option><option value="active">Active</option><option value="invited">Awaiting activation</option><option value="disabled">Inactive</option></select>
           {!showCards && <>
-            <select className={sel_} aria-label="Placement" value={f.placement} onChange={(e) => set({ placement: e.target.value })}><option value="">Placement: all</option><option value="done">Placement done</option><option value="none">No placement yet</option></select>
+            {itp && <select className={sel_} aria-label="Placement" value={f.placement} onChange={(e) => set({ placement: e.target.value })}><option value="">Placement: all</option><option value="done">Placement done</option><option value="none">No placement yet</option></select>}
             {opts.sessions.length > 0 && <select className={sel_} aria-label="Scheduled session" value={f.session} onChange={(e) => set({ session: e.target.value })}><option value="">Any test date</option>{opts.sessions.map((s) => <option key={s.id} value={s.id}>{s.label}</option>)}</select>}
-            {opts.levels.length > 0 && <select className={sel_} aria-label="Level" value={f.level} onChange={(e) => set({ level: e.target.value })}><option value="">All levels</option>{opts.levels.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}</select>}
+            {itp && opts.levels.length > 0 && <select className={sel_} aria-label="Level" value={f.level} onChange={(e) => set({ level: e.target.value })}><option value="">All levels</option>{opts.levels.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}</select>}
             {opts.branches.length > 0 && <select className={sel_} aria-label="Branch" value={f.branch} onChange={(e) => set({ branch: e.target.value })}><option value="">All branches</option>{opts.branches.map((b) => <option key={b} value={b}>{b}</option>)}</select>}
             {opts.branches.length > 0 && <select className={sel_} aria-label="Age group" value={f.age} onChange={(e) => set({ age: e.target.value })}><option value="">All ages</option>{opts.ageGroups.map((g) => <option key={g.key} value={g.key}>{g.label}</option>)}</select>}
           </>}
@@ -86,8 +88,8 @@ export default function Peserta() {
               </div>
               <p className="font-display text-3xl font-extrabold text-navy">{c.total.toLocaleString("en-US")}<span className="ml-1 text-sm font-semibold text-ink-soft">{c.total === 1 ? "participant" : "participants"}</span></p>
               <div className="flex flex-wrap gap-1.5 text-xs"><span className="badge-ok">{c.active} active</span>{c.invited > 0 && <span className="badge-warn">{c.invited} awaiting activation</span>}{c.disabled > 0 && <span className="badge-muted">{c.disabled} inactive</span>}</div>
-              <div><p className="flex justify-between text-xs text-ink-soft"><span>Placement done</span><span className="font-semibold text-navy">{c.placed} / {c.total}</span></p>
-                <div className="mt-1 h-2 rounded-full bg-canvas"><div className="h-2 rounded-full bg-brand" style={{ width: `${c.total ? Math.round((c.placed / c.total) * 100) : 0}%` }} /></div></div>
+              {itp && <div><p className="flex justify-between text-xs text-ink-soft"><span>Placement done</span><span className="font-semibold text-navy">{c.placed} / {c.total}</span></p>
+                <div className="mt-1 h-2 rounded-full bg-canvas"><div className="h-2 rounded-full bg-brand" style={{ width: `${c.total ? Math.round((c.placed / c.total) * 100) : 0}%` }} /></div></div>}
               <span className="text-sm font-semibold text-brand">Open participants →</span>
             </button>
           ))}
@@ -95,14 +97,14 @@ export default function Peserta() {
         </div>
       )) : loading && !data ? <Loading /> : (
         <div className={`table-wrap transition-opacity ${loading ? "opacity-60" : ""}`}><table>
-          <thead><tr><th><Sort label="Participant" asc="name" desc="name_desc" /></th><th><Sort label="Status" asc="status" /></th><th><Sort label="Branch" asc="branch" /></th><th><Sort label="Age" asc="age" desc="age_desc" /></th><th>Level</th><th><Sort label="Score" asc="score" desc="score_asc" /></th><th>Coaching quota</th><th>Tests</th><th><Sort label="Joined" asc="newest" /></th><th /></tr></thead>
+          <thead><tr><th><Sort label="Participant" asc="name" desc="name_desc" /></th><th><Sort label="Status" asc="status" /></th><th><Sort label="Branch" asc="branch" /></th><th><Sort label="Age" asc="age" desc="age_desc" /></th>{itp && <><th>Level</th><th><Sort label="Score" asc="score" desc="score_asc" /></th><th>Coaching quota</th></>}<th>Tests</th><th><Sort label="Joined" asc="newest" /></th><th /></tr></thead>
           <tbody>
             {data?.participants.map((p, i) => (
               <tr key={p.id}>
                 <td className="font-semibold text-navy"><span className="mr-2 text-xs font-normal text-ink-soft">{(page - 1) * size + i + 1}.</span>{p.name ?? "(no name yet)"}{p.qaTester && <span className="ml-2 rounded-full bg-accent-tint px-2 py-0.5 text-xs font-semibold text-accent-dark">QA</span>}<br /><span className="text-xs font-normal text-ink-soft">{p.email}{p.institution && !inst ? ` · ${p.institution}` : ""}</span></td>
                 <td><span className={STATUS[p.status]?.[1] ?? "badge-muted"}>{STATUS[p.status]?.[0] ?? p.status}</span></td>
                 <td className="text-xs">{p.branch ?? "-"}</td><td>{p.age ?? "-"}</td>
-                <td>{p.level ?? p.pending?.level ?? (p.placementDone ? "-" : "No placement yet")}{!p.level && p.pending && <span className="block text-[11px] text-accent-dark" title="The participant cannot see this result yet">{p.pending.held ? "held (not released)" : `releases ${new Date(p.pending.releaseAt).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", timeZone: "Asia/Jakarta" })} WIB`}</span>}</td><td>{p.scoreEst ?? p.pending?.score ?? "-"}</td><td>{p.quota ? `${p.quota.used}/${p.quota.total}` : "-"}</td><td>{p.tests}</td>
+                {itp && <><td>{p.level ?? p.pending?.level ?? (p.placementDone ? "-" : "No placement yet")}{!p.level && p.pending && <span className="block text-[11px] text-accent-dark" title="The participant cannot see this result yet">{p.pending.held ? "held (not released)" : `releases ${new Date(p.pending.releaseAt).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", timeZone: "Asia/Jakarta" })} WIB`}</span>}</td><td>{p.scoreEst ?? p.pending?.score ?? "-"}</td><td>{p.quota ? `${p.quota.used}/${p.quota.total}` : "-"}</td></>}<td>{p.tests}</td>
                 <td className="text-xs text-ink-soft">{p.createdAt ? tgl(p.createdAt) : "-"}</td>
                 <td className="whitespace-nowrap text-right"><Link href={`/admin/participants/${p.id}`} className="mr-3 font-semibold text-brand">Dashboard</Link><button className="font-semibold text-brand" onClick={() => setSel(p.id)}>Manage</button></td>
               </tr>

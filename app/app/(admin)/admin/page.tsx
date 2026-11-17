@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useApi } from "@/lib/useApi";
+import { useFeatures } from "@/lib/useFeatures";
 import { HBars, Stat, Loading, ErrorNote } from "@/components/Charts";
 import { MaintenanceToggle } from "@/components/MaintenanceToggle";
 
@@ -19,6 +20,7 @@ type D = {
 const KIND: Record<string, string> = { placement: "Placement", sim: "Simulation", final: "Final Test", practice: "Practice", quiz: "Unit quiz", general: "General test" };
 
 export default function AdminHome() {
+  const itp = !!useFeatures().itpPack; // placement dan level hanya bila paket TOEFL ITP menyala
   const [days, setDays] = useState(30);
   const { data: d, loading, error } = useApi<D>(`/api/admin/dashboard?days=${days}`);
   const k = d?.kpi;
@@ -36,11 +38,11 @@ export default function AdminHome() {
             <Stat label="ACTIVE INSTITUTIONS" value={k.institutions} />
             <Stat label="PARTICIPANTS" value={k.participants} sub={`${k.active} active · ${k.invited} awaiting activation`} tone={k.invited > k.active ? "warn" : undefined} />
             <Stat label="RECENT SIGN-INS" value={k.loggedInRecently} sub={`participants in ${d.days} days`} />
-            <Stat label="PLACEMENT COMPLETED" value={k.placementsDone} sub={k.placementPct != null ? `${k.placementPct}% of active participants` : undefined} />
+            {itp && <Stat label="PLACEMENT COMPLETED" value={k.placementsDone} sub={k.placementPct != null ? `${k.placementPct}% of active participants` : undefined} />}
           </div>
 
           <div className="grid gap-6 lg:grid-cols-2">
-            <section className="card"><h2 className="font-display text-lg font-extrabold text-navy">Participant level distribution</h2><div className="mt-4"><HBars rows={d.levels.map((l) => ({ label: l.name, value: l.n, sub: l.held ? `participants · ${l.held} not released yet` : "participants" }))} /></div><p className="mt-2 text-xs text-ink-soft">Includes placement results that are held or waiting for release. QA test accounts are excluded.</p></section>
+            {itp && <section className="card"><h2 className="font-display text-lg font-extrabold text-navy">Participant level distribution</h2><div className="mt-4"><HBars rows={d.levels.map((l) => ({ label: l.name, value: l.n, sub: l.held ? `participants · ${l.held} not released yet` : "participants" }))} /></div><p className="mt-2 text-xs text-ink-soft">Includes placement results that are held or waiting for release. QA test accounts are excluded.</p></section>}
             <section className="card"><h2 className="font-display text-lg font-extrabold text-navy">Completed tests ({d.days} days)</h2>
               <div className="mt-4">{d.tests.length ? <HBars color="#F07020" rows={d.tests.map((t) => ({ label: KIND[t.kind] ?? t.kind, value: t.n, sub: "tests" }))} /> : <p className="text-sm text-ink-soft">No completed tests yet. Results appear here as participants finish their tests.</p>}</div></section>
           </div>

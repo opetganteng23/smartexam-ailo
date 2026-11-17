@@ -216,7 +216,7 @@ export default function BankSoal() {
       {moveDlg && <MoveDialog cats={cats} colls={colls} ids={[...sel]} onClose={() => setMoveDlg(false)} onMoved={() => { setMoveDlg(false); setSel(new Set()); load(); loadMeta(); }} onCreated={(c) => setColls((x) => [...x, c])} />}
       {importDlg && <ImportDialog umum={!!umum} cats={cats} colls={colls} defaults={{ categoryId: f.collectionId === "none" ? "" : f.categoryId, collectionId: f.collectionId === "none" ? "" : f.collectionId }} onClose={() => { setImportDlg(false); load(); loadMeta(); loadTypes(); }} />}
       {videoDlg && <VideoLibrary onClose={() => setVideoDlg(false)} />}
-      {collDlg && <CollectionsDialog cats={cats} colls={colls} onClose={() => setCollDlg(false)} onChanged={() => { loadMeta(); load(); }} />}
+      {collDlg && <CollectionsDialog umum={!!umum} cats={cats} colls={colls} onClose={() => setCollDlg(false)} onChanged={() => { loadMeta(); load(); }} />}
     </div>
   );
 }

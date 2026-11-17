@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useFeatures } from "@/lib/useFeatures";
 import { api } from "@/lib/client";
 import { Modal } from "@/components/Modal";
 import { askConfirm } from "@/components/Feedback";
@@ -48,6 +49,7 @@ export function PersonnelImport({ id }: { id: string }) {
 
 export function Editor({ init, onClose, onSaved }: { init: Partial<I>; onClose: () => void; onSaved: () => void }) {
   const [v, setV] = useState({ name: init.name ?? "", code: init.code ?? "", seats: init.seats ?? 50, contactEmail: init.contactEmail ?? "", batch: init.batch ?? "", contractStart: day(init.contractStart ?? null), contractEnd: day(init.contractEnd ?? null), status: init.status ?? "active", holdPlacementResults: !!init.holdPlacementResults, holdFromInstAdmin: init.holdFromInstAdmin ?? true, modules: init.modules ?? { learning: false, coaching: false } });
+  const itp = !!useFeatures().itpPack; // tahan hasil placement dan modul Coaching hanya bila paket TOEFL ITP menyala (atau sudah terlanjur dipakai)
   const [err, setErr] = useState(""); const [busy, setBusy] = useState(false);
   async function save() {
     if (init.holdPlacementResults && !v.holdPlacementResults && (init.heldResults ?? 0) > 0) { setErr("Results are still held. Use “Release all held results” in the institution's Settings tab, so the impact is shown first."); return; }
@@ -69,11 +71,11 @@ export function Editor({ init, onClose, onSaved }: { init: Partial<I>; onClose: 
         <label className={label}>Batch<input className="field font-normal" value={v.batch} onChange={(e) => setV({ ...v, batch: e.target.value })} placeholder="Batch 2026" /></label>
         <label className={label}>Contact email<input className="field font-normal" type="email" value={v.contactEmail} onChange={(e) => setV({ ...v, contactEmail: e.target.value })} /></label>
         <label className="flex min-h-[44px] items-center gap-2 text-sm"><input type="checkbox" className="h-5 w-5" checked={v.status === "active"} onChange={(e) => setV({ ...v, status: e.target.checked ? "active" : "inactive" })} />Active</label>
-        <label className="flex items-start gap-2 rounded-lg border border-line p-3 text-sm"><input type="checkbox" className="mt-0.5 h-5 w-5 shrink-0" checked={v.holdPlacementResults} onChange={(e) => setV({ ...v, holdPlacementResults: e.target.checked })} /><span><b className="text-navy">Hold placement results</b><br /><span className="text-ink-soft">Participants can take the placement test, but their score, level, report, and AI analysis stay hidden until you turn this off. Turning it off releases all held results at once.{init.holdPlacementResults ? ` Currently held: ${init.heldResults ?? 0}.` : ""}</span></span></label>
-        {v.holdPlacementResults && <label className={label}>Who the hold applies to<select className="field font-normal" value={v.holdFromInstAdmin ? "all" : "participants"} onChange={(e) => setV({ ...v, holdFromInstAdmin: e.target.value === "all" })}><option value="all">Participants, coaches, and institution admins</option><option value="participants">Participants and coaches only (institution admins can see results)</option></select></label>}
+        {(itp || init.holdPlacementResults) && <label className="flex items-start gap-2 rounded-lg border border-line p-3 text-sm"><input type="checkbox" className="mt-0.5 h-5 w-5 shrink-0" checked={v.holdPlacementResults} onChange={(e) => setV({ ...v, holdPlacementResults: e.target.checked })} /><span><b className="text-navy">Hold placement results</b><br /><span className="text-ink-soft">Participants can take the placement test, but their score, level, report, and AI analysis stay hidden until you turn this off. Turning it off releases all held results at once.{init.holdPlacementResults ? ` Currently held: ${init.heldResults ?? 0}.` : ""}</span></span></label>}
+        {(itp || init.holdPlacementResults) && v.holdPlacementResults && <label className={label}>Who the hold applies to<select className="field font-normal" value={v.holdFromInstAdmin ? "all" : "participants"} onChange={(e) => setV({ ...v, holdFromInstAdmin: e.target.value === "all" })}><option value="all">Participants, coaches, and institution admins</option><option value="participants">Participants and coaches only (institution admins can see results)</option></select></label>}
         <fieldset className="rounded-lg border border-line p-3 text-sm"><legend className="px-1 font-semibold text-navy">Modules for this institution</legend>
           <p className="mb-2 text-xs text-ink-soft">Tests and results are always on. These also need the feature turned on in Settings.</p>
-          {([["learning", "Learning", "Courses, units, quizzes, and materials"], ["coaching", "Coaching", "Booking coaching sessions with coaches"]] as const).map(([k, t, d]) => (
+          {([["learning", "Learning", "Courses, units, quizzes, and materials"], ["coaching", "Coaching", "Booking coaching sessions with coaches"]] as const).filter(([k]) => itp || k !== "coaching" || v.modules.coaching).map(([k, t, d]) => (
             <label key={k} className="flex min-h-[40px] items-start gap-2"><input type="checkbox" className="mt-0.5 h-5 w-5 shrink-0" checked={v.modules[k]} onChange={(e) => setV({ ...v, modules: { ...v.modules, [k]: e.target.checked } })} /><span><b className="text-navy">{t}</b> <span className="text-ink-soft">· {d}</span></span></label>
           ))}
         </fieldset>

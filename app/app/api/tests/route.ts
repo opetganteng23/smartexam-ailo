@@ -40,7 +40,7 @@ export async function GET() {
         const gate = !base.ok ? base : sched.ok ? (g && !g.unlocked ? { ok: false, reason: g.reason ?? undefined } : base) : { ok: false, reason: sched.reason };
         return {
           id: String(t._id), name: t.name, kind: t.kind, purpose: t.purpose ?? null, testMode: !!t.testMode,
-          totalQuestions: testSize(t), secure: !!t.secureMode, screenWatch: !!t.screenWatch,
+          totalQuestions: testSize(t), hasAudio: t.sections.some((s) => s.name === "listening"), secure: !!t.secureMode, screenWatch: !!t.screenWatch,
           totalSec: t.sections.reduce((n, s) => n + s.durationSec, 0),
           unlocked: gate.ok, reason: gate.reason ?? null,
           schedule: t.scheduled && sched.window ? { state: sched.state, label: sched.label ?? null, opensAt: sched.window.opensAt, closesAt: sched.window.closesAt, text: fmtWindow(sched.window) } : null,

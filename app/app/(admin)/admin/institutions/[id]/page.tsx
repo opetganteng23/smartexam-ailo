@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useApi } from "@/lib/useApi";
+import { useFeatures } from "@/lib/useFeatures";
 import { api, tgl } from "@/lib/client";
 import { InstScope } from "@/lib/inst-client";
 import { Modal } from "@/components/Modal";
@@ -158,6 +159,7 @@ function ClassesTab({ id }: { id: string }) {
 }
 
 function SettingsTab({ inst, onSaved }: { inst: I; onSaved: () => void }) {
+  const itp = !!useFeatures().itpPack;
   const [edit, setEdit] = useState(false);
   const row = (k: string, v: React.ReactNode) => <div className="flex justify-between gap-4 border-b border-line py-2 text-sm"><span className="text-ink-soft">{k}</span><span className="text-right font-semibold text-navy">{v}</span></div>;
   async function release() {
@@ -174,7 +176,7 @@ function SettingsTab({ inst, onSaved }: { inst: I; onSaved: () => void }) {
           {row("Contact email", inst.contactEmail || "-")}{row("Contract", `${inst.contractStart ? tgl(inst.contractStart) : "-"} to ${inst.contractEnd ? tgl(inst.contractEnd) : "-"}`)}{row("Status", inst.status === "active" ? "Active" : "Inactive")}
         </div>
       </section>
-      <section className="card flex flex-col gap-3">
+      {(itp || inst.holdPlacementResults) && <section className="card flex flex-col gap-3">
         <h2 className="font-display text-lg font-extrabold text-navy">Placement results</h2>
         {inst.holdPlacementResults ? (
           <>
@@ -183,7 +185,7 @@ function SettingsTab({ inst, onSaved }: { inst: I; onSaved: () => void }) {
             <button className="btn-danger self-start" onClick={release}>Release all held results…</button>
           </>
         ) : <p className="text-sm">Results are released automatically when a participant finishes. Turn on the hold with Edit.</p>}
-      </section>
+      </section>}
       {edit && <Editor init={inst} onClose={() => setEdit(false)} onSaved={() => { setEdit(false); onSaved(); }} />}
     </div>
   );

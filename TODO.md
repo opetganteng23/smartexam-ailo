@@ -97,6 +97,16 @@ Legenda sama: ✅ selesai dan teruji · 🔄 sebagian · ⬜ belum · ⏭️ dit
 - ✅ U7.5 `scripts/smoke.mjs` diperbarui untuk jenis soal baru dan skor persen — bagian baru `ONLY=umum` (23 pemeriksaan) hijau pada server dev dengan DB in-memory; bagian lama (placement, coaching ITP) sudah usang sejak ITP dibuang dan gagal di bagian placement (bukan akibat program ini)
 - 🔄 U7.6 Statistik butir soal (kesulitan nyata, daya beda, jumlah pemakaian) — perhitungan, API, dan tes hijau; halaman belum diuji visual
 
+### Tahap 8 - Perapihan bank soal dan sisa ITP
+- ✅ B1 Halaman Questions ruang kerja Umum: dropdown Mata pelajaran lalu Bank soal, tanpa "Semua", pilihan terakhir diingat per pengguna; ruang kerja ITP tetap tab bagian — `umum-bank` (server); tampilan menunggu QA visual
+- ✅ B2 Satu istilah (Mata pelajaran, Bank soal) di ruang kerja Umum; section diturunkan otomatis dari bank (`lib/question-bank.ts`) — `umum-bank`, `import-umum`
+- ✅ B3 Soal non-ITP wajib punya bank (create, PATCH, impor); "Belum dikelompokkan" dan pindah massal hanya untuk soal yang boleh diubah — `umum-bank` (IDOR)
+- ✅ B4 Bank bawaan per course; tes umum memilih bank, soal manual dibatasi ke bank itu dan bank lain hanya eksplisit; nama bagian tes umum bebas — `umum-bank-tes`
+- ✅ B5 Impor: bank tujuan wajib di langkah pertama dengan "bank baru" di tempat — `import-umum`
+- 🔄 B6 Audit ITP dengan paket mati: Parameter (levels, level_up, booking, quota_rules, class_auto), tab Scoring, Overview (placement, level), Participants (placement, level, skor, kuota), institusi (tahan hasil, modul Coaching), panel peserta, jenis tes baru = umum, menu Analytics, persiapan tes tanpa uji audio bila tanpa Listening. Sisa yang dicatat: lihat CATATAN-IMPLEMENTASI (Tahap 8)
+- ✅ B7 Label EN dan ID konsisten ("Mata pelajaran", "Bank soal") — `i18n.test.ts`
+- ⬜ B8 QA visual dengan browser sungguhan (lebar 1280 dan 390), menutup item 🔄 G.1, dan tes otomatis ekspor Excel (U7.2)
+
 ### Lintas tahap, gerbang, dan dokumen
 - 🔄 Q.1 Tes keamanan per fitur (akses/IDOR, XSS, impor XML, unggah, CSRF, rate limit, audit log) tertulis dan hijau — lihat tabel bukti di CATATAN-IMPLEMENTASI; CSRF memakai pemeriksaan Origin global di middleware (tidak ada tes per rute baru)
 - ✅ Q.2 `npm audit --omit=dev` tidak menambah temuan high/critical — 12 temuan (baseline 13)

@@ -7,7 +7,8 @@ import { getFeatures } from "@/lib/features";
 import { WorkspaceSwitch } from "@/components/WorkspaceSwitch";
 
 // Menu khusus program TOEFL ITP: disembunyikan di ruang kerja Umum.
-const ITP_ONLY = ["/admin/official-exams", "/admin/external-results", "/admin/coaching", "/admin/cycles"];
+// Analytics membandingkan skor pada skala ITP (310-677) per kelompok umur, cabang, dan jadwal; bukan untuk tes umum berskala persen.
+const ITP_ONLY = ["/admin/official-exams", "/admin/external-results", "/admin/coaching", "/admin/cycles", "/admin/analytics"];
 
 // Menu harian di atas; alat yang jarang dipakai di "More tools" (tertutup secara default). Tidak ada halaman yang dihapus.
 const nav: NavGroup[] = [

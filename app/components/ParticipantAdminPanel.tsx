@@ -3,6 +3,7 @@
 import { StuckActions } from "@/components/MonitoringBoard";
 import { useState } from "react";
 import { useApi } from "@/lib/useApi";
+import { useFeatures } from "@/lib/useFeatures";
 import { askConfirm, askDanger } from "@/components/Feedback";
 import { api, tgl } from "@/lib/client";
 import { Modal } from "@/components/Modal";
@@ -23,6 +24,7 @@ export const STATUS: Record<string, [string, string]> = { invited: ["Awaiting ac
 /** Panel aksi admin untuk satu peserta: jadwal tes & pindah sesi, akses, riwayat tes (void/restore/terminate), akun, catatan.
  * Dipakai di popup daftar Participants dan di halaman detail peserta. */
 export function ParticipantAdminPanel({ id, onDeleted }: { id: string; onDeleted?: () => void }) {
+  const itp = !!useFeatures().itpPack; // kuota coaching dan ulang placement hanya bila paket TOEFL ITP menyala
   const { data: d, error, reload } = useApi<Detail>(`/api/admin/participants/${id}`);
   const [note, setNote] = useState("");
   const [ext, setExt] = useState({ days: 30, reason: "" });
@@ -52,7 +54,7 @@ export function ParticipantAdminPanel({ id, onDeleted }: { id: string; onDeleted
 
           <section><h3 className="font-semibold text-navy">Access & quota</h3>
             <p className="text-ink-soft">{d.enrollment ? `Enrollment ${d.enrollment.status} · ${d.enrollment.expiresAt ? `ends ${tgl(d.enrollment.expiresAt)}` : "no limit"}` : "No enrollment yet."}</p>
-            {d.quotas.length > 0 && <ul className="mt-1">{d.quotas.map((q, i) => <li key={i}>Coaching {q.level}: {q.used}/{q.total}{q.active ? "" : " (inactive)"}</li>)}</ul>}
+            {itp && d.quotas.length > 0 && <ul className="mt-1">{d.quotas.map((q, i) => <li key={i}>Coaching {q.level}: {q.used}/{q.total}{q.active ? "" : " (inactive)"}</li>)}</ul>}
             <div className="mt-2 grid gap-2 rounded-xl bg-canvas p-3 sm:grid-cols-[100px_1fr_auto]"><input aria-label="Days" className="field" type="number" min={1} max={730} value={ext.days} onChange={(e) => setExt({ ...ext, days: Number(e.target.value) })} /><input aria-label="Extension reason" className="field" placeholder="Reason for extending access (required)" value={ext.reason} onChange={(e) => setExt({ ...ext, reason: e.target.value })} /><button className="btn-outline" disabled={ext.reason.trim().length < 3} onClick={() => run({ action: "extend_enrollment", ...ext }, "Access extended.").then(() => setExt({ days: 30, reason: "" }))}>Extend</button></div></section>
 
           <section><h3 className="font-semibold text-navy">Test history</h3>
@@ -91,7 +93,7 @@ export function ParticipantAdminPanel({ id, onDeleted }: { id: string; onDeleted
             </div>
             <div className="mt-3 grid gap-2 sm:grid-cols-[1fr_auto_auto]"><input aria-label="Reason" className="field" placeholder="Reason (required for the actions on the right)" value={reason} onChange={(e) => setReason(e.target.value)} />
               {p.status === "invited" && <button className="btn-outline" disabled={reason.trim().length < 3} onClick={() => run({ action: "activate", reason }, "Account activated. The reason is kept in the audit log as the basis of the data consent.")}>Activate now</button>}
-              <button className="btn-outline" disabled={!p.placementDone || p.placementRetakeAllowed || reason.trim().length < 3} onClick={() => run({ action: "allow_placement_retake", reason }, "Placement may be retaken once.")}>Allow placement retake</button>
+              {itp && <button className="btn-outline" disabled={!p.placementDone || p.placementRetakeAllowed || reason.trim().length < 3} onClick={() => run({ action: "allow_placement_retake", reason }, "Placement may be retaken once.")}>Allow placement retake</button>}
             </div>
           </section>
 

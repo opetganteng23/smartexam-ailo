@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useFeatures } from "@/lib/useFeatures";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Builder, KIND, LEARNING_KINDS, NEW_DRAFT, api, type Draft, type T } from "@/components/TestBuilder";
@@ -16,6 +17,7 @@ const ago = (d?: string) => {
 };
 
 export default function TestsAdmin() {
+  const itp = !!useFeatures().itpPack; // tanpa paket TOEFL ITP: tes baru adalah tes umum (tanpa Placement, Simulation, Final)
   const router = useRouter();
   const sp = useSearchParams();
   const group = sp.get("group") === "learning" ? "learning" : "tests";
@@ -28,7 +30,7 @@ export default function TestsAdmin() {
 
   const load = useCallback(() => api("/api/admin/tests").then((d) => { setTests(d.tests); setErr(""); }).catch((e) => setErr(e.message)), []);
   useEffect(() => { load(); }, [load]);
-  useEffect(() => { if (sp.get("new")) setDraft(NEW_DRAFT(sp.get("new") === "section" ? "section" : sp.get("new") === "quiz" ? "quiz" : "placement")); }, [sp]);
+  useEffect(() => { if (sp.get("new")) setDraft(NEW_DRAFT(sp.get("new") === "section" ? "section" : sp.get("new") === "quiz" ? "quiz" : itp ? "placement" : "general")); }, [sp, itp]);
 
   const inGroup = useMemo(() => (tests ?? []).filter((t) => LEARNING_KINDS.includes(t.kind) === (group === "learning")), [tests, group]);
   const counts = useMemo(() => ({ live: 0, draft: 0, archived: 0, ...inGroup.reduce<Record<string, number>>((a, t) => ({ ...a, [statusOf(t)]: (a[statusOf(t)] ?? 0) + 1 }), {}) }), [inGroup]);
@@ -51,7 +53,7 @@ export default function TestsAdmin() {
           <h1 className="page-title">Tests</h1>
           <p className="text-sm text-ink-soft">{group === "tests" ? "Scheduled and scored tests: placement, simulation, final, practice. Click a test to manage its questions, settings, schedule, and results." : "Unit quizzes and section tests belong to courses. Attach them in Courses & Units."}</p>
         </div>
-        <button className="btn-solid" onClick={() => setDraft(NEW_DRAFT(group === "learning" ? "quiz" : "placement"))}>+ New {group === "learning" ? "quiz" : "test"}</button>
+        <button className="btn-solid" onClick={() => setDraft(NEW_DRAFT(group === "learning" ? "quiz" : itp ? "placement" : "general"))}>+ New {group === "learning" ? "quiz" : "test"}</button>
       </div>
 
       <div className="flex gap-1 border-b border-line">{tab("tests", "Tests")}{tab("learning", "Course quizzes")}</div>
@@ -96,7 +98,7 @@ export default function TestsAdmin() {
           </tbody>
         </table>
       </div>
-      {draft && <Builder draft={draft} kinds={group === "learning" ? LEARNING_KINDS : Object.keys(KIND).filter((k) => !LEARNING_KINDS.includes(k))}
+      {draft && <Builder draft={draft} kinds={Array.from(new Set([...(group === "learning" ? (itp ? LEARNING_KINDS : ["quiz"]) : itp ? Object.keys(KIND).filter((k) => !LEARNING_KINDS.includes(k)) : ["general"]), draft.kind]))}
         onClose={() => { setDraft(null); if (sp.get("new")) router.replace(group === "learning" ? "/admin/tests?group=learning" : "/admin/tests"); }}
         onSaved={(id) => router.push(`/admin/tests/${id}`)} />}
     </div>

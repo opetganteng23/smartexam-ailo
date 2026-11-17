@@ -302,7 +302,6 @@ function GeneralFields({ v, setV, locked }: { v: Draft; setV: (d: Draft) => void
 
 /** Bagian yang soalnya ditarik acak dari koleksi bank soal tiap percobaan. */
 function DrawEditor({ draw, locked, onChange }: { draw: Draw; locked: boolean; onChange: (d: Draw) => void }) {
-  const tr = useT();
   const [colls, setColls] = useState<Coll[]>([]);
   const [cats, setCats] = useState<Cat[]>([]);
   const [topicsText, setTopicsText] = useState(draw.topics.join(", ")); // teks mentah: koma yang baru diketik tidak boleh hilang
