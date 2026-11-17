@@ -12,6 +12,7 @@ import { AuditLog } from "@/models/AuditLog";
 import { questionSchema } from "@/lib/admin-schemas";
 import { assertQuestionWritable, checkQuestionRefs, collectionVisible } from "@/lib/collections";
 import { QuestionCollection } from "@/models/Question";
+import { resolveBank } from "@/lib/question-bank";
 
 async function find(id: string, user: Parameters<typeof collectionVisible>[0]) {
   if (!isValidObjectId(id)) throw new HttpError(404, "Question not found");
@@ -45,10 +46,12 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
       if (!["draft", "review"].includes(q.status)) throw new HttpError(403, "This question is already published or archived. Ask an academic admin to change it.");
       if (!["draft", "review"].includes(body.status)) throw new HttpError(403, "Editors can save drafts and send questions for review. An academic admin publishes them.");
     }
+    // Bank dan section hasil akhir (digabung dengan data lama): soal non-ITP wajib punya bank; section mengikuti bank.
+    const bank = await resolveBank({ section: body.section ?? q.section, categoryId: body.categoryId !== undefined ? body.categoryId : q.categoryId ? String(q.categoryId) : null, collectionId: body.collectionId !== undefined ? body.collectionId : q.collectionId ? String(q.collectionId) : null });
     // Ubah kunci/pilihan pada soal yang sudah dipakai tes mengubah skor lama; dicatat di audit.
     const used = await Test.exists({ "sections.questionIds": q._id });
     await ensureBaseline(q._id, q.toObject());
-    q.set({ ...body, groupId: body.groupId ?? undefined, ...(body.categoryId !== undefined ? { categoryId: body.categoryId ?? undefined } : {}), ...(body.collectionId !== undefined ? { collectionId: body.collectionId ?? undefined } : {}) });
+    q.set({ ...body, section: bank.section, groupId: body.groupId ?? undefined, categoryId: bank.categoryId ?? undefined, collectionId: bank.collectionId ?? undefined });
     await q.save();
     await registerQuestionType(q.section, q.type);
     const ver = await recordQuestionVersion(q._id, q.toObject(), admin._id);

@@ -4,13 +4,14 @@ import { useEffect, useState } from "react";
 import { useApi } from "@/lib/useApi";
 import { api } from "@/lib/client";
 import { Loading, ErrorNote } from "@/components/Charts";
+import { ITP_PARAMS } from "@/lib/admin-sections";
 
 type Level = { key: string; name: string; order: number; scoreMin: number; scoreMax: number; coachingQuota: number };
 type Param = { key: string; help: string; value: unknown; isDefault: boolean; default: unknown };
 const PLACEHOLDER = ["score_conversion"];
 
 export default function Parameter() {
-  const { data, loading, error, reload } = useApi<{ params: Param[]; levels: Level[] }>("/api/admin/params");
+  const { data, loading, error, reload } = useApi<{ itpPack: boolean; params: Param[]; levels: Level[] }>("/api/admin/params");
   const [levels, setLevels] = useState<Level[]>([]);
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
   useEffect(() => { if (data) setLevels(data.levels); }, [data]);
@@ -29,7 +30,7 @@ export default function Parameter() {
       <ErrorNote text={error} />
       {msg && <p role="status" className={`rounded-lg p-3 text-sm ${msg.ok ? "bg-success-tint text-success" : "bg-red-50 text-red-700"}`}>{msg.text}</p>}
 
-      <section className="card flex flex-col gap-3">
+      {data?.itpPack && <section className="card flex flex-col gap-3">
         <div><h2 className="font-display text-lg font-extrabold text-navy">Levels & coaching quota</h2><p className="text-sm text-ink-soft">Score ranges must not overlap. Default values are placeholders until confirmed.</p></div>
         <div className="table-wrap"><table>
           <thead><tr><th>Order</th><th>Name</th><th>Min score</th><th>Max score</th><th>Session quota</th></tr></thead>
@@ -43,10 +44,10 @@ export default function Parameter() {
             </tr>))}</tbody>
         </table></div>
         <button className="btn-solid self-start" onClick={saveLevels}>Save levels</button>
-      </section>
+      </section>}
 
-      <p className="rounded-xl bg-brand-tint p-3 text-sm text-brand-dark">Score conversion now lives in <a href="/admin/scoring" className="font-semibold underline">Scoring Profiles</a>: several profiles, verification with a source, and one profile per test.</p>
-      {data?.params.filter((p) => p.key !== "score_conversion").map((p) => <ParamEditor key={p.key} p={p} onSaved={(text, ok) => { setMsg({ ok, text }); if (ok) reload(); }} />)}
+      {data?.itpPack && <p className="rounded-xl bg-brand-tint p-3 text-sm text-brand-dark">Score conversion now lives in <a href="/admin/scoring" className="font-semibold underline">Scoring Profiles</a>: several profiles, verification with a source, and one profile per test.</p>}
+      {data?.params.filter((p) => p.key !== "score_conversion" && (data.itpPack || !ITP_PARAMS.includes(p.key))).map((p) => <ParamEditor key={p.key} p={p} onSaved={(text, ok) => { setMsg({ ok, text }); if (ok) reload(); }} />)}
     </div>
   );
 }

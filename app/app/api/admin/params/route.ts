@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { requireRole, handleError } from "@/lib/rbac";
 import { audit } from "@/lib/audit";
+import { getFeatures } from "@/lib/features";
 import { getAllParams, getLevels, setParam, PARAM_SCHEMAS, type ParamKey } from "@/lib/config";
 
 export const dynamic = "force-dynamic";
@@ -11,7 +12,7 @@ export async function GET() {
   try {
     await requireRole(["admin"]);
     const levels = await getLevels();
-    return NextResponse.json({ params: await getAllParams(), levels: levels.map((l) => ({ key: l.key, name: l.name, order: l.order, scoreMin: l.scoreMin, scoreMax: l.scoreMax, coachingQuota: l.coachingQuota })) });
+    return NextResponse.json({ itpPack: (await getFeatures()).itpPack, params: await getAllParams(), levels: levels.map((l) => ({ key: l.key, name: l.name, order: l.order, scoreMin: l.scoreMin, scoreMax: l.scoreMax, coachingQuota: l.coachingQuota })) });
   } catch (e) {
     return handleError(e);
   }

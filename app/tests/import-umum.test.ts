@@ -214,9 +214,15 @@ describe.skipIf(!safe)("rute impor soal (database in-memory)", () => {
     // CSV dengan BOM dan banyak jenis.
     await Question.deleteMany({});
     const csv = "﻿section,type,stem,A,B,answer,kind,points,pairs,accepted,rubric,guide\r\nstruktur_data,dasar,Pilih satu,x,y,B,,,,,,\r\nstruktur_data,isian,Isi titik,,,,short,1,,push|PUSH,,\r\n";
-    const c = await send(admin, csv, "soal.csv");
+    // Tanpa bank, baris non-ITP ditolak; dengan bank, section diturunkan dari mata pelajaran bank (bukan dari kolom berkas).
+    const noBank = await send(admin, csv, "soal.csv");
+    expect(noBank.body).toMatchObject({ created: 0 });
+    expect((noBank.body as { failed: unknown[] }).failed).toHaveLength(2);
+    const c = await send(admin, csv, "soal.csv", { collectionId: String(mine._id) });
     expect(c.body).toMatchObject({ created: 2, failed: [], duplicates: 0 });
-    expect((await send(admin, csv, "soal.csv")).body).toMatchObject({ created: 0, duplicates: 2 });
+    const { sectionFromSubject } = await import("@/lib/question-bank");
+    expect(await Question.countDocuments({ collectionId: mine._id, section: sectionFromSubject(cat.name) })).toBe(2);
+    expect((await send(admin, csv, "soal.csv", { collectionId: String(mine._id) })).body).toMatchObject({ created: 0, duplicates: 2 });
   });
 });
 

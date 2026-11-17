@@ -5,7 +5,7 @@ import { sanitizeQuestionHtml } from "@/lib/question-html";
 
 export const questionSchema = z
   .object({
-    section: z.string().regex(SECTION_KEY_RE, "Invalid section name"),
+    section: z.string().regex(SECTION_KEY_RE, "Invalid section name").optional(), // diturunkan dari bank soal bila kosong (lib/question-bank.ts)
     type: z.string().trim().min(1).max(60),
     groupId: z.string().regex(/^[0-9a-f]{24}$/).nullable().optional(),
     stem: z.string().trim().min(1).max(20_000),

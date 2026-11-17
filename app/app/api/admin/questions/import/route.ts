@@ -9,6 +9,7 @@ import { MOODLE_MAX_BYTES, MoodleError, parseMoodleXml } from "@/lib/import-mood
 import { createQuestions, dropDuplicates, moodleToQuestions, storeImportImages, type ImportFailure, type ParsedQuestion } from "@/lib/import-save";
 import { assertCollectionWritable } from "@/lib/collections";
 import { SECTION_KEY_RE } from "@/lib/exam-format";
+import { isItpSection, sectionFromSubject } from "@/lib/question-bank";
 import { Category } from "@/models/Category";
 import { QuestionCollection, QuestionGroup } from "@/models/Question";
 import { Audio } from "@/models/Audio";
@@ -124,6 +125,13 @@ export async function POST(req: Request) {
       ok = good.map((g) => ({ label: `row ${g.row}`, data: g.data }));
     }
 
+    // Bank wajib kecuali baris bagian ITP; dengan bank, section diturunkan dari mata pelajaran bank (bukan diketik lagi).
+    ok = ok.filter((g) => {
+      if (isItpSection(g.data.section)) return true;
+      if (!collectionId) { failed.push({ row: g.label, reason: "Choose a question bank for the import" }); return false; }
+      g.data.section = sectionFromSubject(cat?.name);
+      return true;
+    });
     const { fresh, dups } = await dropDuplicates(ok, admin);
     if (!dry) {
       await createQuestions(fresh, admin.role === "content_editor");

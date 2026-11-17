@@ -86,7 +86,7 @@ export async function createQuestions(qs: ParsedQuestion[], forceDraft: boolean)
   const ids: string[] = [];
   for (const g of qs) {
     const nq = await Question.create({ ...g.data, categoryId: g.data.categoryId ?? undefined, collectionId: g.data.collectionId ?? undefined, ...(forceDraft && !["draft", "review"].includes(g.data.status) ? { status: "draft" } : {}) });
-    await registerQuestionType(g.data.section, g.data.type);
+    await registerQuestionType(g.data.section ?? "umum", g.data.type);
     await recordQuestionVersion(nq._id, nq.toObject(), undefined, "Imported from file");
     ids.push(String(nq._id));
   }

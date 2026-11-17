@@ -11,6 +11,7 @@ import { questionSchema } from "@/lib/admin-schemas";
 import { AuditLog } from "@/models/AuditLog";
 import { checkQuestionRefs, collectionVisible, questionVisibleFilter } from "@/lib/collections";
 import { QuestionCollection } from "@/models/Question";
+import { resolveBank, UNGROUPED_FILTER } from "@/lib/question-bank";
 
 
 const escapeRegex = (x: string) => x.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -24,8 +25,9 @@ export async function GET(req: Request) {
     const scoped = (f: Record<string, unknown>) => (Object.keys(vis).length ? { $and: [f, vis] } : f);
     const filter: Record<string, unknown> = {};
     for (const k of ["section", "status", "difficulty"]) if (sp.get(k)) filter[k] = sp.get(k);
-    for (const k of ["categoryId", "collectionId"]) if (sp.get(k)) { if (!/^[0-9a-f]{24}$/.test(sp.get(k)!)) throw new HttpError(400, "Invalid " + k); filter[k] = sp.get(k); }
-    if (sp.get("collectionId") && !(await QuestionCollection.exists({ _id: sp.get("collectionId"), ...collectionVisible(me) }))) throw new HttpError(404, "Collection not found");
+    if (sp.get("collectionId") === "none") Object.assign(filter, UNGROUPED_FILTER);
+    for (const k of ["categoryId", "collectionId"]) if (sp.get(k) && !(k === "collectionId" && sp.get(k) === "none")) { if (!/^[0-9a-f]{24}$/.test(sp.get(k)!)) throw new HttpError(400, "Invalid " + k); filter[k] = sp.get(k); }
+    if (sp.get("collectionId") && sp.get("collectionId") !== "none" && !(await QuestionCollection.exists({ _id: sp.get("collectionId"), ...collectionVisible(me) }))) throw new HttpError(404, "Collection not found");
     // Jenis dicocokkan tanpa membedakan huruf besar/kecil (soal lama bisa menulisnya berbeda dari daftar jenis).
     if (sp.get("type")) filter.type = { $regex: "^" + escapeRegex(sp.get("type")!) + "$", $options: "i" };
     // ?ids=a,b,c: ambil soal tertentu (untuk perakit tes), urutan mengikuti ids.
@@ -72,8 +74,9 @@ export async function POST(req: Request) {
     if (admin.role === "content_editor" && !["draft", "review"].includes(body.status)) throw new HttpError(403, "Editors can save drafts and send questions for review. An academic admin publishes them.");
     await connectDB();
     await checkQuestionRefs(admin, body);
-    const q = await Question.create({ ...body, groupId: body.groupId ?? undefined, categoryId: body.categoryId ?? undefined, collectionId: body.collectionId ?? undefined });
-    await registerQuestionType(body.section, body.type);
+    const bank = await resolveBank(body); // bank wajib kecuali bagian ITP; section diturunkan dari bank
+    const q = await Question.create({ ...body, section: bank.section, groupId: body.groupId ?? undefined, categoryId: bank.categoryId ?? undefined, collectionId: bank.collectionId ?? undefined });
+    await registerQuestionType(bank.section, body.type);
     await recordQuestionVersion(q._id, q.toObject(), admin._id);
     await AuditLog.create({ actorId: admin._id, action: "question.create", target: String(q._id) });
     return NextResponse.json({ id: String(q._id) }, { status: 201 });
