@@ -9,13 +9,14 @@ import { htmlToText } from "@/lib/html-text";
 import { SECTION_KEY_RE } from "@/lib/exam-format";
 
 const input = z.object({
-  section: z.string().regex(SECTION_KEY_RE, "Invalid section name"),
+  section: z.string().regex(SECTION_KEY_RE, "Invalid section name").optional(),
+  collectionIds: z.array(z.string().regex(/^[0-9a-f]{24}$/)).min(1).max(11).optional(), // tes umum: soal dari bank yang dipilih
   count: z.number().int().min(1).max(100),
   types: z.array(z.string().trim().min(1).max(80)).max(20).optional(),
   difficulties: z.array(z.enum(["easy", "medium", "hard"])).max(3).optional(),
   topics: z.array(z.string().trim().min(1).max(60)).max(20).optional(),
   excludeIds: z.array(z.string().regex(/^[0-9a-f]{24}$/)).max(300).default([]),
-});
+}).refine((b) => !!b.section || !!b.collectionIds, { message: "Choose a section or a question bank", path: ["section"] });
 
 const esc = (x: string) => x.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
@@ -28,7 +29,7 @@ export async function POST(req: Request) {
     const me = await requireRole(CONTENT_ROLES);
     const b = input.parse(await req.json());
     await connectDB();
-    const filter: Record<string, unknown> = { section: b.section, status: "published", _id: { $nin: b.excludeIds } };
+    const filter: Record<string, unknown> = { status: "published", _id: { $nin: b.excludeIds }, ...(b.collectionIds ? { collectionId: { $in: b.collectionIds } } : { section: b.section }) };
     if (b.types?.length) filter.type = { $in: b.types.map((t) => new RegExp(`^${esc(t)}$`, "i")) };
     if (b.difficulties?.length) filter.difficulty = { $in: b.difficulties };
     if (b.topics?.length) filter["tags.topic"] = { $in: b.topics.map((t) => new RegExp(`^${esc(t)}$`, "i")) };

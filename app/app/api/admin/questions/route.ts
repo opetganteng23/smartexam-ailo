@@ -25,6 +25,11 @@ export async function GET(req: Request) {
     const scoped = (f: Record<string, unknown>) => (Object.keys(vis).length ? { $and: [f, vis] } : f);
     const filter: Record<string, unknown> = {};
     for (const k of ["section", "status", "difficulty"]) if (sp.get(k)) filter[k] = sp.get(k);
+    const multi = (sp.get("collectionIds") ?? "").split(",").filter(Boolean); // beberapa bank sekaligus (pembuat tes)
+    if (multi.length) {
+      if (multi.length > 11 || multi.some((x) => !/^[0-9a-f]{24}$/.test(x))) throw new HttpError(400, "Invalid collectionIds");
+      filter.collectionId = { $in: multi };
+    }
     if (sp.get("collectionId") === "none") Object.assign(filter, UNGROUPED_FILTER);
     for (const k of ["categoryId", "collectionId"]) if (sp.get(k) && !(k === "collectionId" && sp.get(k) === "none")) { if (!/^[0-9a-f]{24}$/.test(sp.get(k)!)) throw new HttpError(400, "Invalid " + k); filter[k] = sp.get(k); }
     if (sp.get("collectionId") && sp.get("collectionId") !== "none" && !(await QuestionCollection.exists({ _id: sp.get("collectionId"), ...collectionVisible(me) }))) throw new HttpError(404, "Collection not found");

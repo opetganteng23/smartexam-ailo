@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Modal } from "@/components/Modal";
 import { askConfirm } from "@/components/Feedback";
 import { api } from "@/lib/client";
+import { BankPicker } from "@/components/BankPicker";
 
 export type Cat = { id: string; name: string; active: boolean };
 export type Coll = { id: string; name: string; categoryId: string | null; description: string; visibility: "private" | "institution" | "global"; institutionId: string | null; mine: boolean; questions: number };
@@ -61,7 +62,8 @@ export function CollectionsDialog({ cats, colls, onClose, onChanged }: { cats: C
 type Result = { dry: boolean; total: number; created: number; failed: { row: number | string; reason: string }[]; duplicates: number; duplicateRows: string[]; skipped: { name: string; type: string; reason: string }[] };
 
 /** Impor soal dari CSV, Excel, Word, atau Moodle XML ke kategori dan koleksi yang dipilih. */
-export function ImportDialog({ cats, colls, defaults, onClose }: { cats: Cat[]; colls: Coll[]; defaults: { categoryId: string; collectionId: string }; onClose: () => void }) {
+export function ImportDialog({ cats, colls, defaults, umum, onClose }: { cats: Cat[]; colls: Coll[]; defaults: { categoryId: string; collectionId: string }; umum?: boolean; onClose: () => void }) {
+  const [extra, setExtra] = useState<Coll[]>([]); // bank yang baru dibuat di dialog ini
   const file = useRef<HTMLInputElement>(null);
   const [categoryId, setCategoryId] = useState(defaults.categoryId);
   const [collectionId, setCollectionId] = useState(defaults.collectionId);
@@ -72,34 +74,42 @@ export function ImportDialog({ cats, colls, defaults, onClose }: { cats: Cat[]; 
   const [busy, setBusy] = useState(false);
   const run = useCallback(async (dry: boolean) => {
     const f = file.current?.files?.[0];
+    if (umum && !collectionId) return setErr("Choose the question bank first (or create a new one).");
     if (!f) return setErr("Choose a CSV, Excel, Word, or Moodle XML file first");
     setBusy(true); setErr(""); setRes(null);
     try {
       const fd = new FormData(); fd.append("file", f);
       if (categoryId) fd.append("categoryId", categoryId);
       if (collectionId) fd.append("collectionId", collectionId);
-      if (section.trim()) fd.append("section", section.trim());
+      if (!umum && section.trim()) fd.append("section", section.trim());
       fd.append("status", status);
       const r = await fetch(`/api/admin/questions/import${dry ? "?dry=1" : ""}`, { method: "POST", body: fd });
       const d = await r.json().catch(() => ({}));
       if (!r.ok) throw new Error(d.error ?? "Import failed");
       setRes(d);
     } catch (e) { setErr((e as Error).message); } finally { setBusy(false); }
-  }, [categoryId, collectionId, section, status]);
+  }, [categoryId, collectionId, section, status, umum]);
   const shown = colls.filter((c) => !categoryId || !c.categoryId || c.categoryId === categoryId);
   return (
     <Modal title="Import questions" onClose={onClose}>
       <div className="flex flex-col gap-4 text-sm">
         <p className="text-ink-soft">Accepted files: <b>Moodle XML</b> (multiple choice, true/false, short answer, matching, and essay; other types are skipped and listed), CSV, Excel, and Word. Maximum 500 questions (XML 10 MB). Questions that already exist are skipped, so importing the same file twice adds nothing. Download the <a className="font-semibold text-brand underline" href="/api/admin/questions/import">CSV template</a> or the <a className="font-semibold text-brand underline" href="/api/admin/questions/import?format=word">Word format</a>; the template includes matching, short answer, and essay rows.</p>
-        <div className="grid gap-3 sm:grid-cols-2">
-          <label className={label}>Category<select className="field font-normal" value={categoryId} onChange={(e) => { setCategoryId(e.target.value); setCollectionId(""); }}><option value="">No category</option>{cats.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select></label>
+        {umum && (
+          <div className="rounded-xl border border-line p-3">
+            <p className="mb-2 font-semibold text-navy">Step 1. Where should the questions go?</p>
+            <BankPicker cats={cats} colls={[...colls, ...extra]} value={{ categoryId, collectionId }} onChange={(v) => { setCategoryId(v.categoryId); setCollectionId(v.collectionId); }} allowNew onCreated={(c) => setExtra((x) => [...x, c])} />
+          </div>
+        )}
+        {umum && <p className="font-semibold text-navy">Step 2. Choose the file</p>}
+        <div className={umum ? "grid gap-3 sm:grid-cols-1" : "grid gap-3 sm:grid-cols-2"}>
+          {!umum && <><label className={label}>Category<select className="field font-normal" value={categoryId} onChange={(e) => { setCategoryId(e.target.value); setCollectionId(""); }}><option value="">No category</option>{cats.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select></label>
           <label className={label}>Collection<select className="field font-normal" value={collectionId} onChange={(e) => setCollectionId(e.target.value)}><option value="">No collection</option>{shown.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select></label>
-          <label className={label}>Section name (optional)<input className="field font-normal" placeholder="e.g. umum" maxLength={32} value={section} onChange={(e) => setSection(e.target.value)} /><span className="text-xs font-normal text-ink-soft">Used when the file has no section column. Default: umum.</span></label>
+          <label className={label}>Section name (optional)<input className="field font-normal" placeholder="e.g. umum" maxLength={32} value={section} onChange={(e) => setSection(e.target.value)} /><span className="text-xs font-normal text-ink-soft">Used when the file has no section column. Default: umum.</span></label></>}
           <label className={label}>Status<select className="field font-normal" value={status} onChange={(e) => setStatus(e.target.value)}><option value="draft">Draft</option><option value="review">Review</option><option value="published">Published</option></select></label>
         </div>
         <input ref={file} type="file" aria-label="Question file" accept=".csv,.xlsx,.docx,.xml" className="field" />
         {err && <p role="alert" className="text-red-700">{err}</p>}
-        <div className="flex flex-wrap gap-2"><button className="btn-outline" disabled={busy} onClick={() => run(true)}>Check first (without saving)</button><button className="btn-solid" disabled={busy} onClick={() => run(false)}>Import</button></div>
+        <div className="flex flex-wrap gap-2"><button className="btn-outline" disabled={busy || (umum && !collectionId)} onClick={() => run(true)}>Check first (without saving)</button><button className="btn-solid" disabled={busy || (umum && !collectionId)} onClick={() => run(false)}>Import</button></div>
         {res && (
           <div role="status" className="rounded-xl bg-canvas p-3">
             <p><b>{res.created}</b> of {res.total} {res.dry ? "valid (not saved yet)" : "imported"} · <b>{res.duplicates}</b> duplicate{res.duplicates === 1 ? "" : "s"} skipped · <b>{res.skipped.length}</b> unsupported · <b className={res.failed.length ? "text-red-700" : ""}>{res.failed.length}</b> failed</p>

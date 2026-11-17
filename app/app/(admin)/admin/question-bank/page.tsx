@@ -12,6 +12,10 @@ import { AiQuestionDialog } from "@/components/AiQuestionDialog";
 import { uploadImage } from "@/lib/compress-image";
 import { CollectionsDialog, ImportDialog, type Cat, type Coll } from "@/components/QuestionCollections";
 import { VideoLibrary } from "@/components/VideoLibrary";
+import { BankPicker } from "@/components/BankPicker";
+import { readWorkspace } from "@/components/WorkspaceSwitch";
+import { sectionFromSubject } from "@/lib/section-key";
+import { useT } from "@/components/LangProvider";
 
 type Row = { _id: string; section: string; type: string; stem: string; status: string; difficulty: string; issues?: string[] };
 type Group = { id: string; section: string; instruction?: string; passageTitle?: string; audioId: string | null; questions: number };
@@ -53,20 +57,48 @@ export default function BankSoal() {
   const [groupDlg, setGroupDlg] = useState(false);
   const [importDlg, setImportDlg] = useState(false);
   const [aiDlg, setAiDlg] = useState(false);
+  const tr = useT();
+  // Ruang kerja Umum: dua dropdown Mata pelajaran lalu Bank soal, hanya isi bank terpilih yang tampil. Ruang kerja ITP tetap tab bagian.
+  const [umum, setUmum] = useState<boolean | null>(null);
+  const [me, setMe] = useState("");
+  const [metaLoaded, setMetaLoaded] = useState(false);
+  const [ready, setReady] = useState(false);
+  const [ungrouped, setUngrouped] = useState(0);
+  const [sel, setSel] = useState<Set<string>>(new Set());
+  const [moveDlg, setMoveDlg] = useState(false);
+  useEffect(() => { Promise.all([api("/api/features"), api("/api/me")]).then(([ft, m]) => { setUmum(!(ft.itpPack && readWorkspace() === "itp")); setMe(m.id); }).catch(() => setUmum(true)); }, []);
 
   const load = useCallback(async () => {
+    if (umum === null || (umum && !ready)) return;
+    if (umum && !f.collectionId) { setRows([]); setTotal(0); setPages(1); return; }
     const sp = new URLSearchParams({ page: String(page) });
     Object.entries(f).forEach(([k, v]) => v && sp.set(k, v));
     try { const d = await api(`/api/admin/questions?${sp}`); setRows(d.items); setPages(d.pages); setTotal(d.total); setErr(""); }
     catch (e) { setErr((e as Error).message); }
-  }, [page, f]);
+  }, [page, f, umum, ready]);
   const loadTypes = useCallback(async () => {
     try { const d = await api("/api/admin/question-types"); setTypes(d.types); setSecCounts(d.sectionCounts); } catch { /* daftar jenis opsional bagi tampilan */ }
   }, []);
   const loadMeta = useCallback(async () => {
-    try { const [c, k] = await Promise.all([api("/api/admin/categories"), api("/api/admin/collections")]); setCats(c.categories); setColls(k.collections); } catch { /* kategori dan koleksi opsional bagi tampilan */ }
+    try { const [c, k] = await Promise.all([api("/api/admin/categories"), api("/api/admin/collections")]); setCats(c.categories); setColls(k.collections); } catch { /* kategori dan koleksi opsional bagi tampilan */ } finally { setMetaLoaded(true); }
   }, []);
   useEffect(() => { loadMeta(); }, [loadMeta]);
+  useEffect(() => {
+    if (!umum || !me || !metaLoaded || ready) return;
+    let last: { categoryId?: string; collectionId?: string } | null = null;
+    try { last = JSON.parse(localStorage.getItem(`qb:last:${me}`) ?? "null"); } catch { /* penyimpanan browser tidak tersedia */ }
+    const ok = last && (last.collectionId === "none" || colls.some((c) => c.id === last!.collectionId && c.categoryId === last!.categoryId));
+    const first = colls.find((c) => c.categoryId && cats.some((k) => k.id === c.categoryId && k.active));
+    const pick = ok ? last : first ? { categoryId: first.categoryId ?? "", collectionId: first.id } : null;
+    if (pick) setF((x) => ({ ...x, categoryId: pick.categoryId ?? "", collectionId: pick.collectionId ?? "" }));
+    setReady(true);
+  }, [umum, me, metaLoaded, ready, colls, cats]);
+  useEffect(() => {
+    if (!umum || !me || !ready) return;
+    try { localStorage.setItem(`qb:last:${me}`, JSON.stringify({ categoryId: f.categoryId, collectionId: f.collectionId })); } catch { /* abaikan */ }
+  }, [umum, me, ready, f.categoryId, f.collectionId]);
+  useEffect(() => { setSel(new Set()); }, [f.collectionId, page]);
+  useEffect(() => { if (umum) api("/api/admin/questions?collectionId=none&page=1").then((d) => setUngrouped(d.total ?? 0)).catch(() => {}); }, [umum, rows]);
   useEffect(() => { load(); }, [load]);
   useEffect(() => { loadTypes(); }, [loadTypes]);
   useEffect(() => { api("/api/admin/questions?status=review&page=1").then((d) => setReviewCount(d.total ?? 0)).catch(() => {}); }, [rows]);
@@ -97,30 +129,31 @@ export default function BankSoal() {
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="font-display text-3xl font-extrabold text-navy">Question Bank</h1>
-          <p className="text-sm text-ink-soft">{total} questions · used for Placement, Simulation, Practice, and Unit quizzes. Published questions must have a skill + topic tag.</p>
+          <p className="text-sm text-ink-soft">{umum ? tr("{n} questions in this question bank. Published questions must have a skill + topic tag.", { n: total }) : `${total} questions · used for Placement, Simulation, Practice, and Unit quizzes. Published questions must have a skill + topic tag.`}</p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <a href={`/api/admin/questions/export?${new URLSearchParams(Object.entries(f).filter(([k, v]) => v && k !== "q") as [string, string][])}`} className="rounded-xl border border-line-strong px-4 py-2.5 text-sm font-semibold text-navy">Export CSV</a>
+          {!(umum && f.collectionId === "none") && <a href={`/api/admin/questions/export?${new URLSearchParams(Object.entries(f).filter(([k, v]) => v && k !== "q") as [string, string][])}`} className="rounded-xl border border-line-strong px-4 py-2.5 text-sm font-semibold text-navy">Export CSV</a>}
           <button onClick={() => setTypesDlg(true)} className="rounded-xl border border-line-strong px-4 py-2.5 text-sm font-semibold text-navy">Manage types</button>
           <button onClick={() => setAiDlg(true)} className="rounded-xl border border-line-strong px-4 py-2.5 text-sm font-semibold text-navy">Draft with AI</button>
           <button onClick={() => setImportDlg(true)} className="rounded-xl border border-line-strong px-4 py-2.5 text-sm font-semibold text-navy">Import questions</button>
-          <button onClick={() => setCollDlg(true)} className="rounded-xl border border-line-strong px-4 py-2.5 text-sm font-semibold text-navy">Collections</button>
+          <button onClick={() => setCollDlg(true)} className="rounded-xl border border-line-strong px-4 py-2.5 text-sm font-semibold text-navy">{umum ? tr("Question banks") : "Collections"}</button>
           <button onClick={() => setVideoDlg(true)} className="rounded-xl border border-line-strong px-4 py-2.5 text-sm font-semibold text-navy">Videos</button>
           <button onClick={() => setGroupDlg(true)} className="rounded-xl border border-line-strong px-4 py-2.5 text-sm font-semibold text-navy">+ Audio/passage group</button>
-          <button onClick={() => setForm({ ...empty(f.section || ""), categoryId: f.categoryId, collectionId: f.collectionId })} className="rounded-xl bg-brand px-4 py-2.5 text-sm font-semibold text-white">+ New question</button>
+          <button onClick={() => setForm({ ...empty(f.section || ""), categoryId: f.collectionId === "none" ? "" : f.categoryId, collectionId: f.collectionId === "none" ? "" : f.collectionId })} className="rounded-xl bg-brand px-4 py-2.5 text-sm font-semibold text-white">+ New question</button>
         </div>
       </div>
 
-      <div className="flex flex-wrap gap-1 rounded-xl bg-white p-1 text-sm" role="tablist" aria-label="Section">
+      {umum && <UmumPicker cats={cats} colls={colls} f={f} ungrouped={ungrouped} onPick={(categoryId, collectionId) => { setPage(1); setF({ ...f, categoryId, collectionId, type: "" }); }} />}
+      {umum === false && <div className="flex flex-wrap gap-1 rounded-xl bg-white p-1 text-sm" role="tablist" aria-label="Section">
         {[["", "All"], ...Object.keys(secCounts).sort().map((k) => [k, SECTION[k]] as [string, string])].map(([k, n]) => (
           <button key={k || "all"} role="tab" aria-selected={f.section === k} onClick={() => { setPage(1); setF({ ...f, section: k, type: "" }); }}
             className={`flex items-center gap-2 rounded-lg px-4 py-2 font-semibold transition ${f.section === k ? "bg-navy text-white" : "text-ink-soft hover:bg-canvas"}`}>
             {n}<span className={`rounded-full px-2 py-0.5 text-xs ${f.section === k ? "bg-white/20" : "bg-canvas"}`}>{k ? secCounts[k] ?? 0 : Object.values(secCounts).reduce((x, y) => x + y, 0)}</span>
           </button>
         ))}
-      </div>
+      </div>}
 
-      <div className="flex flex-wrap items-center gap-2 text-sm" role="tablist" aria-label="Subject">
+      {umum === false && <div className="flex flex-wrap items-center gap-2 text-sm" role="tablist" aria-label="Subject">
         <span className="font-semibold text-ink-soft">Subject</span>
         {[{ id: "", name: "All subjects" }, ...cats.filter((c) => c.active)].map((c) => (
           <button key={c.id || "all"} role="tab" aria-selected={f.categoryId === c.id} onClick={() => { setPage(1); setF({ ...f, categoryId: c.id, collectionId: "" }); }}
@@ -130,8 +163,8 @@ export default function BankSoal() {
           <option value="">All collections</option>
           {colls.filter((c) => !f.categoryId || c.categoryId === f.categoryId).map((c) => <option key={c.id} value={c.id}>{c.name} ({c.questions})</option>)}
         </select>
-      </div>
-      {cats.length === 0 && <p className="rounded-xl border border-line bg-white p-3 text-sm text-ink-soft">No subjects yet. Create a category under Courses &amp; Units, then use Collections to organise questions per subject.</p>}
+      </div>}
+      {umum === false && cats.length === 0 && <p className="rounded-xl border border-line bg-white p-3 text-sm text-ink-soft">No subjects yet. Create a category under Courses &amp; Units, then use Collections to organise questions per subject.</p>}
 
       {reviewCount > 0 && f.status !== "review" && (
         <button onClick={() => { setPage(1); setF({ ...f, status: "review" }); }} className="flex items-center justify-between gap-3 rounded-xl border border-accent bg-accent-tint px-4 py-3 text-left text-sm font-semibold text-accent-dark hover:brightness-95">
@@ -142,7 +175,7 @@ export default function BankSoal() {
         <input className="field max-w-xs" placeholder="Search question text" value={f.q} onChange={(e) => { setPage(1); setF({ ...f, q: e.target.value }); }} />
         <select className="field w-auto" aria-label="Question type" value={f.type} onChange={(e) => { setPage(1); setF({ ...f, type: e.target.value }); }}>
           <option value="">All types</option>
-          {types.filter((t) => !f.section || t.section === f.section).map((t) => <option key={t.id} value={t.name}>{f.section ? t.name : `${SECTION[t.section]}: ${t.name}`} ({t.count})</option>)}
+          {types.filter((t) => (umum ? t.section === sectionFromSubject(cats.find((c) => c.id === f.categoryId)?.name) : !f.section || t.section === f.section)).map((t) => <option key={t.id} value={t.name}>{f.section ? t.name : `${SECTION[t.section]}: ${t.name}`} ({t.count})</option>)}
         </select>
         <select className="field w-auto" value={f.status} onChange={(e) => { setPage(1); setF({ ...f, status: e.target.value }); }}>
           <option value="">All statuses</option><option value="draft">Draft</option><option value="review">Review</option><option value="published">Published</option><option value="archived">Archived</option>
@@ -153,17 +186,17 @@ export default function BankSoal() {
 
       <div className="overflow-x-auto rounded-2xl border border-line bg-white">
         <table className="w-full text-left text-sm">
-          <thead className="bg-canvas text-xs uppercase text-ink-soft"><tr><th className="p-3">Section</th><th>Type</th><th>Question</th><th>Status</th><th /></tr></thead>
+          <thead className="bg-canvas text-xs uppercase text-ink-soft"><tr>{umum && f.collectionId === "none" && <th className="p-3"><input type="checkbox" aria-label={tr("Select all on this page")} checked={rows.length > 0 && sel.size === rows.length} onChange={(e) => setSel(e.target.checked ? new Set(rows.map((r) => r._id)) : new Set())} /></th>}{!umum && <th className="p-3">Section</th>}<th className={umum ? "p-3" : ""}>Type</th><th>Question</th><th>Status</th><th /></tr></thead>
           <tbody>
             {rows.map((r) => (
               <tr key={r._id} className="border-t border-line">
-                <td className="p-3 font-semibold text-navy">{SECTION[r.section]}</td><td>{r.type}</td>
+                {umum && f.collectionId === "none" && <td className="p-3"><input type="checkbox" aria-label={tr("Select question")} checked={sel.has(r._id)} onChange={(e) => setSel((s) => { const n = new Set(s); if (e.target.checked) n.add(r._id); else n.delete(r._id); return n; })} /></td>}{!umum && <td className="p-3 font-semibold text-navy">{SECTION[r.section]}</td>}<td className={umum ? "p-3" : ""}>{r.type}</td>
                 <td className="max-w-md"><p className="truncate">{r.stem}</p>{!!r.issues?.length && <p className="mt-0.5 flex flex-wrap gap-1">{r.issues.map((x) => <span key={x} className="rounded-full bg-accent-tint px-2 py-0.5 text-[11px] font-semibold text-accent-dark">{x}</span>)}</p>}</td>
                 <td><span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${r.status === "published" ? "bg-success-tint text-success" : r.status === "archived" ? "bg-canvas text-ink-soft" : "bg-accent-tint text-accent-dark"}`}>{r.status}</span></td>
                 <td className="whitespace-nowrap p-3 text-right"><button className="mr-3 font-semibold text-brand" onClick={() => edit(r._id)}>Edit</button>{r.status === "review" && <><button className="mr-3 font-semibold text-success" onClick={() => setStatus(r._id, "published")}>Approve</button><button className="mr-3 font-semibold text-accent-dark" onClick={() => setStatus(r._id, "draft")}>Send back</button></>}<button className="mr-3 font-semibold text-brand" onClick={() => duplicate(r._id)}>Duplicate</button><button className="font-semibold text-red-700" onClick={() => remove(r._id)}>Delete</button></td>
               </tr>
             ))}
-            {rows.length === 0 && <tr><td colSpan={5} className="p-6 text-center text-ink-soft">No questions yet. Click “New question”.</td></tr>}
+            {rows.length === 0 && <tr><td colSpan={6} className="p-6 text-center text-ink-soft">{umum ? (cats.length === 0 ? tr("No subjects yet. Create a category under Courses & Units first.") : f.collectionId === "" ? tr("Choose a subject and a question bank to see its questions.") : f.collectionId === "none" ? tr("Every question is in a question bank.") : tr("No questions in this question bank yet. Click “New question” or import a file.")) : "No questions yet. Click “New question”."}</td></tr>}
           </tbody>
         </table>
       </div>
@@ -175,11 +208,13 @@ export default function BankSoal() {
         </div>
       </div>
 
-      {form && <Editor cats={cats} colls={colls} types={types} onTypesChanged={loadTypes} form={form} onClose={() => setForm(null)} onSaved={() => { setForm(null); load(); }} onNewGroup={() => setGroupDlg(true)} />}
+      {form && <Editor umum={!!umum} cats={cats} colls={colls} types={types} onTypesChanged={loadTypes} form={form} onClose={() => setForm(null)} onSaved={() => { setForm(null); load(); }} onNewGroup={() => setGroupDlg(true)} />}
       {typesDlg && <QuestionTypesDialog types={types} onClose={() => setTypesDlg(false)} onChanged={() => { loadTypes(); load(); }} />}
       {groupDlg && <GroupDialog onClose={() => setGroupDlg(false)} />}
       {aiDlg && <AiQuestionDialog types={types} onClose={() => setAiDlg(false)} onSaved={() => { setAiDlg(false); load(); }} />}
-      {importDlg && <ImportDialog cats={cats} colls={colls} defaults={{ categoryId: f.categoryId, collectionId: f.collectionId }} onClose={() => { setImportDlg(false); load(); loadMeta(); loadTypes(); }} />}
+      {umum && f.collectionId === "none" && sel.size > 0 && <div role="status" className="sticky bottom-3 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-brand bg-white p-3 shadow-lg"><span className="text-sm font-semibold text-navy">{tr("{n} selected", { n: sel.size })}</span><button className="btn-solid" onClick={() => setMoveDlg(true)}>{tr("Move to a question bank")}</button></div>}
+      {moveDlg && <MoveDialog cats={cats} colls={colls} ids={[...sel]} onClose={() => setMoveDlg(false)} onMoved={() => { setMoveDlg(false); setSel(new Set()); load(); loadMeta(); }} onCreated={(c) => setColls((x) => [...x, c])} />}
+      {importDlg && <ImportDialog umum={!!umum} cats={cats} colls={colls} defaults={{ categoryId: f.collectionId === "none" ? "" : f.categoryId, collectionId: f.collectionId === "none" ? "" : f.collectionId }} onClose={() => { setImportDlg(false); load(); loadMeta(); loadTypes(); }} />}
       {videoDlg && <VideoLibrary onClose={() => setVideoDlg(false)} />}
       {collDlg && <CollectionsDialog cats={cats} colls={colls} onClose={() => setCollDlg(false)} onChanged={() => { loadMeta(); load(); }} />}
     </div>
@@ -198,7 +233,7 @@ function Modal({ title, onClose, children }: { title: string; onClose: () => voi
 }
 const Label = ({ t, children }: { t: string; children: React.ReactNode }) => <label className="flex flex-col gap-1.5 text-sm font-semibold text-navy">{t}{children}</label>;
 
-function Editor({ cats, colls, form, types, onTypesChanged, onClose, onSaved, onNewGroup }: { cats: Cat[]; colls: Coll[]; form: Form; types: QType[]; onTypesChanged: () => void; onClose: () => void; onSaved: () => void; onNewGroup: () => void }) {
+function Editor({ umum, cats, colls, form, types, onTypesChanged, onClose, onSaved, onNewGroup }: { umum: boolean; cats: Cat[]; colls: Coll[]; form: Form; types: QType[]; onTypesChanged: () => void; onClose: () => void; onSaved: () => void; onNewGroup: () => void }) {
   const [v, setV] = useState(form);
   const [groups, setGroups] = useState<Group[]>([]);
   const [err, setErr] = useState("");
@@ -206,13 +241,15 @@ function Editor({ cats, colls, form, types, onTypesChanged, onClose, onSaved, on
   const set = <K extends keyof Form>(k: K, val: Form[K]) => setV((x) => ({ ...x, [k]: val }));
   const [sub, setSub] = useState<null | "preview" | "history">(null);
 
-  useEffect(() => { api(`/api/admin/groups?section=${v.section}`).then((d) => setGroups(d.groups)).catch(() => {}); }, [v.section]);
+  const section = umum ? sectionFromSubject(cats.find((c) => c.id === v.categoryId)?.name) : v.section; // Umum: section diturunkan dari mata pelajaran bank
+  useEffect(() => { api(`/api/admin/groups?section=${section}`).then((d) => setGroups(d.groups)).catch(() => {}); }, [section]);
 
   async function save() {
+    if (umum && !v.collectionId) return setErr("Choose a question bank for this question.");
     setBusy(true); setErr("");
     try {
       const body = {
-        section: v.section, type: v.type, groupId: v.groupId || null, stem: v.stem, stemFormat: v.stemFormat ?? "text", categoryId: v.categoryId || null, collectionId: v.collectionId || null, kind: v.kind, points: v.points,
+        ...(umum ? {} : { section: v.section }), type: v.type, groupId: v.groupId || null, stem: v.stem, stemFormat: v.stemFormat ?? "text", categoryId: v.categoryId || null, collectionId: v.collectionId || null, kind: v.kind, points: v.points,
         ...(v.kind === "mcq" ? { options: v.options, answerKey: v.answerKey } : { key: v.key }),
         explanation: v.explanation || undefined, tags: v.tags.filter((t) => t.skill.trim() && t.topic.trim()), difficulty: v.difficulty, status: v.status, assetIds: v.assetIds, source: v.source || undefined,
       };
@@ -230,10 +267,11 @@ function Editor({ cats, colls, form, types, onTypesChanged, onClose, onSaved, on
     <Modal title={v.id ? "Edit question" : "New question"} onClose={onClose}>
       <div className="flex flex-col gap-4">
         <div className="grid gap-4 sm:grid-cols-2">
-          <Label t="Section"><input className="field font-normal" list="qb-sections" maxLength={32} placeholder="e.g. math, logic, reading" value={v.section} onChange={(e) => { set("section", e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, "_")); set("groupId", ""); }} /><datalist id="qb-sections">{Object.keys(SECTION).map((k) => <option key={k} value={k}>{SECTION[k]}</option>)}</datalist></Label>
+          {umum && <div className="sm:col-span-2"><BankPicker cats={cats} colls={colls} value={{ categoryId: v.categoryId ?? "", collectionId: v.collectionId ?? "" }} onChange={(b) => setV((x) => ({ ...x, categoryId: b.categoryId, collectionId: b.collectionId, groupId: "" }))} /></div>}
+          {!umum && <><Label t="Section"><input className="field font-normal" list="qb-sections" maxLength={32} placeholder="e.g. math, logic, reading" value={v.section} onChange={(e) => { set("section", e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, "_")); set("groupId", ""); }} /><datalist id="qb-sections">{Object.keys(SECTION).map((k) => <option key={k} value={k}>{SECTION[k]}</option>)}</datalist></Label>
           <Label t="Subject"><select className="field font-normal" value={v.categoryId ?? ""} onChange={(e) => { set("categoryId", e.target.value); set("collectionId", ""); }}><option value="">No subject</option>{cats.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select></Label>
-          <Label t="Collection"><select className="field font-normal" value={v.collectionId ?? ""} onChange={(e) => set("collectionId", e.target.value)}><option value="">No collection</option>{colls.filter((c) => !v.categoryId || !c.categoryId || c.categoryId === v.categoryId).map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select></Label>
-          <TypePicker section={v.section} value={v.type} types={types} onChange={(t) => set("type", t)} onCreated={onTypesChanged} />
+          <Label t="Collection"><select className="field font-normal" value={v.collectionId ?? ""} onChange={(e) => set("collectionId", e.target.value)}><option value="">No collection</option>{colls.filter((c) => !v.categoryId || !c.categoryId || c.categoryId === v.categoryId).map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select></Label></>}
+          <TypePicker section={section} value={v.type} types={types} onChange={(t) => set("type", t)} onCreated={onTypesChanged} />
         </div>
         <div className="grid gap-4 sm:grid-cols-2">
           <Label t="Question kind"><select className="field font-normal" value={v.kind} onChange={(e) => { const k = e.target.value as QuestionKind; setV((x) => ({ ...x, kind: k, key: defaultKey(k) })); }}>{QUESTION_KINDS.map((k) => <option key={k} value={k}>{KIND_LABEL[k]}</option>)}</select></Label>
@@ -475,5 +513,62 @@ function TypePicker({ section, value, types, onChange, onCreated }: { section: s
         </select>
       )}
     </Label>
+  );
+}
+
+/** Ruang kerja Umum: pilih Mata pelajaran lalu Bank soal. "Belum dikelompokkan" memuat soal lama tanpa bank (untuk dipindah massal). */
+function UmumPicker({ cats, colls, f, ungrouped, onPick }: { cats: Cat[]; colls: Coll[]; f: { categoryId: string; collectionId: string }; ungrouped: number; onPick: (categoryId: string, collectionId: string) => void }) {
+  const tr = useT();
+  const none = f.collectionId === "none";
+  const banks = colls.filter((c) => c.categoryId === f.categoryId);
+  return (
+    <div className="flex flex-wrap items-end gap-3 rounded-xl border border-line bg-white p-3">
+      <label className="flex flex-col gap-1 text-xs font-semibold text-navy">{tr("Subject")}
+        <select className="field !h-10 w-auto min-w-[13rem] font-normal" value={none ? "__none" : f.categoryId} onChange={(e) => {
+          const v = e.target.value;
+          if (v === "__none") return onPick("", "none");
+          onPick(v, colls.find((c) => c.categoryId === v)?.id ?? "");
+        }}>
+          {!none && !f.categoryId && <option value="">{tr("Choose a subject")}</option>}
+          {cats.filter((c) => c.active || c.id === f.categoryId).map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+          {(ungrouped > 0 || none) && <option value="__none">{tr("Not grouped yet")} ({ungrouped})</option>}
+        </select>
+      </label>
+      {!none && (
+        <label className="flex flex-col gap-1 text-xs font-semibold text-navy">{tr("Question bank")}
+          <select className="field !h-10 w-auto min-w-[13rem] font-normal" disabled={!f.categoryId} value={f.collectionId} onChange={(e) => onPick(f.categoryId, e.target.value)}>
+            {!f.collectionId && <option value="">{f.categoryId ? (banks.length ? tr("Choose a question bank") : tr("No question bank in this subject yet")) : tr("Choose a subject first")}</option>}
+            {banks.map((c) => <option key={c.id} value={c.id}>{c.name} ({c.questions})</option>)}
+          </select>
+        </label>
+      )}
+      {none && <p className="text-sm text-ink-soft">{tr("These older questions are not in a question bank yet. Select them and move them to a bank.")}</p>}
+    </div>
+  );
+}
+
+/** Pindah massal soal terpilih ke sebuah bank (hanya soal yang boleh diubah pengguna yang pindah). */
+function MoveDialog({ cats, colls, ids, onClose, onMoved, onCreated }: { cats: Cat[]; colls: Coll[]; ids: string[]; onClose: () => void; onMoved: () => void; onCreated: (c: Coll) => void }) {
+  const tr = useT();
+  const [pick, setPick] = useState({ categoryId: "", collectionId: "" });
+  const [err, setErr] = useState("");
+  const [busy, setBusy] = useState(false);
+  async function go() {
+    setBusy(true); setErr("");
+    try {
+      const d = await api("/api/admin/questions/move", { method: "POST", ...json({ ids, collectionId: pick.collectionId }) });
+      if (d.skipped > 0) alert(tr("{moved} moved. {skipped} could not be moved because you cannot change them.", { moved: d.moved, skipped: d.skipped }));
+      onMoved();
+    } catch (e) { setErr((e as Error).message); setBusy(false); }
+  }
+  return (
+    <Modal title={tr("Move to a question bank")} onClose={onClose}>
+      <div className="flex flex-col gap-4">
+        <p className="text-sm text-ink-soft">{tr("{n} selected", { n: ids.length })}</p>
+        <BankPicker cats={cats} colls={colls} value={pick} onChange={setPick} allowNew onCreated={onCreated} />
+        {err && <p role="alert" className="text-sm text-red-700">{err}</p>}
+        <div className="flex justify-end gap-2"><button className="btn-outline" onClick={onClose}>{tr("Cancel")}</button><button className="btn-solid" disabled={busy || !pick.collectionId} onClick={go}>{tr("Move")}</button></div>
+      </div>
+    </Modal>
   );
 }

@@ -1,6 +1,9 @@
 "use client";
 
 import { SECTION_SHORT } from "@/lib/exam-format";
+import { BankPicker } from "@/components/BankPicker";
+import type { Cat, Coll } from "@/components/QuestionCollections";
+import { useT } from "@/components/LangProvider";
 import { useEffect, useState } from "react";
 
 export type T = { id: string; name: string; kind: string; active: boolean; archived?: boolean; updatedAt?: string; testMode?: boolean; questions: number; durationSec: number; attempts: number };
@@ -8,7 +11,7 @@ export type QRow = { _id: string; section: string; type: string; stem: string };
 export type Draw = { collectionId: string; count: number; topics: string[]; difficulties: ("easy" | "medium" | "hard")[] };
 export type Sec = { name: string; durationSec: number; questionIds: string[]; draw?: Draw | null };
 export type Daily = { start: string; end: string; maxPerDay: number };
-export type Draft = { id?: string; name: string; kind: string; levelId: string; active: boolean; testMode?: boolean; resultDelayMin?: number; sections: Sec[]; attempts: number; shuffleQuestions?: boolean; shuffleWithinParts?: boolean; shuffleOptions?: boolean; requirePlacement?: boolean; secureMode?: boolean; secureBack?: boolean; screenWatch?: boolean; maxAttempts?: number; scoringProfileId?: string; purpose?: string; courseId?: string; categoryId?: string; pairedTestId?: string; daily?: Daily | null };
+export type Draft = { id?: string; name: string; kind: string; levelId: string; active: boolean; testMode?: boolean; resultDelayMin?: number; sections: Sec[]; attempts: number; shuffleQuestions?: boolean; shuffleWithinParts?: boolean; shuffleOptions?: boolean; requirePlacement?: boolean; secureMode?: boolean; secureBack?: boolean; screenWatch?: boolean; maxAttempts?: number; scoringProfileId?: string; purpose?: string; courseId?: string; categoryId?: string; bankId?: string; extraBankIds?: string[]; pairedTestId?: string; daily?: Daily | null };
 
 const SECTION = SECTION_SHORT;
 export const KIND: Record<string, string> = { placement: "Placement", sim: "Simulation", final: "Final Test", practice: "Practice", quiz: "Unit quiz", section: "Section test", general: "General test" };
@@ -29,7 +32,7 @@ export const NEW_DRAFT = (kind = "placement"): Draft => ({ name: "", kind, level
 
 export async function loadDraft(id: string): Promise<Draft> {
   const t = await api(`/api/admin/tests/${id}`);
-  return { id, name: t.name, kind: t.kind, levelId: t.levelId ? String(t.levelId) : "", active: t.active, testMode: !!t.testMode, resultDelayMin: t.resultDelayMin ?? 0, attempts: t.attempts, scoringProfileId: t.scoringProfileId ? String(t.scoringProfileId) : "", shuffleQuestions: !!t.shuffleQuestions, shuffleWithinParts: !!t.shuffleWithinParts, secureMode: !!t.secureMode, secureBack: !!t.secureBack, screenWatch: !!t.screenWatch, shuffleOptions: !!t.shuffleOptions, requirePlacement: t.requirePlacement !== false, maxAttempts: t.maxAttempts ?? 0, purpose: t.purpose ?? "", courseId: t.courseId ? String(t.courseId) : "", categoryId: t.categoryId ? String(t.categoryId) : "", pairedTestId: t.pairedTestId ? String(t.pairedTestId) : "", daily: t.daily?.start ? { start: t.daily.start, end: t.daily.end, maxPerDay: t.daily.maxPerDay ?? 0 } : null,
+  return { id, name: t.name, kind: t.kind, levelId: t.levelId ? String(t.levelId) : "", active: t.active, testMode: !!t.testMode, resultDelayMin: t.resultDelayMin ?? 0, attempts: t.attempts, scoringProfileId: t.scoringProfileId ? String(t.scoringProfileId) : "", shuffleQuestions: !!t.shuffleQuestions, shuffleWithinParts: !!t.shuffleWithinParts, secureMode: !!t.secureMode, secureBack: !!t.secureBack, screenWatch: !!t.screenWatch, shuffleOptions: !!t.shuffleOptions, requirePlacement: t.requirePlacement !== false, maxAttempts: t.maxAttempts ?? 0, purpose: t.purpose ?? "", courseId: t.courseId ? String(t.courseId) : "", categoryId: t.categoryId ? String(t.categoryId) : "", bankId: t.bankId ? String(t.bankId) : "", extraBankIds: (t.extraBankIds ?? []).map(String), pairedTestId: t.pairedTestId ? String(t.pairedTestId) : "", daily: t.daily?.start ? { start: t.daily.start, end: t.daily.end, maxPerDay: t.daily.maxPerDay ?? 0 } : null,
     sections: t.sections.map((s: Sec) => ({ name: s.name, durationSec: s.durationSec, questionIds: s.questionIds.map(String), draw: s.draw?.collectionId ? { collectionId: String(s.draw.collectionId), count: s.draw.count, topics: s.draw.topics ?? [], difficulties: s.draw.difficulties ?? [] } : null })) };
 }
 
@@ -48,7 +51,7 @@ export function Builder({ draft, onClose, onSaved, inline, kinds }: { draft: Dra
     setBusy(true); setErr("");
     try {
       const body = { name: v.name, kind: v.kind, levelId: v.levelId || null, active: v.active, testMode: !!v.testMode, resultDelayMin: Math.max(0, Math.min(1440, Number(v.resultDelayMin) || 0)), scoringProfileId: v.scoringProfileId || null, shuffleQuestions: !!v.shuffleQuestions, shuffleWithinParts: !!v.shuffleWithinParts, shuffleOptions: !!v.shuffleOptions, requirePlacement: v.requirePlacement !== false, secureMode: !!v.secureMode, secureBack: !!v.secureBack, screenWatch: !!v.screenWatch, maxAttempts: Number(v.maxAttempts) || 0,
-        ...(v.kind === "general" ? { purpose: v.purpose || null, courseId: v.courseId || null, categoryId: v.categoryId || null, pairedTestId: v.purpose === "posttest" ? v.pairedTestId || null : null, daily: v.purpose === "daily" && v.daily?.start && v.daily?.end ? { start: v.daily.start, end: v.daily.end, maxPerDay: Number(v.daily.maxPerDay) || 0 } : null } : {}),
+        ...(v.kind === "general" ? { purpose: v.purpose || null, courseId: v.courseId || null, categoryId: v.categoryId || null, bankId: v.bankId || null, extraBankIds: v.bankId ? v.extraBankIds ?? [] : [], pairedTestId: v.purpose === "posttest" ? v.pairedTestId || null : null, daily: v.purpose === "daily" && v.daily?.start && v.daily?.end ? { start: v.daily.start, end: v.daily.end, maxPerDay: Number(v.daily.maxPerDay) || 0 } : null } : {}),
         sections: v.sections.filter((s) => s.questionIds.length || s.draw).map((s) => ({ name: s.name, durationSec: s.durationSec, questionIds: s.draw ? [] : s.questionIds, draw: s.draw ?? null })) };
       const d = await api(v.id ? `/api/admin/tests/${v.id}` : "/api/admin/tests", { method: v.id ? "PATCH" : "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
       setBusy(false);
@@ -87,9 +90,9 @@ export function Builder({ draft, onClose, onSaved, inline, kinds }: { draft: Dra
         {v.kind === "section" && <p className="mt-2 text-xs text-ink-soft">Section tests (one per exam part) do not appear in My Tests; attach one to a course and learners take it at the end of that course.</p>}
 
         <div className="mt-5 flex flex-col gap-5">
-          {v.sections.map((s, i) => <SectionBox key={s.name} s={s} locked={locked} generalKind={v.kind === "general"} onChange={(n) => setSec(i, n)} onRemove={locked ? undefined : () => setV((x) => ({ ...x, sections: x.sections.filter((_, j) => j !== i) }))} />)}
+          {v.sections.map((s, i) => <SectionBox key={s.name} s={s} locked={locked} generalKind={v.kind === "general"} bankIds={v.kind === "general" && v.bankId ? [v.bankId, ...(v.extraBankIds ?? [])] : undefined} onChange={(n) => setSec(i, n)} onRemove={locked ? undefined : () => setV((x) => ({ ...x, sections: x.sections.filter((_, j) => j !== i) }))} />)}
           {!v.sections.length && <p className="rounded-xl bg-canvas p-4 text-sm text-ink-soft">No sections yet. Add at least one section below. A section is a part of the exam (for example Math or Logic); its name is the question category its questions come from.</p>}
-          {!locked && <AddSection existing={v.sections.map((x) => x.name)} onAdd={(list) => setV((x) => ({ ...x, sections: [...x.sections, ...list.map((o) => ({ name: o.name, durationSec: o.min * 60, questionIds: [] }))] }))} />}
+          {!locked && <AddSection general={v.kind === "general"} existing={v.sections.map((x) => x.name)} onAdd={(list) => setV((x) => ({ ...x, sections: [...x.sections, ...list.map((o) => ({ name: o.name, durationSec: o.min * 60, questionIds: [] }))] }))} />}
         </div>
         <div className={`mt-5 flex items-center justify-end gap-3 ${inline ? "sticky bottom-0 -mx-1 border-t border-line bg-white px-1 py-3" : ""}`}>
           {err && <p role="alert" className="mr-auto text-sm text-red-700">{err}</p>}
@@ -109,7 +112,7 @@ export function Builder({ draft, onClose, onSaved, inline, kinds }: { draft: Dra
   );
 }
 
-function SectionBox({ s, locked, generalKind, onChange, onRemove }: { s: Sec; locked: boolean; generalKind?: boolean; onChange: (s: Sec) => void; onRemove?: () => void }) {
+function SectionBox({ s, locked, generalKind, bankIds, onChange, onRemove }: { s: Sec; locked: boolean; generalKind?: boolean; bankIds?: string[]; onChange: (s: Sec) => void; onRemove?: () => void }) {
   const [chosen, setChosen] = useState<QRow[]>([]);
   const [q, setQ] = useState("");
   const [pool, setPool] = useState<QRow[]>([]);
@@ -120,7 +123,7 @@ function SectionBox({ s, locked, generalKind, onChange, onRemove }: { s: Sec; lo
   async function autoFill() {
     setAutoMsg("");
     try {
-      const d = await api("/api/admin/questions/pick", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ section: s.name, count: auto.count, types: auto.type ? [auto.type] : undefined, difficulties: auto.difficulty ? [auto.difficulty] : undefined, excludeIds: s.questionIds }) });
+      const d = await api("/api/admin/questions/pick", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...(bankIds ? { collectionIds: bankIds } : { section: s.name }), count: auto.count, types: auto.type ? [auto.type] : undefined, difficulties: auto.difficulty ? [auto.difficulty] : undefined, excludeIds: s.questionIds }) });
       if (d.ids.length) onChange({ ...s, questionIds: [...s.questionIds, ...d.ids] });
       setAutoMsg(d.picked === 0 ? `No published questions match (${d.available} available).` : d.short ? `Added ${d.picked}. Only ${d.picked} fit the criteria (${d.available} matching questions, passage groups kept whole).` : `Added ${d.picked} random questions.`);
     } catch (e) { setAutoMsg((e as Error).message); }
@@ -134,9 +137,10 @@ function SectionBox({ s, locked, generalKind, onChange, onRemove }: { s: Sec; lo
 
   useEffect(() => {
     if (locked) return;
-    const t = setTimeout(() => api(`/api/admin/questions?section=${s.name}&status=published&q=${encodeURIComponent(q)}`).then((d) => setPool(d.items)).catch(() => {}), 250);
+    const scope = bankIds ? `collectionIds=${bankIds.join(",")}` : `section=${s.name}`; // tes umum: hanya bank tes (dan bank lain yang sengaja dipilih)
+    const t = setTimeout(() => api(`/api/admin/questions?${scope}&status=published&q=${encodeURIComponent(q)}`).then((d) => setPool(d.items)).catch(() => {}), 250);
     return () => clearTimeout(t);
-  }, [q, s.name, locked]);
+  }, [q, s.name, locked, bankIds?.join(",")]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const ids = s.questionIds;
   const move = (i: number, d: number) => { const a = [...ids]; [a[i], a[i + d]] = [a[i + d], a[i]]; onChange({ ...s, questionIds: a }); };
@@ -191,7 +195,7 @@ function SectionBox({ s, locked, generalKind, onChange, onRemove }: { s: Sec; lo
       )}
       {!locked && (
         <div className="mt-3">
-          <input className="field mb-2" placeholder={`Search ${SECTION[s.name]} questions (published)`} value={q} onChange={(e) => setQ(e.target.value)} />
+          <input className="field mb-2" placeholder={bankIds ? "Search published questions in the selected question bank" : `Search ${SECTION[s.name]} questions (published)`} value={q} onChange={(e) => setQ(e.target.value)} />
           <ul className="max-h-48 overflow-y-auto rounded-lg border border-line">
             {pool.filter((p) => !ids.includes(p._id)).map((p) => (
               <li key={p._id} className="flex items-center gap-2 border-b border-line px-3 py-1.5 text-sm last:border-0">
@@ -208,7 +212,7 @@ function SectionBox({ s, locked, generalKind, onChange, onRemove }: { s: Sec; lo
 }
 
 /** Tambah bagian ujian: nama bebas (sama dengan kategori soal) dan durasi. */
-function AddSection({ existing, onAdd }: { existing: string[]; onAdd: (list: { name: string; min: number }[]) => void }) {
+function AddSection({ general, existing, onAdd }: { general?: boolean; existing: string[]; onAdd: (list: { name: string; min: number }[]) => void }) {
   const [name, setName] = useState("");
   const [min, setMin] = useState(30);
   const [cats, setCats] = useState<string[]>([]);
@@ -224,8 +228,8 @@ function AddSection({ existing, onAdd }: { existing: string[]; onAdd: (list: { n
     <div className="rounded-xl border border-dashed border-line-strong p-4">
       <p className="text-sm font-semibold text-navy">Add a section</p>
       <div className="mt-2 flex flex-wrap items-end gap-3">
-        <label className="flex flex-col gap-1 text-xs font-semibold text-navy">Section name (question category)
-          <input className="field w-56 font-normal" list="tb-cats" placeholder="e.g. math" value={name} maxLength={32} onChange={(e) => setName(e.target.value)} /><datalist id="tb-cats">{cats.map((c) => <option key={c} value={c} />)}</datalist>
+        <label className="flex flex-col gap-1 text-xs font-semibold text-navy">{general ? "Section name" : "Section name (question category)"}
+          <input className="field w-56 font-normal" list={general ? undefined : "tb-cats"} placeholder={general ? "e.g. part_1" : "e.g. math"} value={name} maxLength={32} onChange={(e) => setName(e.target.value)} />{!general && <datalist id="tb-cats">{cats.map((c) => <option key={c} value={c} />)}</datalist>}
         </label>
         <label className="flex flex-col gap-1 text-xs font-semibold text-navy">Minutes
           <input type="number" min={1} max={180} className="field w-24 font-normal" value={min} onChange={(e) => setMin(Number(e.target.value))} />
@@ -241,23 +245,48 @@ const lbl = "flex flex-col gap-1.5 text-sm font-semibold text-navy";
 
 /** Pengaturan tes umum: tujuan, course, kategori, pasangan pre-test, dan jendela harian kuis. */
 function GeneralFields({ v, setV, locked }: { v: Draft; setV: (d: Draft) => void; locked: boolean }) {
-  const [courses, setCourses] = useState<{ id: string; title: string; track?: string }[]>([]);
-  const [cats, setCats] = useState<{ id: string; name: string }[]>([]);
+  const tr = useT();
+  type CourseRow = { id: string; title: string; track?: string; categoryId?: string | null; bankId?: string | null };
+  const [courses, setCourses] = useState<CourseRow[]>([]);
+  const [cats, setCats] = useState<Cat[]>([]);
+  const [colls, setColls] = useState<Coll[]>([]);
+  const [bankErr, setBankErr] = useState("");
   const [pre, setPre] = useState<{ id: string; name: string }[]>([]);
   useEffect(() => {
-    api("/api/admin/courses").then((d) => setCourses((d.courses as { id: string; title: string; track?: string }[]).filter((c) => c.track === "general"))).catch(() => {});
+    api("/api/admin/courses").then((d) => setCourses((d.courses as CourseRow[]).filter((c) => c.track === "general"))).catch(() => {});
+    api("/api/admin/collections").then((d) => setColls(d.collections)).catch(() => {});
     api("/api/admin/categories").then((d) => setCats(d.categories)).catch(() => {});
     api("/api/admin/tests?kind=general").then((d) => setPre((d.tests as { id: string; name: string; kind: string; purpose?: string }[]).filter((t) => t.kind === "general" && t.purpose === "pretest" && t.id !== v.id))).catch(() => {});
   }, [v.id]);
   const d = v.daily ?? { start: "07:00", end: "21:00", maxPerDay: 0 };
+  // Memilih course memasang bank bawaannya (dibuat bila course lama belum punya) dan mata pelajarannya.
+  async function pickCourse(courseId: string) {
+    setBankErr("");
+    const c = courses.find((x) => x.id === courseId);
+    if (!c) return setV({ ...v, courseId });
+    let bankId = c.bankId ?? "";
+    try {
+      if (!bankId) { const r = await api("/api/admin/courses/" + courseId + "/bank", { method: "POST" }); bankId = r.bankId; api("/api/admin/collections").then((x) => setColls(x.collections)).catch(() => {}); }
+      setV({ ...v, courseId, bankId, categoryId: c.categoryId ?? v.categoryId ?? "", extraBankIds: [] });
+    } catch (e) { setBankErr((e as Error).message); setV({ ...v, courseId }); }
+  }
+  const others = colls.filter((c) => c.id !== v.bankId && (c.categoryId === v.categoryId || (v.extraBankIds ?? []).includes(c.id)));
   return (
     <fieldset className="mt-3 rounded-xl border border-line p-4">
       <legend className="px-2 text-sm font-semibold text-navy">General test</legend>
       <p className="mb-3 text-xs text-ink-soft">Scored as a percentage with a pass mark of 60 unless you choose another scoring profile. No placement or level is needed.</p>
       <div className="grid gap-3 sm:grid-cols-2">
         <label className={lbl}>Purpose<select disabled={locked} className="field font-normal" value={v.purpose ?? ""} onChange={(e) => setV({ ...v, purpose: e.target.value, daily: e.target.value === "daily" ? v.daily ?? { start: "07:00", end: "21:00", maxPerDay: 0 } : null })}><option value="">Choose a purpose</option>{Object.entries(PURPOSE).map(([k, n]) => <option key={k} value={k}>{n}</option>)}</select></label>
-        <label className={lbl}>Course (optional)<select disabled={locked} className="field font-normal" value={v.courseId ?? ""} onChange={(e) => setV({ ...v, courseId: e.target.value })}><option value="">Not inside a course</option>{courses.map((c) => <option key={c.id} value={c.id}>{c.title}</option>)}</select><span className="text-xs font-normal text-ink-soft">Inside a course, only participants who can open that course can take the test.</span></label>
-        <label className={lbl}>Category<select className="field font-normal" value={v.categoryId ?? ""} onChange={(e) => setV({ ...v, categoryId: e.target.value })}><option value="">No category</option>{cats.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select></label>
+        <label className={lbl}>Course (optional)<select disabled={locked} className="field font-normal" value={v.courseId ?? ""} onChange={(e) => pickCourse(e.target.value)}><option value="">Not inside a course</option>{courses.map((c) => <option key={c.id} value={c.id}>{c.title}</option>)}</select><span className="text-xs font-normal text-ink-soft">Inside a course, only participants who can open that course can take the test.</span></label>
+        <div className="sm:col-span-2"><BankPicker disabled={locked} cats={cats} colls={colls} value={{ categoryId: v.categoryId ?? "", collectionId: v.bankId ?? "" }} onChange={(b) => setV({ ...v, categoryId: b.categoryId, bankId: b.collectionId, extraBankIds: [] })} allowNew onCreated={(c) => setColls((x) => [...x, c])} />
+          <p className="mt-1 text-xs text-ink-soft">{tr("Fixed questions for this test are chosen from this question bank. A test inside a course uses the course's question bank.")}</p>
+          {bankErr && <p role="alert" className="text-xs text-red-700">{bankErr}</p>}
+        </div>
+        {v.bankId && others.length > 0 && !locked && (
+          <fieldset className="sm:col-span-2 rounded-lg border border-line p-3"><legend className="px-1 text-xs font-semibold text-navy">{tr("Also allow questions from other question banks")}</legend>
+            {others.map((c) => <label key={c.id} className="mr-4 inline-flex items-center gap-1.5 text-sm"><input type="checkbox" checked={(v.extraBankIds ?? []).includes(c.id)} onChange={(e) => setV({ ...v, extraBankIds: e.target.checked ? [...(v.extraBankIds ?? []), c.id] : (v.extraBankIds ?? []).filter((x) => x !== c.id) })} />{c.name}</label>)}
+          </fieldset>
+        )}
         {v.purpose === "posttest" && <label className={lbl}>Paired pre-test<select className="field font-normal" value={v.pairedTestId ?? ""} onChange={(e) => setV({ ...v, pairedTestId: e.target.value })}><option value="">None</option>{pre.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}</select><span className="text-xs font-normal text-ink-soft">Used for the pre/post improvement report.</span></label>}
       </div>
       {v.purpose === "daily" && (
@@ -273,14 +302,17 @@ function GeneralFields({ v, setV, locked }: { v: Draft; setV: (d: Draft) => void
 
 /** Bagian yang soalnya ditarik acak dari koleksi bank soal tiap percobaan. */
 function DrawEditor({ draw, locked, onChange }: { draw: Draw; locked: boolean; onChange: (d: Draw) => void }) {
-  const [colls, setColls] = useState<{ id: string; name: string; questions: number }[]>([]);
+  const tr = useT();
+  const [colls, setColls] = useState<Coll[]>([]);
+  const [cats, setCats] = useState<Cat[]>([]);
   const [topicsText, setTopicsText] = useState(draw.topics.join(", ")); // teks mentah: koma yang baru diketik tidak boleh hilang
-  useEffect(() => { api("/api/admin/collections").then((d) => setColls(d.collections)).catch(() => {}); }, []);
+  useEffect(() => { api("/api/admin/collections").then((d) => setColls(d.collections)).catch(() => {}); api("/api/admin/categories").then((d) => setCats(d.categories)).catch(() => {}); }, []);
+  const catOf = colls.find((c) => c.id === draw.collectionId)?.categoryId ?? "";
   return (
     <div className="mt-3 rounded-xl bg-brand-tint/50 p-3 text-sm">
-      <p className="font-semibold text-navy">Questions are drawn at random from a collection each time a participant starts.</p>
+      <p className="font-semibold text-navy">Questions are drawn at random from a question bank each time a participant starts.</p>
       <div className="mt-2 flex flex-wrap items-end gap-3">
-        <label className="flex flex-col gap-1 text-xs font-semibold text-navy">Collection<select disabled={locked} className="field !h-10 w-auto" value={draw.collectionId} onChange={(e) => onChange({ ...draw, collectionId: e.target.value })}><option value="">Choose a collection</option>{colls.map((c) => <option key={c.id} value={c.id}>{c.name} ({c.questions})</option>)}</select></label>
+        <BankPicker compact disabled={locked} cats={cats} colls={colls} value={{ categoryId: catOf, collectionId: draw.collectionId }} onChange={(b) => onChange({ ...draw, collectionId: b.collectionId })} />
         <label className="flex flex-col gap-1 text-xs font-semibold text-navy">How many<input disabled={locked} type="number" min={1} max={200} className="field !h-10 w-20" value={draw.count} onChange={(e) => onChange({ ...draw, count: Math.max(1, Number(e.target.value) || 1) })} /></label>
         <label className="flex flex-col gap-1 text-xs font-semibold text-navy">Topics (comma separated, optional)<input disabled={locked} className="field !h-10 w-56 font-normal" value={topicsText} onChange={(e) => { setTopicsText(e.target.value); onChange({ ...draw, topics: e.target.value.split(",").map((t) => t.trim()).filter(Boolean) }); }} /></label>
         <fieldset className="flex items-center gap-3 text-xs font-semibold text-navy"><legend className="sr-only">Difficulty</legend>{(["easy", "medium", "hard"] as const).map((k) => <label key={k} className="flex items-center gap-1"><input disabled={locked} type="checkbox" checked={draw.difficulties.includes(k)} onChange={() => onChange({ ...draw, difficulties: draw.difficulties.includes(k) ? draw.difficulties.filter((x) => x !== k) : [...draw.difficulties, k] })} />{k}</label>)}</fieldset>

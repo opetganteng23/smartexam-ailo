@@ -1,6 +1,6 @@
 import type { Types } from "mongoose";
 import { HttpError } from "./rbac";
-import { DEFAULT_FORMAT, SECTION_KEY_RE } from "./exam-format";
+import { ITP_SECTION_KEYS, isItpSection, sectionFromSubject } from "./section-key";
 import { QuestionCollection } from "@/models/Question";
 import { Category } from "@/models/Category";
 
@@ -9,14 +9,7 @@ import { Category } from "@/models/Category";
  * dan `section` (kunci lama) diturunkan dari mata pelajaran bank itu, bukan diketik lagi.
  * Soal bagian format TOEFL ITP (listening, structure, reading) tetap boleh tanpa bank seperti sebelumnya.
  */
-export const ITP_SECTION_KEYS: string[] = DEFAULT_FORMAT.sections.map((s) => s.key);
-export const isItpSection = (section?: string | null) => !!section && ITP_SECTION_KEYS.includes(section);
-
-/** Nama mata pelajaran menjadi kunci bagian yang sah (huruf kecil, angka, garis bawah; 2 sampai 32 karakter). */
-export function sectionFromSubject(name?: string | null): string {
-  const slug = (name ?? "").toLowerCase().normalize("NFKD").replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "").replace(/^[0-9_]+/, "").slice(0, 32).replace(/_+$/, "");
-  return SECTION_KEY_RE.test(slug) ? slug : "umum";
-}
+export { ITP_SECTION_KEYS, isItpSection, sectionFromSubject };
 
 type U = { _id: Types.ObjectId; role: string; institutionId?: Types.ObjectId | null };
 export type BankFields = { section?: string | null; categoryId?: string | null; collectionId?: string | null };
