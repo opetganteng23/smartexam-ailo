@@ -241,6 +241,8 @@ export async function buildTestExport(testId: string, now = new Date(), sessionI
   if (days.length) day.addConditionalFormatting({ ref: `I2:I${days.length + 1}`, rules: [{ type: "dataBar", priority: 1, cfvo: [{ type: "num", value: 0 }, { type: "num", value: 1 }], color: { argb: "FF1D6B3F" } } as never] });
 
   // ---- Rekap level dan CEFR (yang selesai)
+  // Tes umum berskala persen tidak punya level ITP: sheet ini hanya untuk tes yang skornya dipetakan ke level.
+  if (!rows.some((r) => r.pct)) {
   const lv = wb.addWorksheet("By level");
   lv.columns = [{ header: "Level", key: "l", width: 18 }, { header: "Score range", key: "r", width: 14 }, { header: "People", key: "n", width: 10 }, { header: "% of finished", key: "p", width: 14 }];
   for (const l of levels) { const n = fin.filter((r) => r.level === l.name).length; lv.addRow({ l: l.name, r: `${l.scoreMin}-${l.scoreMax}`, n, p: fin.length ? n / fin.length : 0 }); }
@@ -248,6 +250,7 @@ export async function buildTestExport(testId: string, now = new Date(), sessionI
   lv.getColumn("p").numFmt = "0%";
   head(lv);
   lv.addConditionalFormatting({ ref: `D2:D${levels.length + 1}`, rules: [{ type: "dataBar", priority: 1, cfvo: [{ type: "num", value: 0 }, { type: "num", value: 1 }], color: { argb: "FF0B4FA6" } } as never] });
+  }
 
   // ---- Rekap perubahan jadwal (pindah sesi & perpanjangan waktu)
   const sc = await scheduleChanges(testId, { sessionId, scope });
