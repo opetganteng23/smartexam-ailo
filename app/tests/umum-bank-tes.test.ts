@@ -61,6 +61,20 @@ describe.skipIf(!safe)("bank bawaan course dan bank pada tes (database in-memory
     current = null; expect((await courseBank.POST(json("POST"), p(old._id))).status).toBe(401);
     current = admin as never;
 
+    // Mengubah course tanpa mengganti mata pelajaran tidak menyentuh bank bawaan; mengganti mata pelajaran memindahkan bank dan soalnya.
+    const courseRoute = await import("@/app/api/admin/courses/[id]/route");
+    const bd = await Category.create({ name: "Basis Data", nameKey: "basis data" });
+    const inBank = await Question.create({ section: "struktur_data", type: "x", stem: "Soal bank bawaan", options: ["a", "b"], answerKey: 0, status: "published", collectionId: course!.bankId, categoryId: cat._id });
+    const patchCourse = (categoryId: string | null) => courseRoute.PATCH(json("PATCH", { track: "general", title: "Struktur Data Dasar", categoryId }), p(course!._id));
+    expect((await patchCourse(String(cat._id))).status).toBe(200);
+    expect(await QuestionCollection.findById(course!.bankId).lean()).toMatchObject({ categoryId: cat._id });
+    expect(await Question.findById(inBank._id).lean()).toMatchObject({ section: "struktur_data", categoryId: cat._id });
+    expect((await patchCourse(String(bd._id))).status).toBe(200);
+    expect(await QuestionCollection.findById(course!.bankId).lean()).toMatchObject({ categoryId: bd._id });
+    expect(await Question.findById(inBank._id).lean()).toMatchObject({ section: "basis_data", categoryId: bd._id });
+    expect((await patchCourse(String(cat._id))).status).toBe(200); // kembalikan untuk uji berikutnya
+    expect(await Question.findById(inBank._id).lean()).toMatchObject({ section: "struktur_data" });
+
     // Tes umum: soal manual hanya dari bank tes; bank lain hanya lewat pilihan eksplisit; nama bagian bebas.
     const bankA = course!.bankId as import("mongoose").Types.ObjectId, bankB = await QuestionCollection.create({ name: "Bank B", categoryId: cat._id, ownerId: admin._id, visibility: "global" });
     const secret = await QuestionCollection.create({ name: "Rahasia", categoryId: cat._id, ownerId: editor._id, visibility: "private" });
@@ -72,7 +86,8 @@ describe.skipIf(!safe)("bank bawaan course dan bank pada tes (database in-memory
     expect((await tests.POST(json("POST", body({ bankId: String(bankA) })))).status).toBe(201); // nama bagian "bebas" tidak harus sama dengan section soal
     expect((await tests.POST(json("POST", body({ bankId: String(bankA), sections: sec([qa, qb]) })))).status).toBe(400); // qb di bank lain
     expect((await tests.POST(json("POST", body({ bankId: String(bankA), extraBankIds: [String(bankB._id)], sections: sec([qa, qb]) })))).status).toBe(201);
-    expect((await tests.POST(json("POST", body({ sections: sec([qa, qb]) })))).status).toBe(201); // tanpa bank tes: tidak dibatasi (tes lama)
+    expect((await tests.POST(json("POST", body({ sections: sec([qa, qb]) })))).status).toBe(400); // tanpa bank tes: nama bagian "bebas" tidak cocok dengan section soal (aturan lama)
+    expect((await tests.POST(json("POST", body({ sections: [{ name: "struktur_data", durationSec: 600, questionIds: [String(qa._id), String(qb._id)] }] })))).status).toBe(201); // nama bagian = section soal: boleh
     // Bank yang tidak terlihat pengguna ditolak (IDOR) dan bank tidak ada ditolak; masukan tidak sah ditolak.
     current = (await User.create({ email: "ac@t.id", role: "academic_admin", status: "active" })) as never;
     expect((await tests.POST(json("POST", body({ bankId: String(secret._id), sections: sec([]) })))).status).toBe(400);

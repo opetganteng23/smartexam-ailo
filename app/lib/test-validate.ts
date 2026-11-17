@@ -39,8 +39,8 @@ export async function validateTestQuestions(sections: Sec[], user: Parameters<ty
       const q = by.get(id);
       if (!q) throw new HttpError(400, "Some questions were not found");
       if (q.status !== "published") throw new HttpError(400, "Only published questions can be added to a test");
-      // Tes umum: nama bagian hanya label (soal dikelompokkan lewat bank). Tes ITP dan lainnya tetap mencocokkan nama bagian.
-      if (ctx.kind !== "general" && q.section !== s.name) throw new HttpError(400, `A ${q.section} question cannot be added to the ${s.name} section`);
+      // Tes umum dengan bank: nama bagian hanya label (soal dibatasi lewat bank). Tanpa bank, dan untuk tes ITP/lainnya, nama bagian tetap harus sama dengan section soal.
+      if ((ctx.kind !== "general" || !allowed) && q.section !== s.name) throw new HttpError(400, `A ${q.section} question cannot be added to the ${s.name} section`);
       if (allowed && !allowed.includes(String(q.collectionId ?? ""))) throw new HttpError(400, "Some questions are not in the selected question bank. Allow another bank explicitly to use them.");
     }
   }

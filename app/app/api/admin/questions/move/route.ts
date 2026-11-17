@@ -39,7 +39,7 @@ export async function POST(req: Request) {
     });
     if (movable.length) {
       await Question.bulkWrite(movable.map((q) => ({
-        updateOne: { filter: { _id: q._id }, update: { $set: { collectionId: target._id, ...(target.categoryId ? { categoryId: target.categoryId } : {}), ...(isItpSection(q.section) ? {} : { section }) } } },
+        updateOne: { filter: { _id: q._id }, update: { $set: { collectionId: target._id, ...(target.categoryId ? { categoryId: target.categoryId } : {}), ...(isItpSection(q.section) ? {} : { section }) }, ...(target.categoryId ? {} : { $unset: { categoryId: 1 } }) } },
       })));
       await audit(me._id, "questions.move", String(target._id), { count: movable.length, requested: ids.length });
     }

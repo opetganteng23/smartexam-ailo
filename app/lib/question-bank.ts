@@ -22,7 +22,7 @@ export type BankFields = { section?: string | null; categoryId?: string | null; 
 export async function resolveBank(f: BankFields): Promise<{ section: string; categoryId: string | null; collectionId: string | null }> {
   if (!f.collectionId) {
     if (isItpSection(f.section)) return { section: f.section!, categoryId: f.categoryId ?? null, collectionId: null };
-    throw new HttpError(400, "Choose a question bank for this question");
+    throw new HttpError(400, "Choose a question bank for this question. Older questions without a bank can be moved in bulk under \"Not grouped yet\" in the subject list.");
   }
   const col = await QuestionCollection.findById(f.collectionId).select("categoryId").lean();
   if (!col) throw new HttpError(404, "Collection not found");

@@ -89,6 +89,18 @@ Tahap 7, keamanan: tidak ada temuan berat atau sedang. Diperbaiki: kueri snapsho
 
 Tahap 7, QA/regresi: dua temuan berat pada ekspor Excel tes umum, diperbaiki (komit 57bac68): kolom Level kini kosong untuk skala persen (sebelumnya skor persen dipetakan ke nama level ITP) dan data bar Total score memakai rentang 0-100 bila ada skor persen. Belum ada tes otomatis untuk ekspor Excel; ini dicatat sebagai bukti yang belum ada. Dicatat tanpa perbaikan: statistik butir tidak memberi tanda bila data terpotong 5000 percobaan; percobaan lama tanpa snapshot dan soal yang sudah dihapus tidak masuk statistik; smoke penuh hanya bermakna untuk `ONLY=umum`.
 
+## Tahap 8 - Perapihan bank soal dan sisa ITP
+
+Keputusan otonom: (1) bank soal = koleksi, mata pelajaran = kategori; section diturunkan dari mata pelajaran bank (`lib/section-key.ts`, `lib/question-bank.ts`); (2) soal bagian ITP (listening, structure, reading) tetap boleh tanpa bank; (3) soal lama tanpa bank tidak dimigrasi otomatis, harus dipindah massal; (4) bank bawaan course bersifat global dan ikut mata pelajaran course (hanya saat berubah); (5) tes umum dengan bank: soal manual hanya dari bank itu dan `extraBankIds`, nama bagian bebas; tanpa bank perilaku lama; bank tes dikunci setelah ada percobaan; (6) menu Analytics disembunyikan tanpa paket ITP karena skalanya 310-677.
+
+Bukti keamanan (tes): `umum-bank` (bank wajib, section turunan, filter belum dikelompokkan, pindah massal dengan IDOR, peran, masukan tidak sah), `umum-bank-tes` (bank bawaan course, bank tes, bank lain eksplisit, bank tak terlihat ditolak, sinkron kategori), `import-umum` (bank wajib pada impor), `umum-ekspor` (tanpa level ITP di Excel).
+
+Tinjauan independen Tahap 8. Keamanan: tidak ada temuan berat; diperbaiki (tes: `umum-bank-tes`): tes umum tanpa bank kembali mencocokkan nama bagian, sinkron bank bawaan hanya saat mata pelajaran course berubah, bank tes dikunci setelah ada percobaan, pindah massal ke bank tanpa mata pelajaran melepas mata pelajaran lama. QA: "Draft with AI" kini menyimpan ke bank terpilih (tombol disembunyikan tanpa bank); pesan galat soal lama tanpa bank menunjuk ke "Not grouped yet". Dicatat tanpa perbaikan: restore versi soal dapat membawa section lama setelah bank pindah mata pelajaran; duplikat soal dari bank yang tak boleh ditulis jatuh ke "Belum dikelompokkan"; sinkron kategori bank dan pindah massal tidak menulis riwayat versi per soal; pickCourse di pembuat tes memakai nilai lama setelah menunggu jaringan; tes umum baru tanpa bank tidak dibatasi (perilaku lama dipertahankan); audit global judul audio pada impor (sudah ada sebelum Tahap 8).
+
+Sisa ITP yang tidak dikerjakan (B6), dengan alasan: Charts/SegmentAnalytics/ResultReport memakai skala 310-677 untuk data ITP (halaman Analytics disembunyikan, ResultReport sudah mendukung persen); halaman Scoring, Coaching, Official Exam, Class Results, Cycles, dan Certificates ITP sudah di balik saklar fitur/paket (disembunyikan, rute tetap dijaga peran dan saklar); teks "Progress updates: Placement result, level-ups" di profil peserta dan opsi saklar Coaching/Official Exam di Settings tidak diubah (saklar fitur memang menyebut nama fitur); kata "Listening" pada data tes ITP tetap muncul bila tes ITP lama dipakai.
+
+QA visual (B8): tidak dilakukan, tidak ada browser (ekstensi Chrome terputus, browser bawaan tidak tersedia). Tidak ada item 🔄 visual yang ditutup.
+
 ## Gerbang Akhir (G.1): GAGAL, `main` tidak disentuh
 
 Hasil pada komit akhir `feat/umum`:

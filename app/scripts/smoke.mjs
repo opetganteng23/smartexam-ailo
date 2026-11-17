@@ -64,8 +64,15 @@ async function umumSection(admin) {
   r = await req(p, "/api/me/consent", { method: "POST", json: { consent: true, givenName: "Peserta", surname: "Umum", phone: "081234567890" } });
   ok(r.status === 200, "peserta umum menyetujui penggunaan data");
 
+  // Soal umum wajib punya bank: buat mata pelajaran dan bank dulu (section diturunkan dari bank).
+  r = await req(admin, "/api/admin/categories", { method: "POST", json: { name: "Struktur Data" } });
+  ok(r.status === 201, "mata pelajaran dibuat", J(r.data)); const catId = r.data.id;
+  r = await req(admin, "/api/admin/collections", { method: "POST", json: { name: "UTS Struktur Data", categoryId: catId, visibility: "private" } });
+  ok(r.status === 201, "bank soal dibuat", J(r.data)); const bankId = r.data.id;
+  r = await req(admin, "/api/admin/questions", { method: "POST", json: { type: "uji", stem: "Soal tanpa bank", options: ["a", "b"], answerKey: 0 } });
+  ok(r.status === 400, "soal umum tanpa bank ditolak", J(r.data));
   const tag = [{ skill: "struktur-data", topic: "dasar" }];
-  const mk = async (body) => { const x = await req(admin, "/api/admin/questions", { method: "POST", json: { section: "umum", type: "uji", difficulty: "medium", status: "published", tags: tag, ...body } }); ok(x.status === 201, `soal ${body.kind} dibuat`, J(x.data)); return x.data.id; };
+  const mk = async (body) => { const x = await req(admin, "/api/admin/questions", { method: "POST", json: { collectionId: bankId, type: "uji", difficulty: "medium", status: "published", tags: tag, ...body } }); ok(x.status === 201, `soal ${body.kind} dibuat`, J(x.data)); return x.data.id; };
   const q1 = await mk({ kind: "mcq", points: 1, stem: "Stack memakai urutan ...", options: ["FIFO", "LIFO", "Acak"], answerKey: 1 });
   const q2 = await mk({ kind: "matching", points: 2, stem: "Pasangkan.", key: { pairs: [{ left: "Stack", right: "LIFO" }, { left: "Queue", right: "FIFO" }] } });
   const q3 = await mk({ kind: "short", points: 1, stem: "Operasi menambah ke stack disebut ...", key: { accepted: ["push"] } });

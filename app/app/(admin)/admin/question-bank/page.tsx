@@ -134,7 +134,7 @@ export default function BankSoal() {
         <div className="flex flex-wrap gap-2">
           {!(umum && f.collectionId === "none") && <a href={`/api/admin/questions/export?${new URLSearchParams(Object.entries(f).filter(([k, v]) => v && k !== "q") as [string, string][])}`} className="rounded-xl border border-line-strong px-4 py-2.5 text-sm font-semibold text-navy">Export CSV</a>}
           <button onClick={() => setTypesDlg(true)} className="rounded-xl border border-line-strong px-4 py-2.5 text-sm font-semibold text-navy">Manage types</button>
-          <button onClick={() => setAiDlg(true)} className="rounded-xl border border-line-strong px-4 py-2.5 text-sm font-semibold text-navy">Draft with AI</button>
+          {(!umum || (f.collectionId && f.collectionId !== "none")) && <button onClick={() => setAiDlg(true)} className="rounded-xl border border-line-strong px-4 py-2.5 text-sm font-semibold text-navy">Draft with AI</button>}
           <button onClick={() => setImportDlg(true)} className="rounded-xl border border-line-strong px-4 py-2.5 text-sm font-semibold text-navy">Import questions</button>
           <button onClick={() => setCollDlg(true)} className="rounded-xl border border-line-strong px-4 py-2.5 text-sm font-semibold text-navy">{umum ? tr("Question banks") : "Collections"}</button>
           <button onClick={() => setVideoDlg(true)} className="rounded-xl border border-line-strong px-4 py-2.5 text-sm font-semibold text-navy">Videos</button>
@@ -211,7 +211,7 @@ export default function BankSoal() {
       {form && <Editor umum={!!umum} cats={cats} colls={colls} types={types} onTypesChanged={loadTypes} form={form} onClose={() => setForm(null)} onSaved={() => { setForm(null); load(); }} onNewGroup={() => setGroupDlg(true)} />}
       {typesDlg && <QuestionTypesDialog types={types} onClose={() => setTypesDlg(false)} onChanged={() => { loadTypes(); load(); }} />}
       {groupDlg && <GroupDialog onClose={() => setGroupDlg(false)} />}
-      {aiDlg && <AiQuestionDialog types={types} onClose={() => setAiDlg(false)} onSaved={() => { setAiDlg(false); load(); }} />}
+      {aiDlg && <AiQuestionDialog bank={umum ? { collectionId: f.collectionId, section: sectionFromSubject(cats.find((c) => c.id === f.categoryId)?.name) } : undefined} types={types} onClose={() => setAiDlg(false)} onSaved={() => { setAiDlg(false); load(); }} />}
       {umum && f.collectionId === "none" && sel.size > 0 && <div role="status" className="sticky bottom-3 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-brand bg-white p-3 shadow-lg"><span className="text-sm font-semibold text-navy">{tr("{n} selected", { n: sel.size })}</span><button className="btn-solid" onClick={() => setMoveDlg(true)}>{tr("Move to a question bank")}</button></div>}
       {moveDlg && <MoveDialog cats={cats} colls={colls} ids={[...sel]} onClose={() => setMoveDlg(false)} onMoved={() => { setMoveDlg(false); setSel(new Set()); load(); loadMeta(); }} onCreated={(c) => setColls((x) => [...x, c])} />}
       {importDlg && <ImportDialog umum={!!umum} cats={cats} colls={colls} defaults={{ categoryId: f.collectionId === "none" ? "" : f.categoryId, collectionId: f.collectionId === "none" ? "" : f.collectionId }} onClose={() => { setImportDlg(false); load(); loadMeta(); loadTypes(); }} />}

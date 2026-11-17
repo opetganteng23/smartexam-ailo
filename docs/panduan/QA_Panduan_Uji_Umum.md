@@ -24,19 +24,20 @@ Tulis hasilnya di kolom **Hasil** (Lulus / Gagal / Tidak bisa diuji). UI belum p
 
 ## 3. Daftar uji
 
-### A. Kategori dan course umum
+### A. Mata pelajaran dan course umum
 
 | ID | Langkah | Hasil yang benar | Hasil |
 |---|---|---|---|
-| A1 | Admin > Categories, buat "Struktur Data" | Tampil di daftar | |
-| A2 | Buat kategori dengan nama sama | Ditolak (duplikat) | |
+| A1 | Courses & Units > Categories (subjects), buat "Struktur Data" | Tampil di daftar | |
+| A2 | Buat mata pelajaran dengan nama sama | Ditolak (duplikat) | |
 | A3 | New course jenis Umum tanpa level | Tersimpan, ada tab Info/Curriculum/Settings/Access | |
 | A4 | Isi Info (apa yang dipelajari, prasyarat, tag) lalu simpan | Tampil di halaman course peserta | |
 | A5 | Access: tugaskan ke institusi `[UJI]` | Peserta QA melihat course, peserta institusi lain tidak | |
 | A6 | Hapus kelas yang ditugaskan ke course | Course tetap utuh, rujukan kelas hilang | |
-| A7 | Hapus kategori yang masih dipakai | Ditolak | |
+| A7 | Hapus mata pelajaran yang masih dipakai | Ditolak | |
+| A8 | Buat course umum baru | Otomatis punya bank soal bawaan (Question Bank > Question banks, bernama sama dengan course) | |
 
-### B. Bank soal, koleksi, impor
+### B. Bank soal dan impor
 
 | ID | Langkah | Hasil yang benar | Hasil |
 |---|---|---|---|
@@ -46,8 +47,8 @@ Tulis hasilnya di kolom **Hasil** (Lulus / Gagal / Tidak bisa diuji). UI belum p
 | B4 | Impor XML berisi `<!DOCTYPE ... ENTITY>` | Ditolak dengan pesan jelas | |
 | B5 | Impor `.docx` dengan direktif Kind/Points/Pairs/Accepted/Rubric | Soal terbentuk sesuai direktif | |
 | B6 | Soal HTML berisi `<script>` | Skrip tidak jalan, teks aman | |
-| B7 | Koleksi Private milik admin A, lihat dari admin B | Admin B tidak melihat dan tidak bisa mengubah | |
-| B8 | Koleksi Global | Terlihat semua staf, hanya pemilik yang bisa ubah | |
+| B7 | Bank Private milik admin A, lihat dari admin B | Admin B tidak melihat dan tidak bisa mengubah | |
+| B8 | Bank Global | Terlihat semua staf, hanya pemilik yang bisa ubah | |
 
 ### C. Tes umum
 
@@ -131,6 +132,25 @@ Tulis hasilnya di kolom **Hasil** (Lulus / Gagal / Tidak bisa diuji). UI belum p
 | I1 | Peserta ITP: placement T01 (hanya akun QA, **jangan aktifkan T01**) | Berjalan seperti sebelumnya | |
 | I2 | Hasil ITP, ekspor PDF/Excel | Level ITP dan skor 310-677 tetap tampil | |
 | I3 | Jadwal ITP, coaching, sertifikat resmi | Tidak berubah | |
+
+### J. Mata pelajaran, bank soal, dan sisa ITP (Tahap 8)
+
+Ruang kerja Umum dengan Settings > TOEFL ITP package **mati**.
+
+| ID | Uji | Langkah | Hasil yang benar | Hasil |
+|---|---|---|---|---|
+| J1 | Dua dropdown | Question Bank > Questions | Dropdown Mata pelajaran lalu Bank soal; tanpa "Semua"; hanya soal bank terpilih; muat ulang mengingat pilihan terakhir | |
+| J2 | Soal wajib punya bank | New question, kosongkan bank, Save | Ditolak dengan pesan "Choose a question bank"; tidak ada isian Section | |
+| J3 | Section otomatis | Simpan soal di bank mata pelajaran "Struktur Data", lalu ekspor CSV | Kolom section berisi struktur_data | |
+| J4 | Belum dikelompokkan | Pilih opsi ini (bila ada soal lama tanpa bank), centang beberapa, Move | Soal pindah ke bank terpilih; soal yang tidak boleh Anda ubah dilewati dan dilaporkan | |
+| J5 | Pindah lintas hak | Akun editor mencoba memindahkan soal dari bank orang lain | Dilewati (tidak pindah) | |
+| J6 | Impor | Import: langkah 1 pilih bank atau "+ Bank soal baru", langkah 2 berkas | Tombol nonaktif sebelum bank dipilih; soal masuk ke bank itu | |
+| J7 | Tes: bank | Buat tes umum, pilih course | Bank course terpasang otomatis; pencarian soal hanya dari bank itu | |
+| J8 | Tes: bank lain | Tambahkan soal bank lain tanpa mencentang izin | Ditolak saat simpan; setelah bank dicentang di "Also allow", bisa | |
+| J9 | System Parameters | Settings > Rules & parameters | Tanpa Levels & coaching quota, level_up, booking, quota_rules, class_auto; tab Scoring profiles tidak ada | |
+| J10 | Sisa ITP | Buka Overview, Participants, detail institusi, panel peserta, Tests | Tanpa Placement, Level, kuota coaching, "Hold placement results", modul Coaching, menu Analytics; tes baru berjenis General | |
+| J11 | Persiapan tes | Peserta membuka tes tanpa Listening | Tanpa uji nada audio dan tanpa aturan Listening; Start aktif setelah aturan dicentang | |
+| J12 | Ekspor Excel tes umum | Unduh dari halaman tes | Skor persen, kolom Level kosong, tanpa sheet By level, tanpa istilah TOEFL/ITP/CEFR | |
 
 ## 4. Pelaporan
 

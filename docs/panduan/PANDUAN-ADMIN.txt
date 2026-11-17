@@ -389,9 +389,9 @@ Alur ITP/AirNav tidak berubah. Semua fitur di bawah bersifat tambahan.
 
 DAFTAR ISI BAGIAN INI
   U1. Ruang kerja Umum dan saklar paket TOEFL ITP
-  U2. Kategori
+  U2. Mata pelajaran (kategori)
   U3. Course umum, akses institusi dan kelas
-  U4. Bank soal, koleksi, dan impor (Moodle XML, Word)
+  U4. Bank soal dan impor (Moodle XML, Word)
   U5. Tes umum: kuis harian, pre/post-test, UTS
   U6. Video
   U7. Tugas, diskusi, sertifikat penyelesaian
@@ -405,19 +405,22 @@ U1. RUANG KERJA UMUM DAN SAKLAR PAKET TOEFL ITP
 -------------------------------------------------------------------------------
 - Di menu admin ada pemilih ruang kerja: Umum atau TOEFL ITP. Pilihan disimpan
   di browser (cookie "ws") dan hanya mengatur menu yang tampil, bukan hak akses.
-- Settings > "TOEFL ITP package" (bawaan MATI). Bila mati, templat dan scaffold
+- Settings > "TOEFL ITP package" (bawaan MATI). Bila mati, halaman System Parameters
+  menyembunyikan Levels & coaching quota, level_up, booking, quota_rules, class_auto;
+  tab Scoring profiles, menu Analytics, kolom Placement/Level/Coaching di Participants,
+  "Hold placement results" dan modul Coaching di institusi, serta jenis tes Placement,
+  Simulation, Final ikut disembunyikan (data tetap ada). Selain itu, templat dan scaffold
   course TOEFL ITP disembunyikan dan ruang kerja dipaksa ke Umum. Course ITP
   lama tetap tampil dan tetap berjalan. Nyalakan hanya bila memang dipakai.
 
 
 -------------------------------------------------------------------------------
-U2. KATEGORI
+U2. MATA PELAJARAN (KATEGORI)
 -------------------------------------------------------------------------------
-- Menu Categories. Kategori menggantikan daftar bagian tetap (Listening,
-  Structure, Reading) untuk soal dan course umum. Nama bebas, misalnya
-  "Struktur Data" atau "Basis Data".
-- Kategori yang masih dipakai soal atau course tidak bisa dihapus. Pindahkan
-  isinya dulu.
+- Courses & Units > bagian Categories (subjects). Mata pelajaran adalah nama pokok, misalnya
+  "Struktur Data". Course, bank soal, dan tes umum dikelompokkan di bawahnya.
+- Nama bebas. Mata pelajaran yang masih dipakai course, bank soal, atau soal tidak
+  bisa dihapus; nonaktifkan atau pindahkan isinya dulu.
 
 
 -------------------------------------------------------------------------------
@@ -438,18 +441,27 @@ U3. COURSE UMUM, AKSES INSTITUSI DAN KELAS
 
 
 -------------------------------------------------------------------------------
-U4. BANK SOAL, KOLEKSI, DAN IMPOR
+U4. BANK SOAL DAN IMPOR
 -------------------------------------------------------------------------------
-Jenis soal: pilihan ganda, menjodohkan (boleh nilai sebagian), isian singkat
-(beberapa jawaban diterima), dan essay (rubrik, dinilai manual).
-- Koleksi (Collections): pengelompokan soal dengan visibilitas Private
-  (pembuat), Institution, atau Global. Anda hanya bisa mengubah koleksi yang
-  boleh Anda tulis.
-- Impor Moodle XML: Question Bank > Import. Pilih kategori tujuan dan koleksi.
-  Ada pratinjau sebelum disimpan. Soal duplikat (isi sama) dilewati dan
-  dilaporkan. Berkas dibatasi ukuran dan tidak boleh memuat DOCTYPE/ENTITY.
-- Impor Word (.docx): ikuti templat. Direktif per soal: Kind, Points, Pairs,
-  Accepted, Rubric, Guide.
+Istilah: MATA PELAJARAN lalu BANK SOAL. Bank soal adalah kumpulan soal milik satu
+mata pelajaran, misalnya "UTS Struktur Data". Dulu disebut koleksi.
+- Question Bank > Questions (ruang kerja Umum): pilih Mata pelajaran, lalu Bank soal.
+  Hanya soal bank itu yang tampil. Pilihan terakhir diingat untuk akun Anda.
+- Setiap soal HARUS ada di sebuah bank. Isian "section" tidak ada lagi: sistem
+  menurunkannya dari mata pelajaran bank. (Soal format TOEFL ITP, yaitu Listening,
+  Structure, Reading, tetap boleh tanpa bank di ruang kerja TOEFL ITP.)
+- Belum dikelompokkan: soal lama tanpa bank dikumpulkan di opsi ini pada pilihan
+  Mata pelajaran. Centang soalnya, lalu "Pindahkan ke bank soal". Hanya soal yang
+  boleh Anda ubah yang pindah; sisanya dilewati dan dilaporkan.
+- Tiap course umum otomatis punya bank bawaan (dinamai seperti course). Bank itu
+  ikut pindah bila mata pelajaran course diganti.
+- Question banks (tombol): buat, ganti nama, atur visibilitas (Private, satu
+  institusi, atau semua staf konten), hapus bila kosong.
+- Impor (Moodle XML, CSV, Excel, Word): langkah 1 pilih bank tujuan, atau "+ Bank
+  soal baru" di tempat; langkah 2 pilih berkas. Ada "Check first" sebelum disimpan.
+  Soal duplikat dilewati dan dilaporkan. XML dibatasi ukuran dan tanpa DOCTYPE/ENTITY.
+- Impor Word (.docx): direktif per soal Kind, Points, Pairs, Accepted, Rubric, Guide.
+- Jenis soal: pilihan ganda, menjodohkan (boleh nilai sebagian), isian singkat, essay.
 - Soal berformat HTML ditampilkan lewat penyaring keamanan (skrip dibuang).
 
 
@@ -463,7 +475,10 @@ Tests > + New test > jenis Umum. Pengaturan penting:
 - Course: kaitkan tes dengan course. Hanya peserta course itu yang bisa mulai.
 - Kuis harian: isi jendela harian (jam mulai dan selesai, WIB, 24 jam) dan
   batas percobaan per hari. Di luar jendela, peserta melihat pesan jam buka.
-- Penarikan acak: per bagian, pilih koleksi dan jumlah soal. Tiap percobaan
+- Bank tes: pilih Mata pelajaran lalu Bank soal. Tes di dalam course memakai bank course.
+  Soal tetap hanya dipilih dari bank itu; bank lain hanya lewat kotak "Izinkan juga
+  soal dari bank soal lain". Nama bagian tes umum bebas (hanya label).
+- Penarikan acak: per bagian, pilih bank dan jumlah soal. Tiap percobaan
   mendapat soal berbeda. Soal yang tertarik disimpan sebagai snapshot.
 - Pre/post: Tests > (tes) > Prepost menautkan pre-test ke post-test. Post-test
   bisa dikunci sampai pre-test selesai.

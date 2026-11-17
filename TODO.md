@@ -91,21 +91,21 @@ Legenda sama: ✅ selesai dan teruji · 🔄 sebagian · ⬜ belum · ⏭️ dit
 
 ### Tahap 7 - Isolasi paket ITP dan sisa
 - ✅ U7.1 Scaffold TOEFL menjadi preset; paket ITP di balik saklar — preset `toefl-itp` di daftar templat; saklar `itpPack` (Settings, bawaan mati) menyembunyikan preset, rute scaffold, dan ruang kerja ITP; course ITP lama tetap terjangkau
-- 🔄 U7.2 PPTX dan laporan generik mengikuti bagian tes — PPTX teruji (`umum-laporan`); ekspor Excel diperbaiki setelah tinjauan (Level kosong dan data bar 0-100 untuk skala persen) tetapi belum punya tes otomatis
+- ✅ U7.2 PPTX dan laporan generik mengikuti bagian tes — `umum-laporan` (PPTX) dan `umum-ekspor` (Excel: Level kosong, data bar 0-100, tanpa sheet By level dan istilah ITP)
 - ✅ U7.3 `access: paid` bawaan materi ditinjau (bawaan tidak membingungkan kelas biasa)
 - 🔄 U7.4 Sisa dwibahasa EN/ID dan `i18n.test.ts` hijau — layar peserta baru (kartu dan rincian course, diskusi, tugas, sertifikat course) diterjemahkan dan tes hijau; layar admin baru masih berbahasa Inggris
 - ✅ U7.5 `scripts/smoke.mjs` diperbarui untuk jenis soal baru dan skor persen — bagian baru `ONLY=umum` (23 pemeriksaan) hijau pada server dev dengan DB in-memory; bagian lama (placement, coaching ITP) sudah usang sejak ITP dibuang dan gagal di bagian placement (bukan akibat program ini)
 - 🔄 U7.6 Statistik butir soal (kesulitan nyata, daya beda, jumlah pemakaian) — perhitungan, API, dan tes hijau; halaman belum diuji visual
 
 ### Tahap 8 - Perapihan bank soal dan sisa ITP
-- ✅ B1 Halaman Questions ruang kerja Umum: dropdown Mata pelajaran lalu Bank soal, tanpa "Semua", pilihan terakhir diingat per pengguna; ruang kerja ITP tetap tab bagian — `umum-bank` (server); tampilan menunggu QA visual
-- ✅ B2 Satu istilah (Mata pelajaran, Bank soal) di ruang kerja Umum; section diturunkan otomatis dari bank (`lib/question-bank.ts`) — `umum-bank`, `import-umum`
-- ✅ B3 Soal non-ITP wajib punya bank (create, PATCH, impor); "Belum dikelompokkan" dan pindah massal hanya untuk soal yang boleh diubah — `umum-bank` (IDOR)
-- ✅ B4 Bank bawaan per course; tes umum memilih bank, soal manual dibatasi ke bank itu dan bank lain hanya eksplisit; nama bagian tes umum bebas — `umum-bank-tes`
-- ✅ B5 Impor: bank tujuan wajib di langkah pertama dengan "bank baru" di tempat — `import-umum`
+- 🔄 B1 Halaman Questions ruang kerja Umum: dropdown Mata pelajaran lalu Bank soal, tanpa "Semua", pilihan terakhir diingat per pengguna; ruang kerja ITP tetap tab bagian — `umum-bank` (server); tampilan menunggu QA visual
+- 🔄 B2 Satu istilah (Mata pelajaran, Bank soal) di ruang kerja Umum; section diturunkan otomatis dari bank (`lib/question-bank.ts`) — `umum-bank`, `import-umum`
+- ✅ B3 Soal non-ITP wajib punya bank (create, PATCH, impor; soal lama tanpa bank harus dipindah dulu sebelum bisa diubah atau diterbitkan); "Belum dikelompokkan" dan pindah massal hanya untuk soal yang boleh diubah — `umum-bank` (IDOR)
+- 🔄 B4 Bank bawaan per course; tes umum memilih bank, soal manual dibatasi ke bank itu dan bank lain hanya eksplisit; nama bagian tes umum bebas — `umum-bank-tes`
+- 🔄 B5 Impor: bank tujuan wajib di langkah pertama dengan "bank baru" di tempat — `import-umum`
 - 🔄 B6 Audit ITP dengan paket mati: Parameter (levels, level_up, booking, quota_rules, class_auto), tab Scoring, Overview (placement, level), Participants (placement, level, skor, kuota), institusi (tahan hasil, modul Coaching), panel peserta, jenis tes baru = umum, menu Analytics, persiapan tes tanpa uji audio bila tanpa Listening. Sisa yang dicatat: lihat CATATAN-IMPLEMENTASI (Tahap 8)
-- ✅ B7 Label EN dan ID konsisten ("Mata pelajaran", "Bank soal") — `i18n.test.ts`
-- ⬜ B8 QA visual dengan browser sungguhan (lebar 1280 dan 390), menutup item 🔄 G.1, dan tes otomatis ekspor Excel (U7.2)
+- 🔄 B7 Label EN dan ID ("Mata pelajaran", "Bank soal") pada layar yang diubah — `i18n.test.ts` hijau; layar admin lain masih bahasa Inggris
+- 🔄 B8 QA visual: TIDAK dapat dilakukan (tidak ada browser terhubung di sesi otonom); daftar uji manual di `docs/laporan/QA-VISUAL-MANUAL.md` dan QA_Panduan_Uji_Umum.md. Tes otomatis ekspor Excel (U7.2) selesai: `umum-ekspor` (menemukan dan menutup kebocoran sheet By level)
 
 ### Lintas tahap, gerbang, dan dokumen
 - 🔄 Q.1 Tes keamanan per fitur (akses/IDOR, XSS, impor XML, unggah, CSRF, rate limit, audit log) tertulis dan hijau — lihat tabel bukti di CATATAN-IMPLEMENTASI; CSRF memakai pemeriksaan Origin global di middleware (tidak ada tes per rute baru)

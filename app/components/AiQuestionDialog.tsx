@@ -10,9 +10,9 @@ type Draft = { stem: string; options: string[]; answerKey: number; explanation: 
 const label = "flex flex-col gap-1.5 text-sm font-semibold text-navy";
 
 /** Draf soal pilihan ganda dari Claude untuk bagian apa pun. Tidak ada yang tersimpan sebelum ditinjau dan dipilih; hasilnya berstatus draft. */
-export function AiQuestionDialog({ types, onClose, onSaved }: { types: QType[]; onClose: () => void; onSaved: () => void }) {
+export function AiQuestionDialog({ types, bank, onClose, onSaved }: { types: QType[]; bank?: { collectionId: string; section: string }; onClose: () => void; onSaved: () => void }) {
   const status = useApi<{ enabled: boolean }>("/api/admin/questions/generate");
-  const [v, setV] = useState({ section: types[0]?.section ?? "general", subject: "", language: "en", type: "", skill: "", topic: "", difficulty: "medium", count: 5, notes: "" });
+  const [v, setV] = useState({ section: bank?.section ?? types[0]?.section ?? "general", subject: "", language: "en", type: "", skill: "", topic: "", difficulty: "medium", count: 5, notes: "" });
   const sectionTypes = types.filter((t) => t.section === v.section && t.active);
   const [drafts, setDrafts] = useState<Draft[] | null>(null);
   const [picked, setPicked] = useState<Set<number>>(new Set());
@@ -36,7 +36,7 @@ export function AiQuestionDialog({ types, onClose, onSaved }: { types: QType[]; 
     try {
       for (const i of [...picked].sort((a, b) => a - b)) {
         const d = drafts[i];
-        await api("/api/admin/questions", { json: { section: v.section, type: v.type, stem: d.stem, options: d.options, answerKey: d.answerKey, explanation: d.explanation, difficulty: v.difficulty, tags: [{ skill: v.skill, topic: v.topic }], status: "draft", source: "AI draft, needs review" } });
+        await api("/api/admin/questions", { json: { ...(bank ? { collectionId: bank.collectionId } : {}), section: v.section, type: v.type, stem: d.stem, options: d.options, answerKey: d.answerKey, explanation: d.explanation, difficulty: v.difficulty, tags: [{ skill: v.skill, topic: v.topic }], status: "draft", source: "AI draft, needs review" } });
         n++;
       }
       onSaved();
