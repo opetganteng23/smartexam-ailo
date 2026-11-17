@@ -8,6 +8,7 @@ import { audit } from "@/lib/audit";
 import { courseInput } from "@/lib/course-schemas";
 import { Course, CourseModule, Unit } from "@/models/Course";
 import { checkCourseRefs } from "@/lib/course-admin";
+import { syncBankCategory } from "@/lib/question-bank";
 
 export async function PATCH(req: Request, { params }: { params: { id: string } }) {
   try {
@@ -31,6 +32,9 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
     if (!targetAudience) unset.targetAudience = 1;
     const r = await Course.updateOne({ _id: params.id }, { ...rest, ...(levelId ? { levelId } : {}), ...(categoryId ? { categoryId } : {}), ...(priceIdr != null ? { priceIdr } : {}), ...(previewVideoUrl ? { previewVideoUrl } : {}), ...(targetAudience ? { targetAudience } : {}), ...(coverAssetId ? { coverAssetId } : {}), ...(part ? { part } : {}), ...(sectionTestId ? { sectionTestId } : {}), ...(Object.keys(unset).length ? { $unset: unset } : {}) });
     if (!r.matchedCount) throw new HttpError(404, "Course not found");
+    // Bank bawaan course ikut mata pelajaran course (dan soalnya).
+    const bank = await Course.findById(params.id).select("bankId").lean();
+    if (bank?.bankId) await syncBankCategory(bank.bankId, categoryId ?? null);
     await audit(admin._id, b.archived ? "course.archive" : "course.update", params.id);
     return NextResponse.json({ ok: true });
   } catch (e) {

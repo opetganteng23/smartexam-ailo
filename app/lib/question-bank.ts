@@ -51,3 +51,15 @@ export async function ensureCourseBank(course: { _id: Types.ObjectId; title: str
   await save(bank._id);
   return bank._id;
 }
+
+/**
+ * Mata pelajaran course berubah: bank bawaannya ikut pindah mata pelajaran, termasuk soal di dalamnya
+ * (mata pelajaran dan section turunan; soal bagian ITP tidak diubah section-nya).
+ */
+export async function syncBankCategory(bankId: Types.ObjectId | string, categoryId: string | null) {
+  const { Question } = await import("@/models/Question");
+  const cat = categoryId ? await Category.findById(categoryId).select("name").lean() : null;
+  await QuestionCollection.updateOne({ _id: bankId }, categoryId ? { categoryId } : { $unset: { categoryId: 1 } });
+  await Question.updateMany({ collectionId: bankId }, categoryId ? { categoryId } : { $unset: { categoryId: 1 } });
+  await Question.updateMany({ collectionId: bankId, section: { $nin: ITP_SECTION_KEYS } }, { section: sectionFromSubject(cat?.name) });
+}
