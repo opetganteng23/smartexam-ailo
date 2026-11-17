@@ -11,7 +11,14 @@ type Draw = { collectionId: string; count: number; topics?: string[]; difficulti
 type Sec = { name: string; questionIds: string[]; draw?: Draw };
 
 /** Semua soal harus ada, berstatus published, sesuai section, dan tidak dipakai dua kali dalam satu tes. */
-export async function validateTestQuestions(sections: Sec[], user: Parameters<typeof questionVisibleFilter>[0]) {
+export type BankCtx = { kind?: string; bankId?: string | null; extraBankIds?: string[] };
+export async function validateTestQuestions(sections: Sec[], user: Parameters<typeof questionVisibleFilter>[0], ctx: BankCtx = {}) {
+  // Bank tes (umum): harus terlihat. Soal manual hanya dari bank itu dan bank lain yang sengaja dipilih.
+  const allowed = ctx.bankId ? [ctx.bankId, ...(ctx.extraBankIds ?? [])] : null;
+  if (allowed) {
+    const seen = await QuestionCollection.countDocuments({ _id: { $in: allowed }, ...collectionVisible(user) });
+    if (seen !== new Set(allowed).size) throw new HttpError(400, "A selected question bank was not found");
+  }
   // Bagian dengan penarikan acak: koleksi harus terlihat dan punya cukup soal terbit yang cocok (jumlah diminta tidak boleh melebihi isi).
   for (const s of sections.filter((x) => x.draw)) {
     const d = s.draw!;
@@ -25,14 +32,16 @@ export async function validateTestQuestions(sections: Sec[], user: Parameters<ty
   const all = sections.flatMap((s) => s.questionIds);
   if (new Set(all).size !== all.length) throw new HttpError(400, "A question is used more than once");
   const vis = await questionVisibleFilter(user);
-  const qs = await Question.find(Object.keys(vis).length ? { $and: [{ _id: { $in: all } }, vis] } : { _id: { $in: all } }).select("section status").lean();
+  const qs = await Question.find(Object.keys(vis).length ? { $and: [{ _id: { $in: all } }, vis] } : { _id: { $in: all } }).select("section status collectionId").lean();
   const by = new Map(qs.map((q) => [String(q._id), q]));
   for (const s of sections.filter((x) => !x.draw)) {
     for (const id of s.questionIds) {
       const q = by.get(id);
       if (!q) throw new HttpError(400, "Some questions were not found");
       if (q.status !== "published") throw new HttpError(400, "Only published questions can be added to a test");
-      if (q.section !== s.name) throw new HttpError(400, `A ${q.section} question cannot be added to the ${s.name} section`);
+      // Tes umum: nama bagian hanya label (soal dikelompokkan lewat bank). Tes ITP dan lainnya tetap mencocokkan nama bagian.
+      if (ctx.kind !== "general" && q.section !== s.name) throw new HttpError(400, `A ${q.section} question cannot be added to the ${s.name} section`);
+      if (allowed && !allowed.includes(String(q.collectionId ?? ""))) throw new HttpError(400, "Some questions are not in the selected question bank. Allow another bank explicitly to use them.");
     }
   }
 }

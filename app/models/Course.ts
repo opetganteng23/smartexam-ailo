@@ -9,6 +9,7 @@ const courseSchema = new Schema(
     levelId: { type: Schema.Types.ObjectId, ref: "Level", index: true }, // opsional: course umum tidak terikat level
     track: { type: String, enum: ["general", "itp"] }, // kosong dibaca "itp" (course lama tanpa migrasi)
     categoryId: { type: Schema.Types.ObjectId, ref: "Category", index: true },
+    bankId: { type: Schema.Types.ObjectId, ref: "QuestionCollection" }, // bank soal bawaan course (dibuat otomatis; lihat lib/question-bank.ts)
     institutionIds: [{ type: Schema.Types.ObjectId, ref: "Institution" }], // kosong = semua institusi
     classIds: [{ type: Schema.Types.ObjectId, ref: "ClassGroup" }], // kosong = semua kelas di institusi itu
     accessMode: { type: String, enum: ["assigned", "paid"] }, // kosong dibaca "assigned"; "paid" baru disiapkan di data

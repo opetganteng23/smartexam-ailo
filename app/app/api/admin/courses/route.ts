@@ -8,6 +8,7 @@ import { courseInput } from "@/lib/course-schemas";
 import { getLevels } from "@/lib/config";
 import { Course, CourseModule, Unit } from "@/models/Course";
 import { checkCourseRefs } from "@/lib/course-admin";
+import { ensureCourseBank } from "@/lib/question-bank";
 import { Material } from "@/models/Material";
 import { Category } from "@/models/Category";
 import { getFeatures } from "@/lib/features";
@@ -42,7 +43,7 @@ export async function GET() {
       materials: materials.map((m) => ({ id: String(m._id), title: m.title, status: m.status, kind: m.kind })),
       quizzes: quizzes.map((q) => ({ id: String(q._id), kind: q.kind, name: q.name, unitId: q.unitId ? String(q.unitId) : null, active: q.active })),
       courses: courses.map((c) => ({
-        id: String(c._id), levelId: c.levelId ? String(c.levelId) : null, track: c.track ?? "itp", categoryId: c.categoryId ? String(c.categoryId) : null, institutionIds: (c.institutionIds ?? []).map(String), classIds: (c.classIds ?? []).map(String), accessMode: c.accessMode ?? "assigned", priceIdr: c.priceIdr ?? null, whatYouLearn: c.whatYouLearn ?? [], requirements: c.requirements ?? [], targetAudience: c.targetAudience ?? "", tags: c.tags ?? [], previewVideoUrl: c.previewVideoUrl ?? null, title: c.title, description: c.description ?? "", order: c.order, active: c.active,
+        id: String(c._id), bankId: c.bankId ? String(c.bankId) : null, levelId: c.levelId ? String(c.levelId) : null, track: c.track ?? "itp", categoryId: c.categoryId ? String(c.categoryId) : null, institutionIds: (c.institutionIds ?? []).map(String), classIds: (c.classIds ?? []).map(String), accessMode: c.accessMode ?? "assigned", priceIdr: c.priceIdr ?? null, whatYouLearn: c.whatYouLearn ?? [], requirements: c.requirements ?? [], targetAudience: c.targetAudience ?? "", tags: c.tags ?? [], previewVideoUrl: c.previewVideoUrl ?? null, title: c.title, description: c.description ?? "", order: c.order, active: c.active,
         archived: !!c.archived, previewMode: !!c.previewMode, part: c.part ?? null, sectionTestId: c.sectionTestId ? String(c.sectionTestId) : null, requireSectionTest: !!c.requireSectionTest, secureMode: !!c.secureMode, coverAssetId: c.coverAssetId ? String(c.coverAssetId) : null, prerequisiteCourseIds: (c.prerequisiteCourseIds ?? []).map(String),
         modules: modules.filter((m) => String(m.courseId) === String(c._id)).map((m) => ({ id: String(m._id), title: m.title, description: m.description ?? "", order: m.order, active: m.active })),
         units: units.filter((u) => String(u.courseId) === String(c._id)).map((u) => ({
@@ -65,6 +66,8 @@ export async function POST(req: Request) {
     await checkCourseRefs(b);
     const c = await Course.create({ ...b, levelId: b.levelId ?? undefined, categoryId: b.categoryId ?? undefined, priceIdr: b.priceIdr ?? undefined, previewVideoUrl: b.previewVideoUrl ?? undefined, targetAudience: b.targetAudience || undefined, coverAssetId: b.coverAssetId ?? undefined, part: b.part ?? undefined, sectionTestId: b.sectionTestId ?? undefined });
     await audit(admin._id, "course.create", String(c._id));
+    // Course umum otomatis punya bank soal bawaan (dinamai seperti course, di bawah mata pelajarannya).
+    if (b.track === "general") await ensureCourseBank(c, admin, (id) => Course.updateOne({ _id: c._id }, { bankId: id }));
     return NextResponse.json({ id: String(c._id) }, { status: 201 });
   } catch (e) {
     if (e instanceof z.ZodError) return NextResponse.json({ error: zodMessage(e) }, { status: 400 });

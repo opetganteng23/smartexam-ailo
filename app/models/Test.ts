@@ -25,6 +25,8 @@ const testSchema = new Schema(
     purpose: { type: String, enum: TEST_PURPOSES }, // hanya untuk kind "general"
     courseId: { type: Schema.Types.ObjectId, ref: "Course", index: true }, // tes berdiri sendiri di course (kind "general")
     categoryId: { type: Schema.Types.ObjectId, ref: "Category", index: true },
+    bankId: { type: Schema.Types.ObjectId, ref: "QuestionCollection" }, // bank soal tes umum: pilihan soal manual dibatasi ke bank ini
+    extraBankIds: [{ type: Schema.Types.ObjectId, ref: "QuestionCollection" }], // bank lain yang sengaja diizinkan admin
     pairedTestId: { type: Schema.Types.ObjectId, ref: "Test" }, // post-test menunjuk pre-test pasangannya (laporan selisih)
     // Kuis harian: jendela buka-tutup tiap hari (WIB, "HH:mm") dan batas percobaan per hari (0 = tanpa batas).
     daily: { _id: false, start: String, end: String, maxPerDay: { type: Number, min: 0, max: 50, default: 0 } },

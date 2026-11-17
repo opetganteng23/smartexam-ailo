@@ -34,7 +34,7 @@ export async function POST(req: Request) {
     const admin = await requireRole(ACADEMIC_ROLES);
     const body = testSchema.parse(await req.json());
     await connectDB();
-    await validateTestQuestions(body.sections, admin);
+    await validateTestQuestions(body.sections, admin, { kind: body.kind, bankId: body.bankId, extraBankIds: body.extraBankIds });
     await validateGeneralRefs(body);
     body.shuffleQuestions = body.shuffleQuestions && !body.shuffleWithinParts;
     const t = await Test.create(body);

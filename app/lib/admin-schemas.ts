@@ -51,6 +51,8 @@ export const testSchema = z.object({
   purpose: z.enum(["daily", "pretest", "posttest", "midterm", "final"]).nullable().optional(),
   courseId: oid.nullable().optional(),
   categoryId: oid.nullable().optional(),
+  bankId: oid.nullable().optional(),
+  extraBankIds: z.array(oid).max(10).default([]),
   pairedTestId: oid.nullable().optional(),
   daily: z.object({
     start: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, "Use HH:mm (24-hour)"),
